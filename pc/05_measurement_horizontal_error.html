@@ -694,7 +694,11 @@ function editableFields(){
 function activeInputIndex(){
   return editableFields().indexOf(activeSourceInput||document.activeElement);
 }
-function isTouchLayout(){return window.matchMedia('(max-width:1024px)').matches || (navigator.maxTouchPoints||0)>0}
+function isTouchLayout(){
+  const path=location.pathname.toLowerCase();
+  if(path.includes('/pc/')||path.includes('\\pc\\'))return false;
+  return window.matchMedia('(max-width:1024px)').matches || (navigator.maxTouchPoints||0)>0;
+}
 function isMeasurementNumericField(el){return !!el && el.matches('#measurementTable input.num,#measurementTable input.dms') && !el.disabled}
 function isNumericFocusField(el){return !!el && isTouchLayout() && isMeasurementNumericField(el)}
 function focusFieldLabel(el){
