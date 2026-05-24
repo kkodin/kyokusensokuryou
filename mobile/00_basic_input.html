@@ -496,6 +496,13 @@ showWorkMenu=function(showForm=false){
   toggleWorkMenuCollapse(false);
   document.getElementById(showForm?'baseForm':'workMenu')?.scrollIntoView({block:'start'});
 }
+if(typeof saveCurrentBase==='undefined'){
+function saveCurrentBase(download=false){
+  const p=saveDraftNow();
+  if(download)downloadJSON(p,projectFileName(p));
+  return p;
+}
+}
 const originalSaveCurrentBase=saveCurrentBase;
 saveCurrentBase=function(download=false){
   if(!validateRequired())return null;
@@ -735,6 +742,276 @@ function openPage(file){
 }
 </script>
 
+<!-- mobile comment fixes 2026-05-25 -->
+<style>
+/* mobile comment fixes 2026-05-25 */
+#workMenu .work-menu-toggle,
+.frame-title button,
+#baseForm > .card.toolbar,
+#baseForm p.note{display:none!important}
+.edge-menu-handle{background:#0f172a!important}
+.edge-menu-handle::before{content:"☰";position:absolute;top:50%;left:1px;transform:translateY(-50%) rotate(-90deg);color:#fff;font-size:14px;line-height:1}
+.edge-menu-handle::after{display:none!important}
+.work-grid button{font-size:14px;line-height:1.35;text-align:left}
+.curve .curve-delete{margin-top:10px}
+@media(max-width:900px){
+  body.base-ready main.app-layout{padding-left:18px!important;padding-right:6px!important}
+  body.base-ready .edge-menu-handle{display:block!important;width:18px!important;z-index:80!important}
+  body.base-ready:not(.work-menu-collapsed) .edge-menu-handle{display:block!important}
+  body.base-ready #workMenu{width:min(86vw,330px)!important}
+  body.base-ready:not(.work-menu-collapsed) #workMenu{left:18px!important;width:min(calc(86vw - 18px),312px)!important}
+  body.base-ready.work-menu-collapsed #workMenu{transform:translateX(-112%)}
+  body.base-ready:not(.work-menu-collapsed) .work-menu-shade{display:block}
+  #workMenu .work-menu-head{min-height:54px!important;justify-content:flex-start!important}
+  #workMenu .work-menu-head h2{font-size:18px!important}
+  #workMenu .menu-note{display:none!important}
+  #baseForm > .card:not(.toolbar){padding:12px 10px!important}
+  #baseForm .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px 10px!important}
+  #baseForm .row{grid-template-columns:minmax(0,1fr) auto!important;column-gap:6px!important;row-gap:4px!important}
+  #baseForm .row label{font-size:13px!important;font-weight:700!important;line-height:1.3!important}
+  #baseForm input,#baseForm select{min-height:42px!important;height:42px!important;font-size:18px!important;padding:6px 8px!important}
+  #baseForm input.num{font-family:Consolas,monospace!important;text-align:right!important}
+  #siteStageCard .grid{grid-template-columns:1fr 1fr!important}
+  #siteStageCard .row:nth-child(3){grid-column:1 / -1!important;grid-template-columns:minmax(0,190px)!important}
+  #siteStageCard .row:nth-child(3) button{display:none!important}
+  #soilStageCard .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #pipeStageCard .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #alignmentStageCard > h2{font-size:19px!important}
+  #alignmentStageCard > .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #alignmentStageCard .az-row{grid-column:1 / -1!important}
+  #alignmentStageCard .az-row .az-box{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;align-items:end}
+  #alignmentStageCard .az-box label{font-size:12px;color:#374151;font-weight:700}
+  #alignmentStageCard .az-box input{width:100%!important}
+  .curve{padding:12px 10px!important;margin:12px 0!important}
+  .curve h2{font-size:18px!important;margin-bottom:10px!important}
+  .curve .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px 10px!important}
+  .curve .curve-l-row{grid-column:1 / -1!important}
+  .curve .dms-start,.curve .dms-part{grid-column:auto!important}
+  .curve .dms-grid{grid-column:1 / -1!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}
+  .curve .dms-grid .row{display:block!important;margin:0!important}
+  .curve .dms-grid label{display:block!important;margin-bottom:4px!important}
+  .curve-delete.is-hidden{display:none!important}
+  .final-distance-row{grid-template-columns:1fr auto!important;margin-top:12px!important}
+  .add-curve-btn{width:100%!important;margin-top:8px!important;min-height:46px!important}
+  .wizard-actions button{font-size:16px!important;min-height:46px!important}
+}
+</style>
+<script>
+(function(){
+  const FIXED = 'mobileCommentFixesReady';
+  window.updateWorkMenuToggle = function(){
+    document.querySelectorAll('#workMenu .work-menu-toggle').forEach(btn => btn.remove());
+  };
+  window.toggleWorkMenuCollapse = function(force){
+    const collapsed = typeof force === 'boolean' ? force : !document.body.classList.contains('work-menu-collapsed');
+    document.body.classList.toggle('work-menu-collapsed', collapsed);
+    updateWorkMenuToggle();
+  };
+  function fmtLocal(v,d){return (Number.isFinite(+v)?+v:0).toFixed(d)}
+  function decorateRows(){
+    const align = document.getElementById('alignmentStageCard');
+    if(align){
+      const h = align.querySelector(':scope > h2');
+      if(h) h.textContent = '測量基準・平面線形';
+      const baseAz = document.getElementById('baseAz');
+      const row = baseAz?.closest('.row');
+      if(row && !row.classList.contains('az-row')){
+        row.classList.add('az-row');
+        row.innerHTML = '<label>基準方向角</label><div class="az-box"><label>10進法<input class="num" id="baseAz" value="'+(baseAz.value||'0.000')+'"></label><label>度<input class="num" id="baseAzDeg" value="0"></label><label>分<input class="num" id="baseAzMin" value="0"></label><label>秒<input class="num" id="baseAzSec" value="0"></label></div>';
+        const syncDms = () => {
+          const deg = Math.abs(parseFloat(document.getElementById('baseAz').value)||0);
+          const d = Math.floor(deg);
+          const mFloat = (deg - d) * 60;
+          const m = Math.floor(mFloat);
+          const s = (mFloat - m) * 60;
+          document.getElementById('baseAzDeg').value = d;
+          document.getElementById('baseAzMin').value = m;
+          document.getElementById('baseAzSec').value = s.toFixed(1);
+        };
+        const syncDecimal = () => {
+          const d = parseFloat(document.getElementById('baseAzDeg').value)||0;
+          const m = parseFloat(document.getElementById('baseAzMin').value)||0;
+          const s = parseFloat(document.getElementById('baseAzSec').value)||0;
+          document.getElementById('baseAz').value = (d + m/60 + s/3600).toFixed(6);
+          updateWorkMenuLocks?.();
+          scheduleDraftSave?.();
+        };
+        document.getElementById('baseAz').addEventListener('input', syncDms);
+        ['baseAzDeg','baseAzMin','baseAzSec'].forEach(id => document.getElementById(id).addEventListener('input', syncDecimal));
+        syncDms();
+      }
+    }
+  }
+  window.addCurve = function(c={L:30,dir:'L',R:50,deg:15,min:0,sec:0}){
+    const div = document.createElement('div');
+    div.className = 'card curve';
+    div.innerHTML = '<h2>曲線</h2><div class="grid"><div class="row curve-l-row"><label>IP間距離</label><input class="num cL" value="'+fmtLocal(c.L,3)+'"> m</div><div class="row"><label>方向</label><select class="cDir"><option value="L">左</option><option value="R">右</option></select></div><div class="row"><label>半径 R</label><input class="num cR" value="'+fmtLocal(c.R,3)+'"> m</div><div class="dms-grid"><div class="row dms-part dms-start"><label>IA 度</label><input class="num cDeg" value="'+(c.deg||0)+'"></div><div class="row dms-part"><label>分</label><input class="num cMin" value="'+(c.min||0)+'"></div><div class="row dms-part"><label>秒</label><input class="num cSec" value="'+(c.sec||0)+'"></div></div></div><button class="danger curve-delete" type="button" onclick="this.closest(\'.curve\').remove();renumberCurves();updateWorkMenuLocks?.();">削除</button>';
+    document.getElementById('curves').appendChild(div);
+    div.querySelector('.cDir').value = c.dir || 'L';
+    div.querySelectorAll('input,select').forEach(el=>{
+      el.addEventListener('input',()=>{updateWorkMenuLocks?.();scheduleDraftSave?.();});
+      el.addEventListener('change',()=>{updateWorkMenuLocks?.();scheduleDraftSave?.();});
+      el.addEventListener('focusin',()=>expandActiveSection?.(div.closest('.base-section')));
+    });
+    renumberCurves();
+  };
+  window.renderCurves = function(arr){
+    document.getElementById('curves').innerHTML = '';
+    const curves = Array.isArray(arr) && arr.length ? arr : [{L:0,dir:'L',R:0,deg:0,min:0,sec:0}];
+    curves.forEach(c=>addCurve(c));
+    renumberCurves();
+  };
+  window.renumberCurves = function(){
+    const curves = [...document.querySelectorAll('#curves .curve')];
+    curves.forEach((curve,i)=>{
+      const no = i + 1;
+      curve.querySelector('h2').textContent = '第' + no + '曲線';
+      const l = curve.querySelector('.curve-l-row label');
+      if(l) l.textContent = no === 1 ? '第1直線（BP〜IP1）' : '第' + no + '直線（IP' + (no-1) + '〜IP' + no + '）';
+      const r = curve.querySelector('.cR')?.closest('.row')?.querySelector('label');
+      if(r) r.textContent = '半径 R' + no;
+      const deg = curve.querySelector('.cDeg')?.closest('.row')?.querySelector('label');
+      if(deg) deg.textContent = 'IA' + no + ' 度';
+      curve.querySelector('.curve-delete')?.classList.toggle('is-hidden', curves.length <= 1);
+    });
+    const finalLabel = document.querySelector('.final-distance-row label');
+    if(finalLabel) finalLabel.textContent = '第' + (curves.length + 1) + '直線（IP' + curves.length + '〜EP）';
+    decorateRows();
+  };
+  function ensureOneCurve(){
+    if(!document.querySelector('#curves .curve')) renderCurves([{L:0,dir:'L',R:0,deg:0,min:0,sec:0}]);
+  }
+  function initFix(){
+    if(document.body.dataset[FIXED]) return;
+    document.body.dataset[FIXED] = '1';
+    updateWorkMenuToggle();
+    decorateRows();
+    ensureOneCurve();
+    renumberCurves();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initFix);
+  else initFix();
+})();
+</script>
+<!-- Vr0011 hamburger menu correction -->
+<style>
+/* Vr0011: hamburger menu contains only six page buttons plus load/save. */
+@media(max-width:900px){
+  body.base-ready main.app-layout{
+    padding-left:18px!important;
+    padding-right:8px!important;
+  }
+  body.base-ready .edge-menu-handle{
+    display:block!important;
+    width:18px!important;
+    z-index:90!important;
+    background:#0f172a!important;
+  }
+  body.base-ready:not(.work-menu-collapsed) .edge-menu-handle{
+    display:block!important;
+  }
+  body.base-ready #workMenu{
+    width:206px!important;
+    left:18px!important;
+    max-width:calc(100vw - 18px)!important;
+    padding:0!important;
+    border-radius:0 10px 10px 0!important;
+  }
+  body.base-ready.work-menu-collapsed #workMenu{
+    transform:translateX(calc(-100% - 20px))!important;
+  }
+  #workMenu .work-menu-head{
+    min-height:46px!important;
+    padding:8px 10px!important;
+  }
+  #workMenu .work-menu-head h2{
+    font-size:16px!important;
+    margin:0!important;
+  }
+  #workMenu .work-menu-body{
+    padding:8px!important;
+  }
+  #workMenu .menu-note,
+  #workMenu .work-menu-toggle{
+    display:none!important;
+  }
+  #workMenu .work-grid{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:7px!important;
+  }
+  #workMenu .work-grid button{
+    width:100%!important;
+    min-height:38px!important;
+    padding:7px 8px!important;
+    border-radius:7px!important;
+    font-size:13px!important;
+    line-height:1.25!important;
+    text-align:left!important;
+    white-space:normal!important;
+  }
+  #workMenu .work-grid button.menu-save,
+  #workMenu .work-grid button.menu-load{
+    background:#64748b!important;
+  }
+  #workMenu .work-grid button[disabled]{
+    background:#94a3b8!important;
+    color:#e5e7eb!important;
+    opacity:.65!important;
+    cursor:not-allowed!important;
+  }
+}
+</style>
+<script>
+(function(){
+  function baseReadyForMenu(){
+    try{
+      if(typeof baseInputComplete !== 'undefined' && baseInputComplete && typeof isBaseComplete === 'function'){
+        return !!isBaseComplete(false);
+      }
+      return localStorage.getItem('curvedJackingBaseComplete') === '1';
+    }catch(e){
+      return false;
+    }
+  }
+  function buildVr0011Menu(){
+    const body = document.querySelector('#workMenu .work-menu-body');
+    if(!body) return;
+    body.innerHTML = '<div class="work-grid vr0011-menu-grid">' +
+      '<button type="button" onclick="openWork(\'basic\')">1. 基本データ</button>' +
+      '<button type="button" data-requires-base="1" onclick="openWork(\'calc\')">2. 計算結果</button>' +
+      '<button type="button" data-requires-base="1" onclick="openWork(\'visual\')">3. グラフ</button>' +
+      '<button type="button" data-requires-base="1" onclick="openWork(\'measurement\')">4. 測量入力</button>' +
+      '<button type="button" data-requires-base="1" onclick="openWork(\'joint\')">5. 目地判定</button>' +
+      '<button type="button" data-requires-base="1" onclick="openWork(\'force\')">6. 推力計算</button>' +
+      '<button type="button" class="menu-load" onclick="chooseBaseFile()">ロード</button>' +
+      '<button type="button" class="menu-save" onclick="saveProject()">セーブ</button>' +
+    '</div>';
+    updateWorkMenuLocks();
+  }
+  window.updateWorkMenuLocks = function(){
+    const ready = baseReadyForMenu();
+    document.querySelectorAll('#workMenu [data-requires-base="1"]').forEach(btn=>{
+      btn.disabled = !ready;
+      btn.classList.toggle('locked', !ready);
+      btn.setAttribute('aria-disabled', String(!ready));
+    });
+  };
+  const previousShowWorkMenu = window.showWorkMenu;
+  window.showWorkMenu = function(showForm=false){
+    previousShowWorkMenu?.(showForm);
+    buildVr0011Menu();
+    updateWorkMenuLocks();
+  };
+  const previousSetBaseComplete = window.setBaseComplete;
+  window.setBaseComplete = function(complete){
+    previousSetBaseComplete?.(complete);
+    updateWorkMenuLocks();
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(buildVr0011Menu,0));
+  if(document.readyState !== 'loading') setTimeout(buildVr0011Menu,0);
+})();
+</script>
 </body></html>
 
 
