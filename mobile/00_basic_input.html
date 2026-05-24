@@ -4,7 +4,7 @@
 
 header .toolbar{display:none!important}
 body:not(.base-ready) #workMenu{display:none!important}
-body:not(.base-ready) #baseForm{display:none!important}
+body:not(.base-ready) #baseForm{display:block!important}
 body:not(.base-ready) #rightPane{display:none!important}
 body.base-ready #startMenu{display:none!important}
 body.base-ready main.app-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;max-width:1440px}
@@ -728,7 +728,7 @@ function showFramePage(title, file){
 function openModule(fn){
   if(!ensureBaseUnlocked())return;
   showFramePage('作業ページ',fn);
-}document.addEventListener('focusin',e=>{if(e.target.matches('input'))setTimeout(()=>e.target.select?.(),0);});init();setupSaveWizard();setupSectionMinimize();renumberCurves();enterMobileHome();</script>
+}document.addEventListener('focusin',e=>{if(e.target.matches('input'))setTimeout(()=>e.target.select?.(),0);});document.body.classList.add('base-ready','base-form-visible','work-menu-collapsed');init();setupSaveWizard();setupSectionMinimize();renumberCurves();enterMobileHome();</script>
 <script>
 function openPage(file){
   window.location.href='./'+file;
