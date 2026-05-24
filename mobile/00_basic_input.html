@@ -1012,6 +1012,249 @@ function openPage(file){
   if(document.readyState !== 'loading') setTimeout(buildVr0011Menu,0);
 })();
 </script>
+<!-- Vr0011 drawer structure fix -->
+<style>
+/* Keep the drawer as navigation only; the input form belongs in the main pane. */
+body.base-ready main.app-layout{
+  grid-template-columns:260px minmax(0,1fr)!important;
+}
+#workMenu #baseForm{
+  display:block;
+}
+@media(max-width:900px){
+  body.base-ready main.app-layout{
+    display:block!important;
+    min-height:calc(100vh - 58px)!important;
+  }
+  body.base-ready #baseForm{
+    display:block!important;
+    width:100%!important;
+  }
+  body.base-ready.work-menu-collapsed #baseForm,
+  body.base-ready:not(.work-menu-collapsed) #baseForm{
+    margin-left:0!important;
+  }
+  body.base-ready:not(.show-frame) #rightPane{
+    display:none!important;
+  }
+  body.base-ready:not(.show-frame) #baseForm{
+    visibility:visible!important;
+  }
+}
+</style>
+<script>
+(function(){
+  function fixDrawerStructure(){
+    const main = document.querySelector('main');
+    const workMenu = document.getElementById('workMenu');
+    const baseForm = document.getElementById('baseForm');
+    if(main && workMenu && baseForm && workMenu.contains(baseForm)){
+      workMenu.after(baseForm);
+    }
+    if(document.body.classList.contains('show-frame')) return;
+    document.body.classList.add('base-ready','base-form-visible');
+    document.body.classList.remove('show-frame');
+    if(baseForm) baseForm.style.removeProperty('display');
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(fixDrawerStructure,0));
+  window.addEventListener('load',()=>setTimeout(fixDrawerStructure,0));
+  const previousShowBasicPane = window.showBasicPane;
+  window.showBasicPane = function(){
+    previousShowBasicPane?.();
+    fixDrawerStructure();
+  };
+  const previousShowBaseInputStage = window.showBaseInputStage;
+  window.showBaseInputStage = function(stage){
+    previousShowBaseInputStage?.(stage);
+    fixDrawerStructure();
+  };
+  setTimeout(fixDrawerStructure,0);
+})();
+</script>
+<!-- Vr0011 section gate fix -->
+<style>
+/* Vr0011: staged accordion. */
+#baseForm .wizard-actions,
+#baseForm #saveStatus,
+#baseForm .base-complete-message{
+  display:none!important;
+}
+#baseForm > .base-section > h2{
+  cursor:pointer;
+  user-select:none;
+}
+#baseForm > .base-section.is-locked{
+  opacity:.58;
+}
+#baseForm > .base-section.is-locked > h2{
+  cursor:not-allowed;
+  color:#64748b;
+}
+#baseForm > .base-section.is-collapsed{
+  padding-top:12px!important;
+  padding-bottom:12px!important;
+}
+#baseForm > .base-section.is-collapsed > :not(h2){
+  display:none!important;
+}
+@media(max-width:900px){
+  #baseForm > .base-section{
+    transition:opacity .12s ease;
+  }
+  #baseForm > .base-section > h2{
+    margin-bottom:8px!important;
+  }
+}
+</style>
+<script>
+(function(){
+  const STAGES = ['site','soil','pipe','alignment'];
+  const STAGE_IDS = {
+    site:'siteStageCard',
+    soil:'soilStageCard',
+    pipe:'pipeStageCard',
+    alignment:'alignmentStageCard'
+  };
+  let activeStage = 'site';
+  function valueFilled(id){
+    const el = document.getElementById(id);
+    return !!String(el?.value || '').trim();
+  }
+  function section(stage){
+    return document.getElementById(STAGE_IDS[stage]);
+  }
+  function siteComplete(){
+    return ['siteName','spanName','inputDate'].every(valueFilled);
+  }
+  function soilComplete(){
+    return ['soilType','soilWeight','soilPhi','soilC','soilN','soilH'].every(valueFilled);
+  }
+  function pipeComplete(){
+    return ['pipeCategory','pipeStrength','jointType','pipeSize','pipeInner','pipeOuter','pipeT','pipeArea','pipeWeight','pipeLength','cushionT','cushionCrush','allowOpen','allowForce'].every(valueFilled);
+  }
+  function alignmentComplete(){
+    if(!['instX','instY','bsX','bsY','baseAz','finalL'].every(valueFilled)) return false;
+    const curves = [...document.querySelectorAll('#curves .curve')];
+    if(!curves.length) return false;
+    return curves.every(curve => ['.cL','.cR','.cDeg','.cMin','.cSec'].every(sel => !!String(curve.querySelector(sel)?.value || '').trim()));
+  }
+  function completed(stage){
+    if(stage === 'site') return siteComplete();
+    if(stage === 'soil') return soilComplete();
+    if(stage === 'pipe') return pipeComplete();
+    if(stage === 'alignment') return alignmentComplete();
+    return false;
+  }
+  function unlocked(stage){
+    if(stage === 'site') return true;
+    const idx = STAGES.indexOf(stage);
+    return STAGES.slice(0, idx).every(completed);
+  }
+  function firstUnlockedIncomplete(){
+    return STAGES.find(stage => unlocked(stage) && !completed(stage)) || STAGES[STAGES.length - 1];
+  }
+  function applySectionState(requested){
+    const targetStage = requested && unlocked(requested) ? requested : firstUnlockedIncomplete();
+    activeStage = targetStage || 'site';
+    STAGES.forEach(stage => {
+      const card = section(stage);
+      if(!card) return;
+      card.classList.add('base-section','wizard-card');
+      card.dataset.stage = stage;
+      const isUnlocked = unlocked(stage);
+      card.classList.toggle('is-locked', !isUnlocked);
+      card.classList.toggle('is-collapsed', stage !== activeStage);
+      const h2 = card.querySelector('h2');
+      if(h2){
+        h2.setAttribute('aria-disabled', String(!isUnlocked));
+        h2.setAttribute('tabindex', isUnlocked ? '0' : '-1');
+      }
+    });
+    if(typeof updateWorkMenuLocks === 'function') updateWorkMenuLocks();
+  }
+  function requestOpen(stage){
+    if(!unlocked(stage)){
+      applySectionState(activeStage);
+      return false;
+    }
+    applySectionState(stage);
+    return true;
+  }
+  function wireCards(){
+    const cards = [...document.querySelectorAll('#baseForm > .card:not(.toolbar)')];
+    if(cards[0]){cards[0].id = 'siteStageCard';cards[0].dataset.stage='site';}
+    if(cards[1]){cards[1].id = 'soilStageCard';cards[1].dataset.stage='soil';}
+    if(cards[2]){cards[2].id = 'pipeStageCard';cards[2].dataset.stage='pipe';}
+    if(cards[3]){cards[3].id = 'alignmentStageCard';cards[3].dataset.stage='alignment';}
+    cards.forEach(card => {
+      const stage = card.dataset.stage;
+      const h2 = card.querySelector('h2');
+      if(h2 && !h2.dataset.vr0011GateWired){
+        h2.dataset.vr0011GateWired = '1';
+        h2.addEventListener('click', ev => {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          requestOpen(stage);
+        }, true);
+        h2.addEventListener('keydown', ev => {
+          if(ev.key === 'Enter' || ev.key === ' '){
+            ev.preventDefault();
+            requestOpen(stage);
+          }
+        });
+      }
+    });
+    document.querySelectorAll('#baseForm .wizard-actions,#baseForm #saveStatus,#baseForm .base-complete-message').forEach(el => el.remove());
+  }
+  function refreshGate(){
+    wireCards();
+    const date = document.getElementById('inputDate');
+    if(date && !date.value && !date.dataset.userCleared){
+      date.value = typeof today === 'function' ? today() : new Date().toISOString().slice(0,10);
+    }
+    if(!unlocked(activeStage)) activeStage = firstUnlockedIncomplete();
+    applySectionState(activeStage);
+  }
+  window.setupSectionMinimize = function(){
+    wireCards();
+    activeStage = 'site';
+    applySectionState('site');
+  };
+  window.expandActiveSection = function(active){
+    wireCards();
+    const stage = typeof active === 'string' ? active : active?.dataset?.stage;
+    requestOpen(stage || activeStage || 'site');
+  };
+  window.showWizardStage = function(stage='site'){
+    document.body.classList.add('base-ready','base-form-visible');
+    document.body.classList.remove('show-frame','basic-wizard-active');
+    wireCards();
+    requestOpen(stage);
+    const card = section(activeStage);
+    card?.scrollIntoView({block:'start'});
+  };
+  window.showBaseInputStage = window.showWizardStage;
+  window.completeSiteStage = function(){refreshGate();};
+  window.completeSoilStage = function(){refreshGate();};
+  window.completePipeStage = function(){refreshGate();};
+  window.completeAlignmentStage = function(){
+    if(typeof isBaseComplete === 'function' && !isBaseComplete(true)) return;
+    if(typeof saveDraftNow === 'function') saveDraftNow();
+    if(typeof setBaseComplete === 'function') setBaseComplete(true);
+    refreshGate();
+  };
+  document.addEventListener('input', ev => {
+    if(ev.target?.id === 'inputDate' && !ev.target.value) ev.target.dataset.userCleared = '1';
+    if(ev.target.closest('#baseForm')) setTimeout(refreshGate,0);
+  }, true);
+  document.addEventListener('change', ev => {
+    if(ev.target.closest('#baseForm')) setTimeout(refreshGate,0);
+  }, true);
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(refreshGate,0));
+  window.addEventListener('load',()=>setTimeout(refreshGate,0));
+  if(document.readyState !== 'loading') setTimeout(refreshGate,0);
+})();
+</script>
 </body></html>
 
 
