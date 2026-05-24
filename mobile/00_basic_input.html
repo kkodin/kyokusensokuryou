@@ -1255,6 +1255,84 @@ body.base-ready main.app-layout{
   if(document.readyState !== 'loading') setTimeout(refreshGate,0);
 })();
 </script>
+<!-- Vr0011 DMS horizontal and zero-pad fix -->
+<style>
+/* Vr0011: IA degree/minute/second inputs are always horizontal. */
+.curve .dms-grid{
+  grid-column:1 / -1!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+.curve .dms-grid .row{
+  display:block!important;
+  margin:0!important;
+  min-width:0!important;
+}
+.curve .dms-grid .row label{
+  display:block!important;
+  margin-bottom:4px!important;
+  min-width:0!important;
+  text-align:left!important;
+}
+.curve .dms-grid input{
+  width:100%!important;
+  min-width:0!important;
+}
+</style>
+<script>
+(function(){
+  function pad2Value(value){
+    const n = parseInt(String(value || '0').replace(/[^0-9-]/g,''), 10);
+    if(!Number.isFinite(n)) return '00';
+    return String(Math.max(0, Math.abs(n))).padStart(2,'0');
+  }
+  function normalizeDmsLayout(curve){
+    if(!curve) return;
+    let dms = curve.querySelector('.dms-grid');
+    if(!dms){
+      const degRow = curve.querySelector('.cDeg')?.closest('.row');
+      const minRow = curve.querySelector('.cMin')?.closest('.row');
+      const secRow = curve.querySelector('.cSec')?.closest('.row');
+      if(degRow && minRow && secRow){
+        dms = document.createElement('div');
+        dms.className = 'dms-grid';
+        degRow.before(dms);
+        dms.append(degRow, minRow, secRow);
+      }
+    }
+    curve.querySelectorAll('.cMin,.cSec').forEach(input => {
+      input.value = pad2Value(input.value);
+      if(!input.dataset.vr0011DmsPad){
+        input.dataset.vr0011DmsPad = '1';
+        input.addEventListener('blur', () => { input.value = pad2Value(input.value); });
+        input.addEventListener('change', () => { input.value = pad2Value(input.value); });
+      }
+    });
+  }
+  function normalizeAllDms(){
+    document.querySelectorAll('#curves .curve').forEach(normalizeDmsLayout);
+  }
+  const previousAddCurve = window.addCurve;
+  window.addCurve = function(c={L:30,dir:'L',R:50,deg:15,min:0,sec:0}){
+    c = {...c, min:pad2Value(c.min), sec:pad2Value(c.sec)};
+    const result = previousAddCurve ? previousAddCurve(c) : undefined;
+    normalizeAllDms();
+    return result;
+  };
+  const previousRenderCurves = window.renderCurves;
+  window.renderCurves = function(arr){
+    const fixed = (Array.isArray(arr) ? arr : []).map(c => ({...c, min:pad2Value(c?.min), sec:pad2Value(c?.sec)}));
+    const result = previousRenderCurves ? previousRenderCurves(fixed) : undefined;
+    normalizeAllDms();
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(normalizeAllDms,0));
+  window.addEventListener('load',()=>setTimeout(normalizeAllDms,0));
+  if(document.readyState !== 'loading') setTimeout(normalizeAllDms,0);
+})();
+</script>
 </body></html>
 
 
