@@ -2031,5 +2031,123 @@ window.addEventListener('DOMContentLoaded',()=>{
   renderHistoryList();
 });
 </script>
+
+<!-- Vr0011 measurement numeric next-prev only -->
+<script>
+(function(){
+  function measurementNumericFields(){
+    return [...document.querySelectorAll('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec')]
+      .filter(el => !el.disabled);
+  }
+  window.measurementNumericFields = measurementNumericFields;
+
+  const previousEditableFields = window.editableFields;
+  window.editableFields = function(){
+    const active = activeSourceInput || document.activeElement;
+    if(active?.closest?.('#measurementTable')){
+      return measurementNumericFields();
+    }
+    return previousEditableFields ? previousEditableFields.apply(this, arguments) : measurementNumericFields();
+  };
+
+  window.focusRelativeInput = function(step){
+    const fields = measurementNumericFields();
+    if(!fields.length) return;
+    let idx = fields.indexOf(activeSourceInput || document.activeElement);
+    if(idx < 0) idx = step > 0 ? -1 : fields.length;
+    const next = fields[Math.max(0, Math.min(fields.length - 1, idx + step))];
+    openStationForField?.(next);
+    next.focus({preventScroll:true});
+    next.scrollIntoView({block:'center', inline:'nearest'});
+    setTimeout(() => {
+      if(typeof showNumericKeypad === 'function') showNumericKeypad(next);
+      else next.select?.();
+    }, 0);
+  };
+})();
+</script>
+
+<!-- Vr0011 keypad preserve value on focus -->
+<script>
+(function(){
+  function markClean(input){
+    if(!input) return;
+    input.dataset.keypadOriginalValue = input.value;
+    input.dataset.keypadDirty = '0';
+  }
+  function markDirty(){
+    if(activeSourceInput) activeSourceInput.dataset.keypadDirty = '1';
+  }
+  window.showNumericKeypad = function(source){
+    if(!isNumericFocusField(source)){ closeNumericKeypad(false); return; }
+    if(activeSourceInput && activeSourceInput !== source) keypadCommit();
+    activeSourceInput = source;
+    markClean(source);
+    const box = document.getElementById('numericKeypad');
+    if(!box) return;
+    const label = focusFieldLabel(source);
+    document.getElementById('keypadRowName').textContent = label.rowName || '入力';
+    document.getElementById('keypadFieldName').textContent = label.field;
+    const valueBox = document.getElementById('keypadValue');
+    valueBox.textContent = source.value;
+    valueBox.classList.add('selected');
+    keypadReplaceOnNextInput = true;
+    source.classList.add('keypad-active');
+    setTimeout(() => source.select?.(), 0);
+    box.classList.add('visible');
+    box.setAttribute('aria-hidden','false');
+  };
+  window.keypadSet = function(v){
+    if(!activeSourceInput) return;
+    markDirty();
+    activeSourceInput.value = v;
+    const valueBox = document.getElementById('keypadValue');
+    valueBox.textContent = v;
+    valueBox.classList.toggle('selected', keypadReplaceOnNextInput);
+    activeSourceInput.dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  window.keypadPress = function(ch){
+    if(!activeSourceInput) return;
+    if(activeSourceInput.classList.contains('dms') && ch === '.') return;
+    let v = keypadReplaceOnNextInput ? '' : String(activeSourceInput.value || '');
+    keypadReplaceOnNextInput = false;
+    document.getElementById('keypadValue')?.classList.remove('selected');
+    if(v === '0' && ch !== '.') v = '';
+    if(ch === '.' && v.includes('.')) return;
+    keypadSet(v + ch);
+  };
+  window.keypadBackspace = function(){
+    if(!activeSourceInput) return;
+    markDirty();
+    if(keypadReplaceOnNextInput){
+      keypadReplaceOnNextInput = false;
+      document.getElementById('keypadValue')?.classList.remove('selected');
+      keypadSet('');
+      return;
+    }
+    keypadSet(String(activeSourceInput.value || '').slice(0, -1));
+  };
+  window.keypadClear = function(){
+    if(!activeSourceInput) return;
+    markDirty();
+    keypadReplaceOnNextInput = false;
+    document.getElementById('keypadValue')?.classList.remove('selected');
+    keypadSet('');
+  };
+  window.keypadCommit = function(){
+    if(!activeSourceInput) return;
+    if(activeSourceInput.dataset.keypadDirty !== '1'){
+      activeSourceInput.value = activeSourceInput.dataset.keypadOriginalValue ?? activeSourceInput.value;
+    }else if(activeSourceInput.classList.contains('dist')){
+      activeSourceInput.value = formatDistanceValue(activeSourceInput.value);
+    }
+    const valueBox = document.getElementById('keypadValue');
+    valueBox.textContent = activeSourceInput.value;
+    valueBox.classList.remove('selected');
+    keypadReplaceOnNextInput = false;
+    activeSourceInput.dispatchEvent(new Event('change', {bubbles:true}));
+  };
+})();
+</script>
 </body>
 </html>

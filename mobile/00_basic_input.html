@@ -1333,6 +1333,419 @@ body.base-ready main.app-layout{
   if(document.readyState !== 'loading') setTimeout(normalizeAllDms,0);
 })();
 </script>
+<!-- Vr0011 all angle DMS horizontal fix -->
+<style>
+/* Vr0011: every angle degree/minute/second group stays horizontal. */
+#alignmentStageCard .az-row{
+  grid-column:1 / -1!important;
+}
+#alignmentStageCard .az-box{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#alignmentStageCard .az-box > label:first-child{
+  display:block!important;
+}
+#alignmentStageCard .az-dms-row,
+.curve .dms-grid{
+  grid-column:1 / -1!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#alignmentStageCard .az-dms-row label,
+.curve .dms-grid .row{
+  display:block!important;
+  margin:0!important;
+  min-width:0!important;
+}
+#alignmentStageCard .az-dms-row label,
+.curve .dms-grid label{
+  text-align:left!important;
+  min-width:0!important;
+}
+#alignmentStageCard .az-dms-row input,
+.curve .dms-grid input{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+</style>
+<script>
+(function(){
+  function pad2(value){
+    const n = parseInt(String(value || '0').replace(/[^0-9-]/g,''), 10);
+    if(!Number.isFinite(n)) return '00';
+    return String(Math.max(0, Math.abs(n))).padStart(2,'0');
+  }
+  function normalizeBaseAzDms(){
+    const azBox = document.querySelector('#alignmentStageCard .az-box');
+    if(!azBox) return;
+    const degLabel = document.getElementById('baseAzDeg')?.closest('label');
+    const minLabel = document.getElementById('baseAzMin')?.closest('label');
+    const secLabel = document.getElementById('baseAzSec')?.closest('label');
+    if(degLabel && minLabel && secLabel){
+      let row = azBox.querySelector('.az-dms-row');
+      if(!row){
+        row = document.createElement('div');
+        row.className = 'az-dms-row';
+        degLabel.before(row);
+      }
+      row.append(degLabel, minLabel, secLabel);
+      ['baseAzMin','baseAzSec'].forEach(id => {
+        const input = document.getElementById(id);
+        if(!input) return;
+        input.value = pad2(input.value);
+        if(!input.dataset.vr0011AnglePad){
+          input.dataset.vr0011AnglePad = '1';
+          input.addEventListener('blur',()=>{ input.value = pad2(input.value); });
+          input.addEventListener('change',()=>{ input.value = pad2(input.value); });
+        }
+      });
+    }
+  }
+  function normalizeCurveDms(){
+    document.querySelectorAll('#curves .curve').forEach(curve => {
+      let dms = curve.querySelector('.dms-grid');
+      if(!dms){
+        const degRow = curve.querySelector('.cDeg')?.closest('.row');
+        const minRow = curve.querySelector('.cMin')?.closest('.row');
+        const secRow = curve.querySelector('.cSec')?.closest('.row');
+        if(degRow && minRow && secRow){
+          dms = document.createElement('div');
+          dms.className = 'dms-grid';
+          degRow.before(dms);
+          dms.append(degRow, minRow, secRow);
+        }
+      }
+      curve.querySelectorAll('.cMin,.cSec').forEach(input => {
+        input.value = pad2(input.value);
+        if(!input.dataset.vr0011AnglePad){
+          input.dataset.vr0011AnglePad = '1';
+          input.addEventListener('blur',()=>{ input.value = pad2(input.value); });
+          input.addEventListener('change',()=>{ input.value = pad2(input.value); });
+        }
+      });
+    });
+  }
+  function normalizeAllAngleDms(){
+    normalizeBaseAzDms();
+    normalizeCurveDms();
+  }
+  const prevRenumberCurves = window.renumberCurves;
+  window.renumberCurves = function(){
+    const result = prevRenumberCurves?.();
+    normalizeAllAngleDms();
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(normalizeAllAngleDms,0));
+  window.addEventListener('load',()=>setTimeout(normalizeAllAngleDms,0));
+  document.addEventListener('input',ev=>{
+    if(ev.target?.matches?.('#baseAzMin,#baseAzSec,.cMin,.cSec')) return;
+    if(ev.target?.closest?.('#alignmentStageCard')) setTimeout(normalizeAllAngleDms,0);
+  }, true);
+  if(document.readyState !== 'loading') setTimeout(normalizeAllAngleDms,0);
+})();
+</script>
+<!-- Vr0011 baseAz DMS force horizontal fix -->
+<style>
+/* Vr0011: force base direction angle DMS labels to ignore mobile label full-row rule. */
+#alignmentStageCard .az-dms-row{
+  grid-column:1 / -1!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#alignmentStageCard .az-dms-row > label{
+  grid-column:auto!important;
+  display:block!important;
+  min-width:0!important;
+  width:auto!important;
+  text-align:left!important;
+  margin:0!important;
+}
+#alignmentStageCard .az-dms-row > label > input{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin-top:4px!important;
+}
+</style>
+<script>
+(function(){
+  function pad2(value){
+    const n = parseInt(String(value || '0').replace(/[^0-9-]/g,''), 10);
+    if(!Number.isFinite(n)) return '00';
+    return String(Math.max(0, Math.abs(n))).padStart(2,'0');
+  }
+  function forceBaseAzHorizontal(){
+    const azBox = document.querySelector('#alignmentStageCard .az-box');
+    const deg = document.getElementById('baseAzDeg')?.closest('label');
+    const min = document.getElementById('baseAzMin')?.closest('label');
+    const sec = document.getElementById('baseAzSec')?.closest('label');
+    if(!azBox || !deg || !min || !sec) return;
+    let row = azBox.querySelector('.az-dms-row');
+    if(!row){
+      row = document.createElement('div');
+      row.className = 'az-dms-row';
+      deg.before(row);
+    }
+    row.append(deg, min, sec);
+    row.style.setProperty('display','grid','important');
+    row.style.setProperty('grid-template-columns','repeat(3,minmax(0,1fr))','important');
+    row.style.setProperty('gap','8px','important');
+    [deg,min,sec].forEach(label=>{
+      label.style.setProperty('grid-column','auto','important');
+      label.style.setProperty('display','block','important');
+      label.style.setProperty('min-width','0','important');
+      label.style.setProperty('width','auto','important');
+    });
+    ['baseAzMin','baseAzSec'].forEach(id=>{
+      const input = document.getElementById(id);
+      if(input) input.value = pad2(input.value);
+    });
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(forceBaseAzHorizontal,0));
+  window.addEventListener('load',()=>setTimeout(forceBaseAzHorizontal,0));
+  document.addEventListener('input',ev=>{
+    if(ev.target?.closest?.('#alignmentStageCard')) setTimeout(forceBaseAzHorizontal,0);
+  }, true);
+  if(document.readyState !== 'loading') setTimeout(forceBaseAzHorizontal,0);
+})();
+</script>
+<!-- Vr0011 menu navigation fix -->
+<style>
+/* Vr0011: page buttons show their target page in the main pane. */
+body.show-frame #baseForm{
+  display:none!important;
+}
+body.show-frame #rightPane{
+  display:block!important;
+  visibility:visible!important;
+}
+body.show-frame #workFrame{
+  display:block!important;
+  width:100%!important;
+  min-height:calc(100vh - 96px)!important;
+  background:#fff!important;
+}
+@media(max-width:900px){
+  body.show-frame main.app-layout{
+    display:block!important;
+  }
+  body.show-frame #baseForm{
+    display:none!important;
+  }
+  body.show-frame #rightPane{
+    display:block!important;
+    margin-top:10px!important;
+  }
+  body.show-frame #workFrame{
+    height:calc(100vh - 96px)!important;
+    min-height:640px!important;
+  }
+}
+</style>
+<script>
+(function(){
+  const PAGES = {
+    calc:'01_alignment_calculation.html',
+    visual:'02_alignment_visual.html',
+    measurement:'05_measurement_horizontal_error.html',
+    joint:'03_joint_opening_check.html',
+    force:'04_jacking_force.html'
+  };
+  const TITLES = {
+    calc:'2. 計算結果',
+    visual:'3. グラフ',
+    measurement:'4. 測量入力',
+    joint:'5. 目地判定',
+    force:'6. 推力計算'
+  };
+  function filled(id){
+    return !!String(document.getElementById(id)?.value || '').trim();
+  }
+  function baseCompleteNow(){
+    const simple = ['siteName','spanName','inputDate','soilType','soilWeight','soilPhi','soilC','soilN','soilH','pipeCategory','pipeStrength','jointType','pipeSize','pipeInner','pipeOuter','pipeT','pipeArea','pipeWeight','pipeLength','cushionT','cushionCrush','allowOpen','allowForce','instX','instY','bsX','bsY','baseAz','finalL'];
+    if(!simple.every(filled)) return false;
+    const curves = [...document.querySelectorAll('#curves .curve')];
+    if(!curves.length) return false;
+    return curves.every(curve => ['.cL','.cR','.cDeg','.cMin','.cSec'].every(sel => !!String(curve.querySelector(sel)?.value || '').trim()));
+  }
+  function syncBaseComplete(){
+    const complete = baseCompleteNow();
+    try{
+      if(typeof baseInputComplete !== 'undefined') baseInputComplete = complete;
+      if(complete) localStorage.setItem('curvedJackingBaseComplete','1');
+      else localStorage.removeItem('curvedJackingBaseComplete');
+    }catch(e){}
+    return complete;
+  }
+  function ensurePane(){
+    if(typeof setAppLayout === 'function') setAppLayout();
+    let pane = document.getElementById('rightPane');
+    if(!pane){
+      pane = document.createElement('div');
+      pane.id = 'rightPane';
+      pane.innerHTML = '<div class="frame-title"><b id="rightPaneTitle">作業ページ</b></div><iframe id="workFrame" title="作業ページ"></iframe>';
+      document.querySelector('main')?.appendChild(pane);
+    }
+    if(!document.getElementById('workFrame')){
+      pane.insertAdjacentHTML('beforeend','<iframe id="workFrame" title="作業ページ"></iframe>');
+    }
+    return pane;
+  }
+  function saveBeforeMove(){
+    try{
+      if(typeof saveDraftNow === 'function') saveDraftNow();
+      else if(typeof collectBase === 'function') localStorage.setItem('curvedJackingProject', JSON.stringify(collectBase()));
+    }catch(e){}
+  }
+  function showPage(kind){
+    if(!PAGES[kind]) return;
+    if(!syncBaseComplete()){
+      alert('基本データを最後まで入力してください。');
+      if(typeof showWizardStage === 'function') showWizardStage('alignment');
+      return;
+    }
+    saveBeforeMove();
+    ensurePane();
+    document.body.classList.add('base-ready','base-form-visible','show-frame','work-menu-collapsed');
+    const title = document.getElementById('rightPaneTitle');
+    if(title) title.textContent = TITLES[kind] || '作業ページ';
+    const frame = document.getElementById('workFrame');
+    if(frame) frame.setAttribute('src', PAGES[kind]);
+    if(typeof updateWorkMenuLocks === 'function') updateWorkMenuLocks();
+    document.getElementById('rightPane')?.scrollIntoView({block:'start'});
+  }
+  const previousUpdateLocks = window.updateWorkMenuLocks;
+  window.updateWorkMenuLocks = function(){
+    const ready = syncBaseComplete();
+    document.querySelectorAll('#workMenu [data-requires-base="1"]').forEach(btn=>{
+      btn.disabled = !ready;
+      btn.classList.toggle('locked', !ready);
+      btn.setAttribute('aria-disabled', String(!ready));
+    });
+    if(!document.querySelector('#workMenu [data-requires-base="1"]')) previousUpdateLocks?.();
+  };
+  window.ensureBaseUnlocked = function(){
+    if(syncBaseComplete()) return true;
+    alert('基本データを最後まで入力してください。');
+    if(typeof showWizardStage === 'function') showWizardStage('alignment');
+    return false;
+  };
+  window.showFramePage = function(title, file){
+    const kind = Object.keys(PAGES).find(k => PAGES[k] === file);
+    if(kind) return showPage(kind);
+    ensurePane();
+    document.body.classList.add('base-ready','base-form-visible','show-frame','work-menu-collapsed');
+    const titleEl = document.getElementById('rightPaneTitle');
+    if(titleEl) titleEl.textContent = title || '作業ページ';
+    document.getElementById('workFrame')?.setAttribute('src', file);
+  };
+  window.openWork = function(kind){
+    if(kind === 'basic'){
+      document.body.classList.add('base-ready','base-form-visible','work-menu-collapsed');
+      document.body.classList.remove('show-frame');
+      if(typeof showWizardStage === 'function') showWizardStage('site');
+      if(typeof updateWorkMenuLocks === 'function') updateWorkMenuLocks();
+      return;
+    }
+    showPage(kind);
+  };
+  window.openModule = function(file){
+    const kind = Object.keys(PAGES).find(k => PAGES[k] === file);
+    if(kind) return showPage(kind);
+    window.showFramePage('作業ページ', file);
+  };
+  document.addEventListener('input', ev => {
+    if(ev.target?.closest?.('#baseForm')) setTimeout(()=>window.updateWorkMenuLocks?.(),0);
+  }, true);
+  document.addEventListener('change', ev => {
+    if(ev.target?.closest?.('#baseForm')) setTimeout(()=>window.updateWorkMenuLocks?.(),0);
+  }, true);
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.updateWorkMenuLocks?.(),0));
+  window.addEventListener('load',()=>setTimeout(()=>window.updateWorkMenuLocks?.(),0));
+  if(document.readyState !== 'loading') setTimeout(()=>window.updateWorkMenuLocks?.(),0);
+})();
+</script>
+
+<!-- Vr0011 visual opens in separate tab -->
+<script>
+(function(){
+  const visualFile = '02_alignment_visual.html';
+  function saveBeforeOpen(){
+    try{
+      if(typeof saveDraftNow === 'function') saveDraftNow();
+      else if(typeof collectBase === 'function') localStorage.setItem('curvedJackingProject', JSON.stringify(collectBase()));
+    }catch(e){}
+  }
+  function openVisualTab(){
+    if(typeof ensureBaseUnlocked === 'function' && !ensureBaseUnlocked()) return;
+    saveBeforeOpen();
+    document.body.classList.add('work-menu-collapsed','base-ready','base-form-visible');
+    document.body.classList.remove('show-frame');
+    window.open(visualFile, '_blank', 'noopener');
+  }
+  const previousOpenWork = window.openWork;
+  window.openWork = function(kind){
+    if(kind === 'visual'){
+      openVisualTab();
+      return;
+    }
+    if(previousOpenWork) return previousOpenWork.apply(this, arguments);
+  };
+  const previousOpenModule = window.openModule;
+  window.openModule = function(file){
+    if(file === visualFile || file === './' + visualFile){
+      openVisualTab();
+      return;
+    }
+    if(previousOpenModule) return previousOpenModule.apply(this, arguments);
+  };
+})();
+</script>
+
+<!-- Vr0011 measurement opens in separate tab -->
+<script>
+(function(){
+  const measurementFile = '05_measurement_horizontal_error.html';
+  function saveBeforeOpen(){
+    try{
+      if(typeof saveDraftNow === 'function') saveDraftNow();
+      else if(typeof collectBase === 'function') localStorage.setItem('curvedJackingProject', JSON.stringify(collectBase()));
+    }catch(e){}
+  }
+  function openMeasurementTab(){
+    if(typeof ensureBaseUnlocked === 'function' && !ensureBaseUnlocked()) return;
+    saveBeforeOpen();
+    document.body.classList.add('work-menu-collapsed','base-ready','base-form-visible');
+    document.body.classList.remove('show-frame');
+    window.open(measurementFile, '_blank', 'noopener');
+  }
+  const previousOpenWork = window.openWork;
+  window.openWork = function(kind){
+    if(kind === 'measurement'){
+      openMeasurementTab();
+      return;
+    }
+    if(previousOpenWork) return previousOpenWork.apply(this, arguments);
+  };
+  const previousOpenModule = window.openModule;
+  window.openModule = function(file){
+    if(file === measurementFile || file === './' + measurementFile){
+      openMeasurementTab();
+      return;
+    }
+    if(previousOpenModule) return previousOpenModule.apply(this, arguments);
+  };
+})();
+</script>
 </body></html>
 
 
