@@ -1970,7 +1970,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('measureDate').value=new Date().toISOString().slice(0,10);
   updateToleranceDisplay();
   buildRows();
-  document.addEventListener('pointerdown',e=>{
+  document.addEventListener('click',e=>{
     const target=e.target;
     if(isNumericFocusField(target)){
       e.preventDefault();
@@ -1982,8 +1982,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('focusin',e=>{
     if(e.target.matches('#measurementTable input,#tpTable input,#kpTable input,input.num,input.dms')){
       focusedBeforeValue=editableSnapshot();
-      if(isNumericFocusField(e.target))showNumericKeypad(e.target);
-      else {closeNumericKeypad(false); setTimeout(()=>e.target.select?.(),0);}
+      if(!isNumericFocusField(e.target)){closeNumericKeypad(false); setTimeout(()=>e.target.select?.(),0);}
     }
   });
   document.addEventListener('focusout',e=>{
@@ -2147,6 +2146,134 @@ window.addEventListener('DOMContentLoaded',()=>{
     keypadReplaceOnNextInput = false;
     activeSourceInput.dispatchEvent(new Event('change', {bubbles:true}));
   };
+})();
+</script>
+
+<!-- Vr0011 measurement count status and save flow -->
+<style>
+#pipeHistoryStatus{
+  display:inline-flex;
+  align-items:center;
+  margin-left:8px;
+  padding:5px 9px;
+  border-radius:7px;
+  font-weight:bold;
+  line-height:1.4;
+}
+#pipeHistoryStatus.new{
+  color:#166534;
+  background:#dcfce7;
+  border:1px solid #86efac;
+}
+#pipeHistoryStatus.warn{
+  color:#b91c1c;
+  background:#fee2e2;
+  border:2px solid #ef4444;
+}
+</style>
+<script>
+(function(){
+  function pipeKey(){
+    return String(document.getElementById('pipeCount')?.value || '').trim();
+  }
+  function findMeasurementByPipeCount(key){
+    return (measurementHistory || []).find(m => String(m.pipeCount || '').trim() === key);
+  }
+  function ensurePipeHistoryStatus(){
+    let box = document.getElementById('pipeHistoryStatus');
+    const countInput = document.getElementById('pipeCount');
+    if(!box && countInput){
+      box = document.createElement('span');
+      box.id = 'pipeHistoryStatus';
+      countInput.insertAdjacentElement('afterend', box);
+    }
+    return box;
+  }
+  window.updateMeasurementPipeStatus = function(){
+    const box = ensurePipeHistoryStatus();
+    if(!box) return;
+    const key = pipeKey();
+    box.className = '';
+    if(!key){
+      box.textContent = '';
+      return;
+    }
+    const existing = findMeasurementByPipeCount(key);
+    if(existing){
+      box.classList.add('warn');
+      box.textContent = (existing.measureDate || '日付不明') + ' に測定済みです。保存すると上書きされます。';
+    }else{
+      box.classList.add('new');
+      box.textContent = '新規';
+    }
+  };
+
+  const previousRenderHistoryList = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    if(previousRenderHistoryList) previousRenderHistoryList.apply(this, arguments);
+    updateMeasurementPipeStatus();
+  };
+
+  const previousApplyMeasurementData = window.applyMeasurementData;
+  window.applyMeasurementData = function(data){
+    if(previousApplyMeasurementData) previousApplyMeasurementData.apply(this, arguments);
+    updateMeasurementPipeStatus();
+  };
+
+  const previousNewMeasurementData = window.newMeasurementData;
+  window.newMeasurementData = function(){
+    if(previousNewMeasurementData) previousNewMeasurementData.apply(this, arguments);
+    updateMeasurementPipeStatus();
+  };
+
+  window.upsertMeasurementData = function(data, ask=true){
+    if(!validateMeasurementData(data)) return false;
+    const key = String(data.pipeCount).trim();
+    const idx = measurementHistory.findIndex(m => String(m.pipeCount || '').trim() === key);
+    if(idx >= 0 && ask){
+      const old = measurementHistory[idx];
+      const msg = key + '本目は ' + (old.measureDate || '日付不明') + ' に測定した結果が既にあります。\n\n保存すると現場データ内の ' + key + '本目の測量結果を上書きします。\n上書きしてよろしいですか？';
+      if(!confirm(msg)) return false;
+    }
+    const normalized = {...data, pipeCount:key, measureDate:String(data.measureDate || ''), updatedAt:new Date().toISOString()};
+    if(idx >= 0) measurementHistory[idx] = normalized;
+    else measurementHistory.push(normalized);
+    project.measurements = measurementHistory;
+    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
+    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
+    renderHistoryList();
+    drawAll();
+    updateMeasurementPipeStatus();
+    return true;
+  };
+
+  window.saveMeasurement = function(){
+    if(geom) calculateAll(false);
+    const data = collectMeasurementData();
+    if(!upsertMeasurementData(data, true)) return;
+    const blob = new Blob([JSON.stringify(integratedProjectData(), null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = integratedProjectFileName();
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showActionMessage('現場データ内に測量結果を保存しました。計算結果へ移ります。', 'measurementSaveMessage');
+    calculateAll(false);
+    showResultStage();
+  };
+
+  window.confirmMeasurementInput = function(){
+    alert('先に「この測量を保存」を押して、現場データ内に保存してください。保存後に計算結果へ移動します。');
+  };
+
+  document.addEventListener('input', e => {
+    if(e.target?.id === 'pipeCount') updateMeasurementPipeStatus();
+  }, true);
+  document.addEventListener('change', e => {
+    if(e.target?.id === 'pipeCount') updateMeasurementPipeStatus();
+  }, true);
+  document.addEventListener('DOMContentLoaded', () => setTimeout(updateMeasurementPipeStatus, 0));
+  if(document.readyState !== 'loading') setTimeout(updateMeasurementPipeStatus, 0);
 })();
 </script>
 </body>
