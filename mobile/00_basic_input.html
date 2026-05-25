@@ -420,7 +420,7 @@ function saveDraftNow(){
   updateWorkMenuLocks();
   return p;
 }
-function projectFileName(p){return safeName(p.site.name)+'_'+safeName(p.site.span)+'_'+(p.site.date||today())+'.json'}
+function projectFileName(p){return safeName(p.site.name)+'_'+safeName(p.site.span)+'.json'}
 function saveWithPrompt(message){
   if(!validateRequired())return null;
   const p=saveDraftNow();
@@ -1758,6 +1758,24 @@ body.show-frame #workFrame{
       if(Array.isArray(current?.measurements)) base.measurements = current.measurements;
     }catch(e){}
     return base;
+  };
+})();
+</script>
+
+<!-- Vr0011 basic save simple name and preserve measurements -->
+<script>
+(function(){
+  const previousCollectBase = window.collectBase;
+  window.collectBase = function(){
+    const base = previousCollectBase ? previousCollectBase.apply(this, arguments) : {};
+    try{
+      const current = JSON.parse(localStorage.getItem('curvedJackingProject') || 'null');
+      if(Array.isArray(current?.measurements)) base.measurements = current.measurements;
+    }catch(e){}
+    return base;
+  };
+  window.projectFileName = function(p){
+    return safeName(p?.site?.name || '現場名未設定') + '_' + safeName(p?.site?.span || 'スパン未設定') + '.json';
   };
 })();
 </script>

@@ -132,7 +132,7 @@ function startNewBase(){document.getElementById('startMenu')?.scrollIntoView({bl
 function currentBase(){return getProject()||collectBase()}
 function baseTitle(p){const site=p?.site?.name||'\u672a\u8a2d\u5b9a';const span=p?.site?.span||'\u672a\u8a2d\u5b9a';const date=p?.site?.date||'-';const saved=p?.savedAt?new Date(p.savedAt).toLocaleString():'-';return {site,span,date,saved}}
 function renderCurrentBase(){const box=document.getElementById('currentBaseInfo');if(!box)return;const p=getProject();if(!hasUsableBase(p)){box.classList.add('empty');box.innerHTML='<b>ブラウザに記憶されている基線情報はありません</b><span class="note">基線JSONを読み込むか、新規入力を始めてください。</span>';return}box.classList.remove('empty');const t=baseTitle(p);box.innerHTML=`<b>現在表示されている基線情報</b><div>現場名: ${t.site}</div><div>スパン名: ${t.span}</div><div>入力日: ${t.date}</div><div>作成日時: ${t.saved}</div>`}function showWorkMenu(showForm=false){document.body.classList.add('base-ready');document.body.classList.toggle('base-form-visible',!!showForm);document.body.classList.remove('show-frame');setAppLayout();if(showForm)document.getElementById('baseForm')?.scrollIntoView({block:'start'});else document.getElementById('workMenu')?.scrollIntoView({block:'start'})}
-function saveCurrentBase(download=false){if(!validateRequired())return null;const p=collectBase();localStorage.setItem('curvedJackingProject',JSON.stringify(p));renderCurrentBase();if(download)downloadJSON(p,`${safeName(p.site.name)}_${safeName(p.site.span)}_${p.site.date||today()}.json`);return p}
+function saveCurrentBase(download=false){if(!validateRequired())return null;const p=collectBase();localStorage.setItem('curvedJackingProject',JSON.stringify(p));renderCurrentBase();if(download)downloadJSON(p,projectFileName(p));return p}
 function validateRequired(){const required=[['siteName','\u73fe\u5834\u540d'],['spanName','\u30b9\u30d1\u30f3\u540d'],['inputDate','\u5165\u529b\u65e5']];for(const [id,label] of required){const el=document.getElementById(id);if(!String(el?.value||'').trim()){alert(label+'\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002');el?.focus();return false}}return true}function selectCurrentBase(){const p=getProject();if(p){applyBase(p);renderCurves(p.alignment?.curves||[]);showWorkMenu(false)}else{startNewBase()}}
 function chooseBaseFile(){const input=document.getElementById('file');input.dataset.next='';input.click()}
 function startNewBase(){document.body.classList.add('base-ready','base-form-visible');set('siteName','');set('spanName','');set('inputDate',today());document.getElementById('siteName')?.focus();document.getElementById('baseForm')?.scrollIntoView({block:'start'})}
@@ -235,7 +235,7 @@ function saveDraftNow(){
   showSaveStatus('ブラウザ内に自動保存済み: '+new Date().toLocaleTimeString());
   return p;
 }
-function projectFileName(p){return safeName(p.site.name)+'_'+safeName(p.site.span)+'_'+(p.site.date||today())+'.json'}
+function projectFileName(p){return safeName(p.site.name)+'_'+safeName(p.site.span)+'.json'}
 function saveWithPrompt(message){
   if(!validateRequired())return null;
   const p=saveDraftNow();
@@ -315,4 +315,22 @@ function openPage(file){
 }
 </script>
 
+
+<!-- Vr0011 basic save simple name and preserve measurements -->
+<script>
+(function(){
+  const previousCollectBase = window.collectBase;
+  window.collectBase = function(){
+    const base = previousCollectBase ? previousCollectBase.apply(this, arguments) : {};
+    try{
+      const current = JSON.parse(localStorage.getItem('curvedJackingProject') || 'null');
+      if(Array.isArray(current?.measurements)) base.measurements = current.measurements;
+    }catch(e){}
+    return base;
+  };
+  window.projectFileName = function(p){
+    return safeName(p?.site?.name || '現場名未設定') + '_' + safeName(p?.site?.span || 'スパン未設定') + '.json';
+  };
+})();
+</script>
 </body></html>

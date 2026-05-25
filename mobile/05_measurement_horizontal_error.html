@@ -2276,5 +2276,54 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(document.readyState !== 'loading') setTimeout(updateMeasurementPipeStatus, 0);
 })();
 </script>
+
+<!-- Vr0011 unified measurement save spec -->
+<script>
+(function(){
+  function currentSiteName(){
+    return project?.site?.name || project?.projectName || '現場名未設定';
+  }
+  function currentSpanName(){
+    return project?.site?.span || project?.spanName || 'スパン未設定';
+  }
+  window.integratedProjectFileName = function(){
+    return safeFileName(currentSiteName()) + '_' + safeFileName(currentSpanName()) + '.json';
+  };
+  window.upsertMeasurementData = function(data, ask=true){
+    if(!validateMeasurementData(data)) return false;
+    const key = String(data.pipeCount).trim();
+    const idx = measurementHistory.findIndex(m => String(m.pipeCount || '').trim() === key);
+    if(idx >= 0 && ask){
+      const old = measurementHistory[idx];
+      const msg = key + '本目は ' + (old.measureDate || '日付不明') + ' に測定した結果が既にあります。\n\n保存すると現場データ内の ' + key + '本目の測量結果を上書きします。\n上書きしてよろしいですか？';
+      if(!confirm(msg)) return false;
+    }
+    const normalized = {...data, pipeCount:key, measureDate:String(data.measureDate || ''), updatedAt:new Date().toISOString()};
+    if(idx >= 0) measurementHistory[idx] = normalized;
+    else measurementHistory.push(normalized);
+    project.measurements = measurementHistory;
+    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
+    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
+    if(typeof renderHistoryList === 'function') renderHistoryList();
+    if(typeof drawAll === 'function') drawAll();
+    if(typeof updateMeasurementPipeStatus === 'function') updateMeasurementPipeStatus();
+    return true;
+  };
+  window.saveMeasurement = function(){
+    if(geom && typeof calculateAll === 'function') calculateAll(false);
+    const data = collectMeasurementData();
+    if(!upsertMeasurementData(data, true)) return;
+    const blob = new Blob([JSON.stringify(integratedProjectData(), null, 2)], {type:'application/json;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = integratedProjectFileName();
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if(typeof showActionMessage === 'function') showActionMessage('現場データ内に測量結果を保存しました。計算結果へ移ります。', 'measurementSaveMessage');
+    if(typeof calculateAll === 'function') calculateAll(false);
+    if(typeof showResultStage === 'function') showResultStage();
+  };
+})();
+</script>
 </body>
 </html>
