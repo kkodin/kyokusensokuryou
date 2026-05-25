@@ -1746,6 +1746,21 @@ body.show-frame #workFrame{
   };
 })();
 </script>
+
+<!-- Vr0011 preserve measurements on base autosave -->
+<script>
+(function(){
+  const previousCollectBase = window.collectBase;
+  window.collectBase = function(){
+    const base = previousCollectBase ? previousCollectBase.apply(this, arguments) : {};
+    try{
+      const current = JSON.parse(localStorage.getItem('curvedJackingProject') || 'null');
+      if(Array.isArray(current?.measurements)) base.measurements = current.measurements;
+    }catch(e){}
+    return base;
+  };
+})();
+</script>
 </body></html>
 
 
