@@ -2080,5 +2080,67 @@ window.addEventListener('DOMContentLoaded',()=>{
   };
 })();
 </script>
+
+<!-- Vr0011 keypad speech and no double tap -->
+<style>
+#numericKeypad,
+#numericKeypad *,
+.keypad-grid,
+.keypad-grid button{
+  touch-action:manipulation!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+  -webkit-touch-callout:none!important;
+}
+</style>
+<script>
+(function(){
+  function speechText(ch){
+    const map = {
+      '0':'ゼロ',
+      '1':'いち',
+      '2':'に',
+      '3':'さん',
+      '4':'よん',
+      '5':'ご',
+      '6':'ろく',
+      '7':'なな',
+      '8':'はち',
+      '9':'きゅう',
+      '00':'ゼロゼロ',
+      '.':'小数点'
+    };
+    return map[String(ch)] || String(ch);
+  }
+  function speakKey(ch){
+    try{
+      if(!('speechSynthesis' in window)) return;
+      const text = speechText(ch);
+      if(!text) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      u.rate = 1.15;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  const previousKeypadPress = window.keypadPress;
+  window.keypadPress = function(ch){
+    speakKey(ch);
+    if(previousKeypadPress) return previousKeypadPress.apply(this, arguments);
+  };
+  function blockDoubleTapZoom(e){
+    if(e.target?.closest?.('#numericKeypad')){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+  document.addEventListener('dblclick', blockDoubleTapZoom, true);
+  document.addEventListener('gesturestart', blockDoubleTapZoom, {capture:true, passive:false});
+  document.addEventListener('gesturechange', blockDoubleTapZoom, {capture:true, passive:false});
+  document.addEventListener('gestureend', blockDoubleTapZoom, {capture:true, passive:false});
+})();
+</script>
 </body>
 </html>
