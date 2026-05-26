@@ -448,7 +448,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <h2>測定数値入力</h2>
     <div class="note">TPとKPを同じ表で入力します。TP行は青、KP行は桃色で表示します。</div>
     <div id="measurementTable"></div>
-    <div class="stage-actions"><button class="ok" type="button" onclick="confirmMeasurementInput()">入力確認へ進む</button><button class="secondary save-local" type="button" onclick="saveMeasurement()">この測量を保存</button></div><div id="measurementSaveMessage" class="inline-message" aria-live="polite"></div>
+    <div class="stage-actions"><button class="ok" type="button" onclick="confirmMeasurementInput()">入力確認へ進む</button></div><div id="measurementSaveMessage" class="inline-message" aria-live="polite"></div>
   </div>
 
   <div class="card section-card collapsed stage-hidden" id="summaryStage">
@@ -2694,5 +2694,493 @@ window.addEventListener('DOMContentLoaded',()=>{
   };
 })();
 </script>
+
+<!-- Vr0011 final new measurement select flow -->
+<style>
+#historySelectPanel select{
+  width:100%;
+  max-width:420px;
+  min-height:44px;
+  padding:8px 10px;
+  border:1px solid #b8c3d4;
+  border-radius:6px;
+  font-size:16px;
+  background:#fff;
+}
+.new-measure-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:12px;
+}
+.new-measure-warning{
+  display:none;
+  margin-top:10px;
+  padding:10px;
+  border:2px solid #ef4444;
+  border-radius:8px;
+  background:#fee2e2;
+  color:#b91c1c;
+  font-weight:700;
+}
+.new-measure-warning.visible{
+  display:block;
+}
+.new-measure-warning .warning-buttons{
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+}
+</style>
+<script>
+(function(){
+  let currentHistorySelection = '__blank__';
+  let pendingNewMeasurement = null;
+
+  function byId(id){ return document.getElementById(id); }
+  function cleanText(v){ return String(v == null ? '' : v).trim(); }
+  function pipeLabel(m){ return cleanText(m?.pipeCount) ? cleanText(m.pipeCount) + '本目' : '本数未設定'; }
+  function historyLabel(m){ return (cleanText(m?.measureDate) || '日付未設定') + ' / ' + pipeLabel(m); }
+  function existingIndexByPipe(pipe){
+    const key = cleanText(pipe);
+    if(!key) return -1;
+    return (measurementHistory || []).findIndex(m => cleanText(m.pipeCount) === key);
+  }
+  function setOpenSections(ids){
+    if(typeof setStageVisible === 'function') setStageVisible(ids);
+    else{
+      document.querySelectorAll('.section-card').forEach(card => {
+        const show = ids.includes(card.id);
+        card.classList.toggle('stage-hidden', !show);
+        card.classList.toggle('collapsed', !show);
+      });
+    }
+  }
+  function ensureHistoryDropdownFinal(){
+    const stage = byId('historyStage');
+    if(!stage) return null;
+    let panel = byId('historySelectPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'historySelectPanel';
+      panel.className = 'history-select-panel';
+      const tools = stage.querySelector('.history-tools') || stage;
+      tools.insertBefore(panel, tools.firstChild);
+    }
+    panel.innerHTML =
+      '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"></select></label>' +
+      '<div id="historySelectNote" class="note"></div>';
+    byId('measurementHistorySelect')?.addEventListener('change', onHistorySelectFinal);
+    return panel;
+  }
+  function chooseDefaultSelection(){
+    if(!(measurementHistory || []).length) return '__blank__';
+    const currentPipe = cleanText(byId('pipeCount')?.value);
+    const match = existingIndexByPipe(currentPipe);
+    if(match >= 0) return String(match);
+    return String(measurementHistory.length - 1);
+  }
+  function rebuildHistoryDropdownFinal(keepValue){
+    ensureHistoryDropdownFinal();
+    const sel = byId('measurementHistorySelect');
+    if(!sel) return;
+    const wanted = keepValue === undefined ? (currentHistorySelection || chooseDefaultSelection()) : keepValue;
+    sel.innerHTML =
+      '<option value="__blank__"></option>' +
+      (measurementHistory || []).map((m, i) => '<option value="' + i + '">' + historyLabel(m) + '</option>').join('') +
+      '<option value="__new__">新規入力</option>';
+    const values = [...sel.options].map(o => o.value);
+    sel.value = values.includes(wanted) ? wanted : chooseDefaultSelection();
+    currentHistorySelection = sel.value || '__blank__';
+    updateHistoryNote();
+  }
+  function updateHistoryNote(){
+    const note = byId('historySelectNote');
+    const sel = byId('measurementHistorySelect');
+    if(!note || !sel) return;
+    if(sel.value === '__blank__') note.textContent = '測量データを選択してください。';
+    else if(sel.value === '__new__') note.textContent = '新規入力を選ぶと、日付と本数の入力画面を開きます。';
+    else note.textContent = historyLabel(measurementHistory[Number(sel.value)]) + ' を表示中です。編集する場合はチェックを入れてください。';
+  }
+  function ensureEditToggleFinal(){
+    const table = byId('measurementTable');
+    if(!table) return null;
+    let row = byId('measurementEditToggleRow');
+    if(!row){
+      row = document.createElement('label');
+      row.id = 'measurementEditToggleRow';
+      row.className = 'edit-lock-row';
+      row.innerHTML = '<input type="checkbox" id="measurementEditToggle"> この測量データを編集する';
+      table.insertAdjacentElement('beforebegin', row);
+      byId('measurementEditToggle')?.addEventListener('change', () => setMeasurementEditableFinal(byId('measurementEditToggle').checked));
+    }
+    return row;
+  }
+  function setMeasurementEditableFinal(editable){
+    document.body.classList.toggle('measurement-locked', !editable);
+    ['measureDate','pipeCount'].forEach(id => {
+      const el = byId(id);
+      if(el) el.readOnly = !editable;
+    });
+    document.querySelectorAll('#measurementTable input,#measurementTable select,#measurementTable textarea').forEach(el => {
+      if('readOnly' in el) el.readOnly = !editable;
+      if(el.tagName === 'SELECT') el.disabled = !editable;
+    });
+    if(editable && typeof prepareTouchNumericInputs === 'function') prepareTouchNumericInputs(document);
+    if(!editable && typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+  }
+  function setEditToggleFinal(checked, disabled){
+    ensureEditToggleFinal();
+    const cb = byId('measurementEditToggle');
+    if(!cb) return;
+    cb.checked = !!checked;
+    cb.disabled = !!disabled;
+    setMeasurementEditableFinal(!!checked);
+  }
+  function clearMeasurementEntryFields(){
+    document.querySelectorAll('#measurementTable input').forEach(el => {
+      if(el.classList.contains('name')) return;
+      el.value = '';
+      if(el.dataset) el.dataset.keypadOriginalValue = '';
+    });
+    document.querySelectorAll('#measurementTable select').forEach(el => { el.selectedIndex = 0; });
+  }
+  function blankMeasurementData(date, pipe){
+    const tpN = Math.max(0, parseInt(byId('tpCount')?.value || '1', 10) || 1);
+    const kpN = Math.max(0, parseInt(byId('kpCount')?.value || '4', 10) || 4);
+    return {
+      measureDate: cleanText(date),
+      pipeCount: cleanText(pipe),
+      predictionLength: byId('predictionLength')?.value || '',
+      instX: byId('instX')?.value || '',
+      instY: byId('instY')?.value || '',
+      bsX: byId('bsX')?.value || '',
+      bsY: byId('bsY')?.value || '',
+      pipeDiaMm: byId('pipeDiaMm')?.value || '',
+      internalPct: byId('internalPct')?.value || '',
+      tolOk: byId('tolOk')?.value || '',
+      tolWarn: byId('tolWarn')?.value || '',
+      tpCount: String(tpN),
+      kpCount: String(kpN),
+      tpRows: Array.from({length: tpN}, (_, i) => ({name:'TP' + (i + 1), role:'', dist:'', deg:'', min:'', sec:'', memo:''})),
+      kpRows: Array.from({length: kpN}, (_, i) => ({name:'KP' + (i + 1), role:'', dist:'', deg:'', min:'', sec:'', memo:''}))
+    };
+  }
+  function upsertDirect(data){
+    const key = cleanText(data.pipeCount);
+    if(!key) return -1;
+    const normalized = Object.assign({}, data, {pipeCount:key, measureDate:cleanText(data.measureDate), updatedAt:new Date().toISOString()});
+    const idx = existingIndexByPipe(key);
+    if(idx >= 0) measurementHistory[idx] = normalized;
+    else measurementHistory.push(normalized);
+    project.measurements = measurementHistory;
+    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
+    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
+    if(typeof renderHistoryList === 'function') renderHistoryList();
+    else rebuildHistoryDropdownFinal(String(existingIndexByPipe(key)));
+    return existingIndexByPipe(key);
+  }
+  function showNewMeasurementStart(){
+    pendingNewMeasurement = null;
+    byId('pipeCount').value = '';
+    byId('measureDate').value = '';
+    byId('tpCount').value = byId('tpCount').value || '1';
+    byId('kpCount').value = byId('kpCount').value || '4';
+    ensureNewMeasureControls();
+    byId('newMeasureWarning')?.classList.remove('visible');
+    setOpenSections(['countStage']);
+    byId('measureDate')?.focus();
+  }
+  function ensureNewMeasureControls(){
+    const stage = byId('countStage');
+    if(!stage || byId('newMeasureDecision')) return;
+    const actions = document.createElement('div');
+    actions.id = 'newMeasureDecision';
+    actions.className = 'new-measure-actions';
+    actions.innerHTML = '<button type="button" class="ok" id="newMeasureOkButton">決定</button>';
+    stage.appendChild(actions);
+    const warning = document.createElement('div');
+    warning.id = 'newMeasureWarning';
+    warning.className = 'new-measure-warning';
+    warning.innerHTML =
+      '<div id="newMeasureWarningText"></div>' +
+      '<div class="warning-buttons">' +
+      '<button type="button" class="danger" id="newMeasureOverwriteYes">Y 上書きする</button>' +
+      '<button type="button" class="secondary" id="newMeasureOverwriteNo">N やめる</button>' +
+      '</div>';
+    stage.appendChild(warning);
+    byId('newMeasureOkButton')?.addEventListener('click', decideNewMeasurement);
+    byId('newMeasureOverwriteYes')?.addEventListener('click', () => {
+      byId('newMeasureWarning')?.classList.remove('visible');
+      confirmAndOpenNewMeasurement(true);
+    });
+    byId('newMeasureOverwriteNo')?.addEventListener('click', () => {
+      pendingNewMeasurement = null;
+      byId('newMeasureWarning')?.classList.remove('visible');
+      byId('pipeCount')?.focus();
+    });
+  }
+  function decideNewMeasurement(){
+    const date = cleanText(byId('measureDate')?.value);
+    const pipe = cleanText(byId('pipeCount')?.value);
+    if(!date){ alert('測量日を入力してください。'); byId('measureDate')?.focus(); return; }
+    if(!pipe){ alert('測定本数を入力してください。'); byId('pipeCount')?.focus(); return; }
+    pendingNewMeasurement = {measureDate:date, pipeCount:pipe};
+    const idx = existingIndexByPipe(pipe);
+    if(idx >= 0){
+      const warning = byId('newMeasureWarning');
+      byId('newMeasureWarningText').textContent = pipe + '本目はすでに測量済みです。測定済みのデータを上書きしますか';
+      warning?.classList.add('visible');
+      return;
+    }
+    confirmAndOpenNewMeasurement(false);
+  }
+  function confirmAndOpenNewMeasurement(overwrite){
+    if(!pendingNewMeasurement) return;
+    if(!confirm('これでよろしいですか')) return;
+    const date = pendingNewMeasurement.measureDate;
+    const pipe = pendingNewMeasurement.pipeCount;
+    const data = blankMeasurementData(date, pipe);
+    const idx = upsertDirect(data);
+    currentHistorySelection = String(idx);
+    rebuildHistoryDropdownFinal(String(idx));
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    else if(typeof buildRows === 'function') buildRows();
+    byId('measureDate').value = date;
+    byId('pipeCount').value = pipe;
+    clearMeasurementEntryFields();
+    setEditToggleFinal(true, true);
+    setOpenSections(['measurementInputStage']);
+    byId('newMeasureWarning')?.classList.remove('visible');
+    pendingNewMeasurement = null;
+    byId('measurementInputStage')?.scrollIntoView({block:'start'});
+  }
+  function onHistorySelectFinal(){
+    const sel = byId('measurementHistorySelect');
+    const val = sel?.value || '__blank__';
+    currentHistorySelection = val;
+    updateHistoryNote();
+    if(val === '__blank__') return;
+    if(val === '__new__'){
+      showNewMeasurementStart();
+      return;
+    }
+    const data = measurementHistory[Number(val)];
+    if(!data) return;
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    if(typeof calculateAll === 'function') calculateAll(false);
+    setEditToggleFinal(false, false);
+    if(typeof showResultStage === 'function') showResultStage();
+  }
+  const previousRenderHistoryListFinal = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    if(previousRenderHistoryListFinal) previousRenderHistoryListFinal.apply(this, arguments);
+    const nextSelection = (currentHistorySelection === '__blank__' && (measurementHistory || []).length) ? chooseDefaultSelection() : currentHistorySelection;
+    rebuildHistoryDropdownFinal(nextSelection);
+  };
+  const previousConfirmMeasurementInputFinal = window.confirmMeasurementInput;
+  window.confirmMeasurementInput = function(){
+    const data = typeof collectMeasurementData === 'function' ? collectMeasurementData() : null;
+    if(data) upsertDirect(data);
+    rebuildHistoryDropdownFinal(String(existingIndexByPipe(data?.pipeCount)));
+    if(typeof calculateAll === 'function') calculateAll(true);
+    if(typeof showResultStage === 'function') showResultStage();
+    else if(previousConfirmMeasurementInputFinal) previousConfirmMeasurementInputFinal.apply(this, arguments);
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureHistoryDropdownFinal();
+    ensureEditToggleFinal();
+    ensureNewMeasureControls();
+    rebuildHistoryDropdownFinal(chooseDefaultSelection());
+    const sel = byId('measurementHistorySelect');
+    if(sel && sel.value !== '__blank__' && sel.value !== '__new__') onHistorySelectFinal();
+  });
+  if(document.readyState !== 'loading'){
+    ensureHistoryDropdownFinal();
+    ensureEditToggleFinal();
+    ensureNewMeasureControls();
+    rebuildHistoryDropdownFinal(chooseDefaultSelection());
+    const sel = byId('measurementHistorySelect');
+    if(sel && sel.value !== '__blank__' && sel.value !== '__new__') onHistorySelectFinal();
+  }
+})();
+</script>
+
+
+<!-- Vr0011 autosave keypad finish flow -->
+<style>
+.stage-actions .save-local{
+  display:none!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function measurementNumericFieldsFinal(){
+    return [...document.querySelectorAll('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec')]
+      .filter(el => !el.disabled && el.offsetParent !== null);
+  }
+  function autosaveCurrentMeasurement(){
+    try{
+      if(typeof collectMeasurementData !== 'function' || typeof upsertMeasurementData !== 'function') return;
+      const data = collectMeasurementData();
+      if(!String(data.measureDate || '').trim() || !String(data.pipeCount || '').trim()) return;
+      upsertMeasurementData(data, false);
+    }catch(e){
+      console.warn('measurement autosave skipped', e);
+    }
+  }
+  function commitCurrentKeypadValue(){
+    if(typeof keypadCommit === 'function') keypadCommit();
+    autosaveCurrentMeasurement();
+  }
+  window.focusRelativeInput = function(step){
+    const fields = measurementNumericFieldsFinal();
+    if(!fields.length) return;
+    let idx = fields.indexOf(activeSourceInput || document.activeElement);
+    if(idx < 0) idx = step > 0 ? -1 : fields.length;
+    const nextIndex = idx + step;
+    if(nextIndex >= fields.length){
+      commitCurrentKeypadValue();
+      if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+      const stage = byId('measurementInputStage');
+      stage?.scrollIntoView({block:'start', behavior:'smooth'});
+      const confirmButton = stage?.querySelector('button[onclick*="confirmMeasurementInput"]');
+      confirmButton?.focus?.({preventScroll:true});
+      return;
+    }
+    if(nextIndex < 0){
+      commitCurrentKeypadValue();
+      const first = fields[0];
+      first.focus({preventScroll:true});
+      if(typeof showNumericKeypad === 'function') showNumericKeypad(first);
+      return;
+    }
+    commitCurrentKeypadValue();
+    const next = fields[nextIndex];
+    if(typeof openStationForField === 'function') openStationForField(next);
+    next.focus({preventScroll:true});
+    next.scrollIntoView({block:'center', inline:'nearest'});
+    setTimeout(() => {
+      if(typeof showNumericKeypad === 'function') showNumericKeypad(next);
+      else next.select?.();
+    }, 0);
+  };
+  const previousCloseNumericKeypad = window.closeNumericKeypad;
+  window.closeNumericKeypad = function(){
+    if(activeSourceInput && typeof keypadCommit === 'function') keypadCommit();
+    autosaveCurrentMeasurement();
+    if(previousCloseNumericKeypad) return previousCloseNumericKeypad.apply(this, arguments);
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.save-local').forEach(btn => btn.remove());
+  });
+  if(document.readyState !== 'loading'){
+    document.querySelectorAll('.save-local').forEach(btn => btn.remove());
+  }
+})();
+</script>
+
+
+<!-- Vr0011 keypad next field speech -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function measurementNumericFieldsFinal(){
+    return [...document.querySelectorAll('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec')]
+      .filter(el => !el.disabled && el.offsetParent !== null);
+  }
+  function pointNameForField(el){
+    const row = el?.closest?.('tr');
+    if(row){
+      const hiddenName = row.querySelector('.name')?.value;
+      const cellName = row.querySelector('.name-cell')?.textContent?.trim();
+      if(hiddenName) return hiddenName;
+      if(cellName) return cellName;
+      const kind = row.dataset.kind || '';
+      const siblings = [...row.parentElement?.querySelectorAll('tr[data-kind="' + kind + '"]') || []];
+      const index = siblings.indexOf(row);
+      if(kind && index >= 0) return kind + (index + 1);
+    }
+    const card = el?.closest?.('.station-card');
+    if(card){
+      const shown = card.querySelector('.station-name-display')?.textContent?.trim();
+      const input = card.querySelector('.name')?.value;
+      if(input) return input;
+      if(shown) return shown;
+      const kind = card.dataset.kind || '';
+      const index = Number(card.dataset.index || 0);
+      if(kind) return kind + (index + 1);
+    }
+    return '';
+  }
+  function fieldNameForInput(el){
+    if(el?.classList?.contains('dist')) return '距離';
+    if(el?.classList?.contains('deg')) return '度';
+    if(el?.classList?.contains('min')) return '分';
+    if(el?.classList?.contains('sec')) return '秒';
+    return '';
+  }
+  function speakNextField(el){
+    const text = [pointNameForField(el), fieldNameForInput(el)].filter(Boolean).join(' ');
+    if(!text) return;
+    try{
+      if(!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function autosaveCurrentMeasurement(){
+    try{
+      if(typeof collectMeasurementData !== 'function' || typeof upsertMeasurementData !== 'function') return;
+      const data = collectMeasurementData();
+      if(!String(data.measureDate || '').trim() || !String(data.pipeCount || '').trim()) return;
+      upsertMeasurementData(data, false);
+    }catch(e){}
+  }
+  function commitCurrentKeypadValue(){
+    if(typeof keypadCommit === 'function') keypadCommit();
+    autosaveCurrentMeasurement();
+  }
+  window.focusRelativeInput = function(step){
+    const fields = measurementNumericFieldsFinal();
+    if(!fields.length) return;
+    let idx = fields.indexOf(activeSourceInput || document.activeElement);
+    if(idx < 0) idx = step > 0 ? -1 : fields.length;
+    const nextIndex = idx + step;
+    if(nextIndex >= fields.length){
+      commitCurrentKeypadValue();
+      if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+      const stage = byId('measurementInputStage');
+      stage?.scrollIntoView({block:'start', behavior:'smooth'});
+      const confirmButton = stage?.querySelector('button[onclick*="confirmMeasurementInput"]');
+      confirmButton?.focus?.({preventScroll:true});
+      return;
+    }
+    if(nextIndex < 0){
+      commitCurrentKeypadValue();
+      const first = fields[0];
+      first.focus({preventScroll:true});
+      if(typeof showNumericKeypad === 'function') showNumericKeypad(first);
+      speakNextField(first);
+      return;
+    }
+    commitCurrentKeypadValue();
+    const next = fields[nextIndex];
+    if(typeof openStationForField === 'function') openStationForField(next);
+    next.focus({preventScroll:true});
+    next.scrollIntoView({block:'center', inline:'nearest'});
+    setTimeout(() => {
+      if(typeof showNumericKeypad === 'function') showNumericKeypad(next);
+      else next.select?.();
+      speakNextField(next);
+    }, 0);
+  };
+})();
+</script>
+
 </body>
 </html>
