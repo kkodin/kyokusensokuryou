@@ -506,7 +506,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <button type="button" class="command" onclick="keypadClear()">クリア</button>
     <button type="button" class="command" onclick="keypadBackspace()">⌫</button>
     <button type="button" class="ok" onclick="closeNumericKeypad()">閉じる</button>
-    <button type="button" class="command" onclick="keypadCommit()">確定</button>
+    <button type="button" class="command" onclick="keypadUndoValue()">元に戻す</button>
   </div>
 </div>
 <div id="csvPasteModal" class="modal no-print" style="display:none">
@@ -2140,6 +2140,313 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('gesturestart', blockDoubleTapZoom, {capture:true, passive:false});
   document.addEventListener('gesturechange', blockDoubleTapZoom, {capture:true, passive:false});
   document.addEventListener('gestureend', blockDoubleTapZoom, {capture:true, passive:false});
+})();
+</script>
+
+<!-- Vr0011 measurement dropdown history and keypad undo -->
+<style>
+#historyStage .history-actions,
+#historyList{
+  display:none!important;
+}
+.history-select-panel{
+  display:grid;
+  gap:8px;
+  margin:8px 0 12px;
+}
+.history-select-panel select{
+  width:min(100%,520px);
+  min-height:42px;
+  font-size:16px;
+  padding:7px 10px;
+}
+.edit-lock-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:8px 0 10px;
+  font-weight:bold;
+}
+.measurement-locked #measurementTable input,
+.measurement-locked #measurementTable select,
+.measurement-locked #measureDate,
+.measurement-locked #pipeCount{
+  background:#e5e7eb!important;
+  color:#334155!important;
+  border-color:#cbd5e1!important;
+}
+.overwrite-warning{
+  display:none;
+  margin:8px 0;
+  padding:10px;
+  border:2px solid #ef4444;
+  border-radius:8px;
+  background:#fee2e2;
+  color:#b91c1c;
+  font-weight:bold;
+}
+.overwrite-warning.visible{
+  display:block;
+}
+.overwrite-warning button{
+  margin:8px 6px 0 0;
+}
+</style>
+<script>
+(function(){
+  let selectedHistoryMode = 'new';
+  let overwriteApprovedPipe = '';
+
+  function byId(id){ return document.getElementById(id); }
+  function historyOptionLabel(m, i){
+    return (m.measureDate || '日付不明') + ' / ' + (m.pipeCount || '?') + '本目';
+  }
+  function ensureHistoryDropdown(){
+    const historyStage = byId('historyStage');
+    if(!historyStage) return null;
+    let panel = byId('historySelectPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'historySelectPanel';
+      panel.className = 'history-select-panel';
+      panel.innerHTML =
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"></select></label>' +
+        '<div id="historySelectNote" class="note"></div>';
+      const tools = historyStage.querySelector('.history-tools');
+      tools?.insertBefore(panel, tools.firstChild);
+      byId('measurementHistorySelect')?.addEventListener('change', measurementHistorySelectionChanged);
+    }
+    return panel;
+  }
+  function ensureEditToggle(){
+    const stage = byId('measurementInputStage');
+    const table = byId('measurementTable');
+    if(!stage || !table) return;
+    if(byId('measurementEditToggle')) return;
+    const row = document.createElement('label');
+    row.className = 'edit-lock-row';
+    row.innerHTML = '<input type="checkbox" id="measurementEditToggle"> この測量データを編集する';
+    table.insertAdjacentElement('beforebegin', row);
+    byId('measurementEditToggle')?.addEventListener('change', () => setMeasurementEditable(byId('measurementEditToggle').checked));
+  }
+  function ensureOverwriteWarning(){
+    const count = byId('pipeCount');
+    if(!count || byId('overwritePipeWarning')) return;
+    const box = document.createElement('div');
+    box.id = 'overwritePipeWarning';
+    box.className = 'overwrite-warning';
+    box.innerHTML =
+      '<div id="overwritePipeWarningText"></div>' +
+      '<button type="button" class="danger" id="overwritePipeYes">Y 上書きする</button>' +
+      '<button type="button" class="secondary" id="overwritePipeNo">N やめる</button>';
+    count.closest('.row')?.insertAdjacentElement('afterend', box);
+    byId('overwritePipeYes')?.addEventListener('click', () => {
+      overwriteApprovedPipe = String(byId('pipeCount')?.value || '').trim();
+      box.classList.remove('visible');
+    });
+    byId('overwritePipeNo')?.addEventListener('click', () => {
+      overwriteApprovedPipe = '';
+      byId('pipeCount').value = '';
+      box.classList.remove('visible');
+      byId('pipeCount')?.focus();
+      updateSideInfo?.();
+      updateMeasurementPipeStatus?.();
+    });
+  }
+  function rebuildHistoryDropdown(){
+    ensureHistoryDropdown();
+    const sel = byId('measurementHistorySelect');
+    if(!sel) return;
+    const current = sel.value || '__new__';
+    sel.innerHTML = '<option value="__new__">新規入力</option>' + (measurementHistory || []).map((m, i) =>
+      '<option value="' + i + '">' + historyOptionLabel(m, i) + '</option>'
+    ).join('');
+    const values = [...sel.options].map(o => o.value);
+    sel.value = values.includes(current) ? current : '__new__';
+  }
+  function setMeasurementEditable(editable){
+    const locked = !editable;
+    document.body.classList.toggle('measurement-locked', locked);
+    const ids = ['measureDate','pipeCount'];
+    ids.forEach(id => {
+      const el = byId(id);
+      if(el) el.readOnly = locked;
+    });
+    document.querySelectorAll('#measurementTable input,#measurementTable select,#measurementTable textarea').forEach(el => {
+      if('readOnly' in el) el.readOnly = locked;
+      if(el.tagName === 'SELECT') el.disabled = locked;
+    });
+    if(editable) prepareTouchNumericInputs?.(document);
+    closeNumericKeypad?.(false);
+  }
+  function setEditToggle(checked, disabled=false){
+    ensureEditToggle();
+    const cb = byId('measurementEditToggle');
+    if(!cb) return;
+    cb.checked = checked;
+    cb.disabled = disabled;
+    setMeasurementEditable(checked);
+  }
+  function measurementHistorySelectionChanged(){
+    const sel = byId('measurementHistorySelect');
+    const val = sel?.value || '__new__';
+    selectedHistoryMode = val === '__new__' ? 'new' : 'saved';
+    overwriteApprovedPipe = '';
+    byId('overwritePipeWarning')?.classList.remove('visible');
+    if(val === '__new__'){
+      newMeasurementData?.();
+      setEditToggle(true, true);
+      byId('historySelectNote').textContent = '新規入力です。測定日と本数を入力してください。';
+      return;
+    }
+    const data = measurementHistory[Number(val)];
+    if(!data) return;
+    applyMeasurementData(data);
+    calculateAll?.(false);
+    setEditToggle(false, false);
+    byId('historySelectNote').textContent = historyOptionLabel(data, Number(val)) + ' を表示中です。編集する場合はチェックを入れてください。';
+    showResultStage?.();
+  }
+  function checkOverwriteWarning(){
+    ensureOverwriteWarning();
+    if(selectedHistoryMode !== 'new') return true;
+    const key = String(byId('pipeCount')?.value || '').trim();
+    const box = byId('overwritePipeWarning');
+    if(!key || !box){ box?.classList.remove('visible'); return true; }
+    const existing = (measurementHistory || []).find(m => String(m.pipeCount || '').trim() === key);
+    if(!existing){ box.classList.remove('visible'); overwriteApprovedPipe = ''; return true; }
+    if(overwriteApprovedPipe === key){ box.classList.remove('visible'); return true; }
+    byId('overwritePipeWarningText').textContent = key + '本目はすでに測量済みです。測定済みのデータを上書きしますか';
+    box.classList.add('visible');
+    return false;
+  }
+
+  const previousRenderHistoryList = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    if(previousRenderHistoryList) previousRenderHistoryList.apply(this, arguments);
+    rebuildHistoryDropdown();
+  };
+  const previousSaveMeasurement = window.saveMeasurement;
+  window.saveMeasurement = function(){
+    if(selectedHistoryMode === 'new' && !checkOverwriteWarning()) return;
+    if(previousSaveMeasurement) return previousSaveMeasurement.apply(this, arguments);
+  };
+  const previousUpsert = window.upsertMeasurementData;
+  window.upsertMeasurementData = function(data, ask=true){
+    const key = String(data?.pipeCount || '').trim();
+    const oldConfirm = window.confirm;
+    if(selectedHistoryMode === 'new' && overwriteApprovedPipe === key){
+      window.confirm = function(){ return true; };
+    }
+    try{
+      return previousUpsert ? previousUpsert.apply(this, arguments) : false;
+    }finally{
+      window.confirm = oldConfirm;
+      overwriteApprovedPipe = '';
+    }
+  };
+
+  function replaceConfirmButton(){
+    const buttons = [...document.querySelectorAll('#numericKeypad .keypad-grid button')];
+    const btn = buttons.find(b => b.getAttribute('onclick') === 'keypadCommit()' || b.textContent.trim() === '確定');
+    if(btn){
+      btn.textContent = '元に戻す';
+      btn.classList.add('command');
+      btn.classList.remove('ok');
+      btn.setAttribute('onclick', 'keypadUndoValue()');
+    }
+  }
+  window.keypadUndoValue = function(){
+    if(activeSourceInput && activeSourceInput.dataset.keypadOriginalValue !== undefined){
+      activeSourceInput.value = activeSourceInput.dataset.keypadOriginalValue;
+      activeSourceInput.dataset.keypadDirty = '0';
+      const valueBox = byId('keypadValue');
+      if(valueBox) valueBox.textContent = activeSourceInput.value;
+      activeSourceInput.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+  };
+
+  const previousSpeechText = window.speechText;
+  window.speechText = function(ch){
+    if(String(ch) === '.') return 'てん';
+    return previousSpeechText ? previousSpeechText(ch) : String(ch);
+  };
+  const previousKeypadPress = window.keypadPress;
+  window.keypadPress = function(ch){
+    try{
+      if('speechSynthesis' in window){
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(ch) === '.' ? 'てん' : (window.speechText ? window.speechText(ch) : String(ch)));
+        u.lang = 'ja-JP';
+        u.rate = 1.15;
+        window.speechSynthesis.speak(u);
+      }
+    }catch(e){}
+    if(previousKeypadPress) return previousKeypadPress.apply(this, arguments);
+  };
+
+  document.addEventListener('input', e => {
+    if(e.target?.id === 'pipeCount') checkOverwriteWarning();
+  }, true);
+  document.addEventListener('change', e => {
+    if(e.target?.id === 'pipeCount') checkOverwriteWarning();
+  }, true);
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureHistoryDropdown();
+    ensureEditToggle();
+    ensureOverwriteWarning();
+    replaceConfirmButton();
+    rebuildHistoryDropdown();
+    setTimeout(() => {
+      if((measurementHistory || []).length) {
+        const sel = byId('measurementHistorySelect');
+        if(sel && sel.value === '__new__') byId('historySelectNote').textContent = '保存済みデータ、または新規入力を選択してください。';
+      }
+    }, 0);
+  });
+  if(document.readyState !== 'loading'){
+    ensureHistoryDropdown();
+    ensureEditToggle();
+    ensureOverwriteWarning();
+    replaceConfirmButton();
+    rebuildHistoryDropdown();
+  }
+})();
+</script>
+
+<!-- Vr0011 final keypad press and locked guard -->
+<script>
+(function(){
+  function speakPressedKey(ch){
+    try{
+      if(!('speechSynthesis' in window)) return;
+      const map = {'0':'ゼロ','1':'いち','2':'に','3':'さん','4':'よん','5':'ご','6':'ろく','7':'なな','8':'はち','9':'きゅう','00':'ゼロゼロ','.':'てん'};
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(map[String(ch)] || String(ch));
+      u.lang = 'ja-JP';
+      u.rate = 1.15;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  const previousIsMeasurementNumericField = window.isMeasurementNumericField;
+  window.isMeasurementNumericField = function(el){
+    if(document.body.classList.contains('measurement-locked')) return false;
+    return previousIsMeasurementNumericField ? previousIsMeasurementNumericField(el) : (!!el && el.matches('#measurementTable input.num,#measurementTable input.dms') && !el.disabled);
+  };
+  window.isNumericFocusField = function(el){
+    return !!el && isTouchLayout() && isMeasurementNumericField(el);
+  };
+  window.keypadPress = function(ch){
+    if(!activeSourceInput) return;
+    if(activeSourceInput.classList.contains('dms') && ch === '.') return;
+    speakPressedKey(ch);
+    let v = keypadReplaceOnNextInput ? '' : String(activeSourceInput.value || '');
+    keypadReplaceOnNextInput = false;
+    document.getElementById('keypadValue')?.classList.remove('selected');
+    if(v === '0' && ch !== '.') v = '';
+    if(ch === '.' && v.includes('.')) return;
+    keypadSet(v + ch);
+  };
 })();
 </script>
 </body>
