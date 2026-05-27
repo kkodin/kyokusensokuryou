@@ -2260,5 +2260,205 @@ body{
   }
 })();
 </script>
+<!-- Vr012 keypad compact and save certainty patch -->
+<style>
+#numericKeypad.vr012-compact-keypad,
+.numeric-keypad.vr012-compact-keypad{
+  position:fixed!important;
+  left:50%!important;
+  top:50%!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(calc(var(--vr012-vvw, 100vw) - 16px), 430px)!important;
+  max-width:calc(var(--vr012-vvw, 100vw) - 16px)!important;
+  height:auto!important;
+  max-height:calc(var(--vr012-vvh, 100vh) - 16px)!important;
+  margin:0!important;
+  padding:6px!important;
+  box-sizing:border-box!important;
+  overflow:auto!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:12px!important;
+  background:#fff!important;
+  z-index:20000!important;
+}
+#numericKeypad.vr012-compact-keypad.visible,
+.numeric-keypad.vr012-compact-keypad.visible{
+  display:block!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-display{
+  display:grid!important;
+  grid-template-columns:82px minmax(0,1fr)!important;
+  gap:4px!important;
+  margin:0 0 6px!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-label{
+  padding:6px 4px!important;
+  min-height:54px!important;
+  border-radius:8px!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-label b{
+  font-size:clamp(22px,6vw,32px)!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-label small{
+  font-size:clamp(15px,4vw,22px)!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-value{
+  min-height:54px!important;
+  height:54px!important;
+  padding:4px 8px!important;
+  font-size:clamp(32px,9vw,46px)!important;
+  line-height:1.05!important;
+  border-radius:8px!important;
+  overflow:hidden!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:clamp(46px,8.4dvh,62px)!important;
+  gap:5px!important;
+  height:auto!important;
+  min-height:0!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-grid button{
+  min-height:0!important;
+  height:auto!important;
+  padding:2px!important;
+  border-radius:8px!important;
+  font-size:clamp(22px,6.2vw,34px)!important;
+  line-height:1!important;
+}
+#numericKeypad.vr012-compact-keypad .keypad-grid button.command{
+  font-size:clamp(16px,4.8vw,24px)!important;
+  white-space:nowrap!important;
+}
+@media (max-height:620px){
+  #numericKeypad.vr012-compact-keypad .keypad-display{
+    grid-template-columns:74px minmax(0,1fr)!important;
+  }
+  #numericKeypad.vr012-compact-keypad .keypad-label,
+  #numericKeypad.vr012-compact-keypad .keypad-value{
+    min-height:44px!important;
+    height:44px!important;
+  }
+  #numericKeypad.vr012-compact-keypad .keypad-grid{
+    grid-auto-rows:40px!important;
+  }
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function updateViewportVars(){
+    const vv = window.visualViewport;
+    const w = Math.max(240, Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 360));
+    const h = Math.max(320, Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 640));
+    document.documentElement.style.setProperty('--vr012-vvw', w + 'px');
+    document.documentElement.style.setProperty('--vr012-vvh', h + 'px');
+  }
+  function compactKeypad(){
+    updateViewportVars();
+    const box = byId('numericKeypad');
+    if(!box) return;
+    box.classList.remove('vr012-keypad-fit');
+    box.classList.add('vr012-compact-keypad');
+  }
+  const previousShowNumericKeypad = window.showNumericKeypad;
+  window.showNumericKeypad = function(source){
+    const result = previousShowNumericKeypad ? previousShowNumericKeypad.apply(this, arguments) : undefined;
+    compactKeypad();
+    setTimeout(compactKeypad, 0);
+    setTimeout(compactKeypad, 180);
+    return result;
+  };
+  window.visualViewport?.addEventListener('resize', compactKeypad);
+  window.visualViewport?.addEventListener('scroll', compactKeypad);
+  window.addEventListener('resize', compactKeypad);
+  document.addEventListener('DOMContentLoaded', compactKeypad);
+  if(document.readyState !== 'loading') compactKeypad();
+
+  function cleanKey(v){ return String(v ?? '').trim(); }
+  function sortedMeasurements(){
+    return (measurementHistory || []).slice().sort((a,b)=>(+a.pipeCount||0)-(+b.pipeCount||0)||String(a.measureDate||'').localeCompare(String(b.measureDate||'')));
+  }
+  function ensureMeasurementInProject(data){
+    const key = cleanKey(data?.pipeCount);
+    if(!key) return false;
+    const idx = (measurementHistory || []).findIndex(m => cleanKey(m.pipeCount) === key);
+    const normalized = {...data, pipeCount:key, measureDate:String(data.measureDate || ''), updatedAt:new Date().toISOString()};
+    if(idx >= 0) measurementHistory[idx] = normalized;
+    else measurementHistory.push(normalized);
+    project = project || {};
+    project.measurements = sortedMeasurements();
+    project.updatedAt = new Date().toISOString();
+    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
+    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
+    localStorage.setItem('vr012LastSavedPipeCount', key);
+    if(typeof renderHistoryList === 'function') renderHistoryList();
+    return true;
+  }
+  function saveFile(projectData, fileName){
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'measurement.json';
+    a.rel = 'noopener';
+    a.style.position = 'fixed';
+    a.style.left = '-9999px';
+    document.body.appendChild(a);
+    let box = byId('vr012DownloadFallback');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'vr012DownloadFallback';
+      box.className = 'vr012-download-fallback no-print';
+      box.innerHTML = '<div><b>保存ファイルを作成しました</b><br><span>保存画面が出ない場合は下のボタンを押してください。</span></div><a id="vr012DownloadLink" href="#" download="measurement.json">保存する</a><button type="button" id="vr012DownloadClose">閉じる</button>';
+      document.body.appendChild(box);
+      byId('vr012DownloadClose')?.addEventListener('click', () => box.classList.remove('visible'));
+    }
+    const link = byId('vr012DownloadLink');
+    if(link){
+      link.href = url;
+      link.download = a.download;
+    }
+    box.classList.add('visible');
+    try{ a.click(); }catch(e){}
+    setTimeout(() => a.remove(), 1500);
+  }
+  window.saveMeasurement = function(){
+    try{
+      if(typeof keypadCommit === 'function') keypadCommit();
+      if(typeof calculateAll === 'function' && window.geom) calculateAll(false);
+      if(typeof collectMeasurementData !== 'function') throw new Error('collectMeasurementData missing');
+      const data = collectMeasurementData();
+      if(typeof validateMeasurementData === 'function' && !validateMeasurementData(data)) return;
+      const key = cleanKey(data.pipeCount);
+      const idx = (measurementHistory || []).findIndex(m => cleanKey(m.pipeCount) === key);
+      if(idx >= 0){
+        const old = measurementHistory[idx];
+        const msg = key + '本目は ' + (old.measureDate || '日付不明') + ' の測量結果が保存済みです。\n\n上書きして保存しますか？';
+        if(!confirm(msg)) return;
+      }
+      if(!ensureMeasurementInProject(data)) return;
+      let out = typeof integratedProjectData === 'function' ? integratedProjectData() : {...project};
+      out = out && typeof out === 'object' ? out : {};
+      out.measurements = sortedMeasurements();
+      if(!out.geometry && typeof geom !== 'undefined' && geom) out.geometry = geom;
+      if(!out.site && project?.site) out.site = project.site;
+      out.updatedAt = new Date().toISOString();
+      const contains = out.measurements.some(m => cleanKey(m.pipeCount) === key);
+      if(!contains) throw new Error('saved data did not include pipeCount ' + key);
+      const fileName = typeof integratedProjectFileName === 'function' ? integratedProjectFileName() : 'measurement.json';
+      localStorage.setItem('vr012LastSavedProjectJson', JSON.stringify(out));
+      saveFile(out, fileName);
+      if(typeof showActionMessage === 'function') showActionMessage(key + '本目を現場データに保存しました。保存画面が出ない場合は下の「保存する」を押してください。', 'measurementSaveMessage');
+    }catch(e){
+      console.error(e);
+      alert('保存できませんでした。入力内容を確認してください。');
+    }
+  };
+})();
+</script>
 </body>
 </html>
