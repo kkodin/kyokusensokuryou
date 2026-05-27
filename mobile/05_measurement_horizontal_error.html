@@ -2839,7 +2839,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   function clearMeasurementEntryFields(){
     document.querySelectorAll('#measurementTable input').forEach(el => {
-      if(el.classList.contains('name')) return;
+      if(el.classList.contains('name') || el.classList.contains('role')) return;
       el.value = '';
       if(el.dataset) el.dataset.keypadOriginalValue = '';
     });
@@ -3422,7 +3422,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     byId('vr012Ok').onclick = acceptNewMeasurement;
   }
   function blankRows(kind, count){
-    return Array.from({length: count}, (_, i) => ({name:kind + (i + 1), role:'', dist:'', deg:'', min:'', sec:'', memo:''}));
+    const faces = ['1F','1R','2F','2R'];
+    return Array.from({length: count}, (_, i) => ({name:kind + (i + 1), role:kind === 'KP' ? (faces[i] || '') : '', dist:'', deg:'', min:'', sec:'', memo:''}));
   }
   function blankMeasurementData(){
     const tpN = Math.max(0, parseInt(byId('tpCount')?.value || '1', 10) || 1);
@@ -3603,6 +3604,88 @@ window.addEventListener('DOMContentLoaded',()=>{
     rebuildHistorySelect(defaultSelection());
     setTimeout(() => setOpen(['historyStage']), 0);
   }
+})();
+</script>
+
+
+<!-- Vr012 measurement face input fixes -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  const defaultFaces = ['1F','1R','2F','2R'];
+  function applyMeasurementFaceBehavior(root=document){
+    root.querySelectorAll('#measurementTable input.role,#measurementTable input.name').forEach(el => {
+      el.readOnly = false;
+      el.disabled = false;
+      el.setAttribute('inputmode','text');
+      el.setAttribute('autocomplete','off');
+      el.style.imeMode = 'active';
+    });
+    document.querySelectorAll('#measurementTable th').forEach(th => {
+      if(th.textContent.trim() === '測点名') th.textContent = '測定面';
+    });
+  }
+  function restoreDefaultFaces(){
+    document.querySelectorAll('#measurementTable tr.kp-row input.role').forEach((el, i) => {
+      if(!String(el.value || '').trim() && defaultFaces[i]) el.value = defaultFaces[i];
+    });
+  }
+  function autosaveMeasurementFace(){
+    try{
+      if(typeof collectMeasurementData !== 'function' || typeof upsertMeasurementData !== 'function') return;
+      const data = collectMeasurementData();
+      if(!String(data.measureDate || '').trim() || !String(data.pipeCount || '').trim()) return;
+      upsertMeasurementData(data, false);
+    }catch(e){}
+  }
+  function refreshFaceInputs(){
+    applyMeasurementFaceBehavior(document);
+    restoreDefaultFaces();
+  }
+  const previousBuildRows = window.buildRows;
+  window.buildRows = function(){
+    const result = previousBuildRows ? previousBuildRows.apply(this, arguments) : undefined;
+    refreshFaceInputs();
+    return result;
+  };
+  const previousApplyMeasurementData = window.applyMeasurementData;
+  window.applyMeasurementData = function(data){
+    const result = previousApplyMeasurementData ? previousApplyMeasurementData.apply(this, arguments) : undefined;
+    refreshFaceInputs();
+    return result;
+  };
+  const previousFocusFieldLabel = window.focusFieldLabel;
+  window.focusFieldLabel = function(el){
+    const label = previousFocusFieldLabel ? previousFocusFieldLabel(el) : {rowName:'', field:''};
+    if(el?.classList?.contains('role')) label.field = '測定面';
+    return label;
+  };
+  document.addEventListener('focusin', e => {
+    if(e.target?.matches?.('#measurementTable input.role,#measurementTable input.name')){
+      if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+      e.target.readOnly = false;
+      e.target.select?.();
+    }
+  }, true);
+  document.addEventListener('input', e => {
+    if(e.target?.matches?.('#measurementTable input.role,#measurementTable input.name')){
+      autosaveMeasurementFace();
+    }
+  }, true);
+  document.addEventListener('change', e => {
+    if(e.target?.matches?.('#measurementTable input.role,#measurementTable input.name')){
+      autosaveMeasurementFace();
+      e.target.closest('tr,.station-card')?.scrollIntoView({block:'center', inline:'nearest'});
+    }
+  }, true);
+  document.addEventListener('blur', e => {
+    if(e.target?.matches?.('#measurementTable input.role,#measurementTable input.name')){
+      autosaveMeasurementFace();
+      setTimeout(() => e.target.closest('tr,.station-card')?.scrollIntoView({block:'center', inline:'nearest'}), 0);
+    }
+  }, true);
+  document.addEventListener('DOMContentLoaded', refreshFaceInputs);
+  if(document.readyState !== 'loading') refreshFaceInputs();
 })();
 </script>
 
