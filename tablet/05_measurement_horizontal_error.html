@@ -327,6 +327,62 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   }
 }
 
+
+/* Vr012 summary coordinate display */
+.coord-note{
+  margin-top:6px;
+  display:grid;
+  gap:2px;
+  font-size:12px;
+  line-height:1.25;
+  color:#475569;
+}
+.coord-note div{
+  white-space:nowrap;
+}
+@media (max-width:700px){
+  .coord-note{
+    font-size:11px;
+    line-height:1.2;
+  }
+}
+
+
+/* Vr012 measurement menu rail patch */
+@media (max-width:900px){
+  .menu-toggle{
+    display:flex!important;
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    bottom:0!important;
+    width:28px!important;
+    height:100dvh!important;
+    min-height:100vh!important;
+    z-index:1200!important;
+    align-items:center!important;
+    justify-content:center!important;
+    border:0!important;
+    border-radius:0!important;
+    background:#0f172a!important;
+    color:#fff!important;
+    font-size:22px!important;
+    box-shadow:2px 0 8px rgba(15,23,42,.22)!important;
+    touch-action:manipulation!important;
+  }
+  .menu-toggle::after{
+    content:'';
+    position:absolute;
+    inset:0 -8px 0 0;
+  }
+  body{
+    padding-left:28px;
+  }
+  .layout{
+    padding-left:0!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -349,16 +405,14 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     </div>
     <div class="side-actions">
       <div class="side-group"><div class="side-group-title">データを開く</div>
-        <button type="button" onclick="document.getElementById('projectFile').click()">基線ファイルを開く</button>
-        <button class="secondary" type="button" onclick="loadProjectFromStorage()">この端末の基線を使う</button>
-        <button class="secondary" type="button" onclick="document.getElementById('measurementFile').click()">測量データを開く</button>
-        <button class="secondary" type="button" onclick="loadMeasurementFromStorage()">この端末の測量を使う</button>
+        <button class="secondary" type="button" onclick="openSection('historyStage')">測量データを開く</button>
+        <button class="ok" type="button" onclick="saveMeasurement()">測量結果を保存</button>
       </div>
       <div class="side-group"><div class="side-group-title">Excel連携</div>
         <button class="secondary" type="button" id="excelCopyBtn" onclick="openExcelBox('copy')">Excelへ貼る表を作る</button>
         <button class="secondary" type="button" onclick="openExcelBox('paste')">Excelから貼り付けて読込</button>
       </div>
-      <div class="side-group"><div class="side-group-title">計算・保存</div>
+      <div class="side-group"><div class="side-group-title">計算</div>
         <button class="ok" type="button" onclick="calculateAll(true);showActionMessage('測量結果を計算しました。')">測量結果を計算</button>
         <button class="secondary" type="button" onclick="saveMeasurement()">現場データを保存</button>
       </div>
@@ -1117,10 +1171,10 @@ function calculateAll(showAlert=true){
 function renderSummary(){
   const box=document.getElementById('summaryCards');
   if(!results.length){box.innerHTML='<p class="note">KPがありません。</p>';return}
-  let cards=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(r.short||((r.side||'')+' '+fmt(r.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div></div>`).join('');
+  let cards=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(r.short||((r.side||'')+' '+fmt(r.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div><div class="note coord-note"><div>測定 X=${fmt(r.x,3)} / Y=${fmt(r.y,3)}</div><div>計画 X=${fmt(r.foot?.x,3)} / Y=${fmt(r.foot?.y,3)}</div></div></div>`).join('');
   const pj=window.latestPredictionJudge;
   if(pj){
-    cards += `<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(pj.short||((pj.side||'')+' '+fmt(pj.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note">X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div></div>`;
+    cards += `<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(pj.short||((pj.side||'')+' '+fmt(pj.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note coord-note"><div>予測 X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div><div>計画 X=${fmt(pj.foot?.x,3)} / Y=${fmt(pj.foot?.y,3)}</div></div></div>`;
   }
   box.innerHTML=cards;
 }
