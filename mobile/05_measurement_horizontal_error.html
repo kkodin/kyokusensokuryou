@@ -3689,5 +3689,76 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+
+<!-- Vr012 keypad touch responsiveness -->
+<style>
+#measurementTable input.dist,
+#measurementTable input.deg,
+#measurementTable input.min,
+#measurementTable input.sec{
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:rgba(37,99,235,.18);
+  cursor:pointer;
+}
+#numericKeypad button{
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent;
+}
+</style>
+<script>
+(function(){
+  let lastKeypadOpenAt = 0;
+  function isNumericMeasureInput(el){
+    return !!el && el.matches && el.matches('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec') && !el.disabled;
+  }
+  function canOpenKeypad(el){
+    if(!isNumericMeasureInput(el)) return false;
+    if(document.body.classList.contains('measurement-locked')) return false;
+    return true;
+  }
+  function openKeypadImmediately(el){
+    if(!canOpenKeypad(el)) return false;
+    const now = Date.now();
+    if(now - lastKeypadOpenAt < 80) return true;
+    lastKeypadOpenAt = now;
+    if(activeSourceInput && activeSourceInput !== el && typeof keypadCommit === 'function') keypadCommit();
+    el.readOnly = true;
+    el.setAttribute('inputmode','none');
+    el.focus({preventScroll:true});
+    if(typeof openStationForField === 'function') openStationForField(el);
+    if(typeof showNumericKeypad === 'function') showNumericKeypad(el);
+    return true;
+  }
+  ['pointerdown','touchstart','mousedown'].forEach(type => {
+    document.addEventListener(type, e => {
+      const el = e.target;
+      if(!isNumericMeasureInput(el)) return;
+      if(document.body.classList.contains('measurement-locked')) return;
+      if(openKeypadImmediately(el)){
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  });
+  document.addEventListener('click', e => {
+    const el = e.target;
+    if(!isNumericMeasureInput(el)) return;
+    if(openKeypadImmediately(el)){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+  const previousPrepareTouchNumericInputs = window.prepareTouchNumericInputs;
+  window.prepareTouchNumericInputs = function(root=document){
+    if(previousPrepareTouchNumericInputs) previousPrepareTouchNumericInputs(root);
+    root.querySelectorAll('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec').forEach(el => {
+      el.readOnly = true;
+      el.setAttribute('inputmode','none');
+      el.setAttribute('autocomplete','off');
+    });
+  };
+})();
+</script>
+
 </body>
 </html>
