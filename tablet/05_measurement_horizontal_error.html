@@ -4274,5 +4274,551 @@ body{
   };
 })();
 </script>
+<!-- Vr012 mobile/tablet image keypad and simple save patch -->
+<style>
+#numericKeypad.vr012-image-keypad{
+  position:fixed!important;
+  z-index:30000!important;
+  box-sizing:border-box!important;
+  width:216px!important;
+  max-width:calc(100dvw - 10px)!important;
+  height:auto!important;
+  max-height:calc(100dvh - 10px)!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:1px solid #111827!important;
+  border-radius:0!important;
+  background:#111827!important;
+  box-shadow:0 12px 32px rgba(0,0,0,.28)!important;
+  font-family:Arial,"Yu Gothic",Meiryo,sans-serif!important;
+  touch-action:none!important;
+}
+#numericKeypad.vr012-image-keypad:not(.vr012-tablet-float){
+  left:50%!important;
+  top:50%!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+}
+#numericKeypad.vr012-image-keypad.vr012-tablet-float{
+  left:calc(100dvw - 236px)!important;
+  top:72px!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:none!important;
+  cursor:move!important;
+}
+#numericKeypad.vr012-image-keypad.visible{display:block!important}
+#numericKeypad.vr012-image-keypad .keypad-display{
+  display:grid!important;
+  grid-template-columns:72px 72px 72px!important;
+  grid-template-rows:44px 24px!important;
+  gap:0!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:#111827!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-label{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-right:1px solid #111827!important;
+  border-bottom:1px solid #111827!important;
+  border-radius:0!important;
+  background:#fff!important;
+  color:#111827!important;
+  font-weight:400!important;
+  line-height:1.05!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-label b{
+  display:block!important;
+  margin:0!important;
+  color:#111827!important;
+  font-size:14px!important;
+  font-weight:400!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-label span{
+  display:none!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-value{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:0!important;
+  height:auto!important;
+  padding:0 4px!important;
+  border:0!important;
+  border-right:1px solid #111827!important;
+  border-bottom:1px solid #111827!important;
+  border-radius:0!important;
+  background:#c6eef7!important;
+  color:#111827!important;
+  font-family:Arial,"Yu Gothic",Meiryo,sans-serif!important;
+  font-size:14px!important;
+  font-weight:400!important;
+  line-height:1.05!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+}
+#numericKeypad.vr012-image-keypad #vr012PointName{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex-direction:column!important;
+  grid-column:3!important;
+  grid-row:1!important;
+  border-bottom:1px solid #111827!important;
+  background:#fff!important;
+  color:#111827!important;
+  font-size:14px!important;
+  line-height:1.25!important;
+}
+#numericKeypad.vr012-image-keypad .vr012-angle{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  height:24px!important;
+  border-bottom:1px solid #111827!important;
+  background:#c6eef7!important;
+  color:#111827!important;
+  font-size:14px!important;
+  line-height:1!important;
+}
+#numericKeypad.vr012-image-keypad .vr012-angle:not(:last-child){
+  border-right:1px solid #111827!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,72px)!important;
+  grid-auto-rows:46px!important;
+  gap:0!important;
+  margin:0!important;
+  padding:0!important;
+  height:auto!important;
+  min-height:0!important;
+  background:#111827!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:72px!important;
+  height:46px!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-right:1px solid #111827!important;
+  border-bottom:1px solid #111827!important;
+  border-radius:0!important;
+  background:#daf3cf!important;
+  color:#111827!important;
+  font-family:Arial,"Yu Gothic",Meiryo,sans-serif!important;
+  font-size:16px!important;
+  font-weight:400!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  touch-action:manipulation!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button:nth-child(3n){
+  border-right:0!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button.vr012-orange{
+  background:#f4ae86!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button.vr012-green{
+  background:#daf3cf!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button.vr012-command{
+  font-size:14px!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button:active{
+  filter:brightness(.92)!important;
+}
+.vr012-save-fallback{
+  position:fixed;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  z-index:30010;
+  display:none;
+  width:min(420px,calc(100dvw - 20px));
+  box-sizing:border-box;
+  padding:12px;
+  border:1px solid #94a3b8;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(15,23,42,.24);
+  color:#0f172a;
+  font-size:14px;
+}
+.vr012-save-fallback.visible{display:block}
+.vr012-save-fallback .vr012-save-name{
+  margin-top:6px;
+  padding:6px;
+  border-radius:6px;
+  background:#f1f5f9;
+  font-family:Consolas,monospace;
+  overflow-wrap:anywhere;
+}
+.vr012-save-fallback a,
+.vr012-save-fallback button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  margin-top:8px;
+  margin-right:6px;
+  padding:6px 12px;
+  border:0;
+  border-radius:6px;
+  background:#2563eb;
+  color:#fff;
+  font-weight:700;
+  text-decoration:none;
+}
+.vr012-save-fallback button{background:#64748b}
+</style>
+<script>
+(function(){
+  const mode = 'tablet';
+  const isTablet = true;
+  let savingFromKeypadClose = false;
+  let keypadCloseConfirmed = false;
+  let lastObjectUrl = null;
+  let dragState = null;
+  const nativeSpeak = window.speechSynthesis?.speak?.bind(window.speechSynthesis);
+  if(nativeSpeak && !window.speechSynthesis.vr012NumberOnly){
+    window.speechSynthesis.speak = function(utterance){
+      const text = String(utterance?.text || '').trim();
+      if(/^\d$/.test(text)) nativeSpeak(utterance);
+    };
+    window.speechSynthesis.vr012NumberOnly = true;
+  }
+
+  function byId(id){ return document.getElementById(id); }
+  function isNumericInput(el){ return !!el && el.matches?.('input.dist,input.deg,input.min,input.sec'); }
+  function clean(v){ return String(v ?? '').trim(); }
+  function fmtValue(v){
+    const raw = clean(v);
+    if(!raw) return '0';
+    return raw.length > 8 ? raw.slice(0, 8) : raw;
+  }
+  function labelFor(el){
+    if(!el) return { row:'入力', point:'測点名', field:'', value:'0' };
+    const row = el.closest('tr');
+    const cells = row ? [...row.children] : [];
+    const name = clean(row?.querySelector('.point-name')?.value || cells[0]?.textContent || el.dataset?.rowName || 'TP1');
+    const role = clean(row?.querySelector('.point-role')?.value || row?.querySelector('select')?.selectedOptions?.[0]?.textContent || el.dataset?.pointRole || '');
+    let field = '数値';
+    if(el.classList.contains('dist')) field = '距離';
+    if(el.classList.contains('deg')) field = '度';
+    if(el.classList.contains('min')) field = '分';
+    if(el.classList.contains('sec')) field = '秒';
+    return { row:name, point:role || '測点名', field, value:fmtValue(el.value) };
+  }
+  function ensureExtraHeader(){
+    const display = byId('numericKeypad')?.querySelector('.keypad-display');
+    if(!display) return;
+    if(!byId('vr012PointName')){
+      const point = document.createElement('div');
+      point.id = 'vr012PointName';
+      point.innerHTML = '<span>測点名</span><b>1 R</b>';
+      display.appendChild(point);
+    }
+    ['vr012Deg','vr012Min','vr012Sec'].forEach((id, index) => {
+      if(byId(id)) return;
+      const cell = document.createElement('div');
+      cell.id = id;
+      cell.className = 'vr012-angle';
+      cell.textContent = index === 0 ? '35°' : "05'";
+      display.appendChild(cell);
+    });
+  }
+  function angleValue(selector, fallback, suffix){
+    const row = activeSourceInput?.closest?.('tr');
+    const input = row?.querySelector?.(selector);
+    const v = clean(input?.value);
+    return (v || fallback) + suffix;
+  }
+  function updateKeypadFace(source){
+    ensureExtraHeader();
+    const box = byId('numericKeypad');
+    if(!box) return;
+    box.classList.remove('vr012-keypad-fit','vr012-compact-keypad');
+    box.classList.add('vr012-image-keypad');
+    box.classList.toggle('vr012-tablet-float', isTablet);
+    const label = labelFor(source || activeSourceInput);
+    const rowName = byId('keypadRowName');
+    const fieldName = byId('keypadFieldName');
+    const value = byId('keypadValue');
+    const point = byId('vr012PointName');
+    if(rowName) rowName.textContent = label.row;
+    if(fieldName) fieldName.textContent = label.field;
+    if(value) value.textContent = label.value + (label.field === '距離' ? 'm' : '');
+    if(point){
+      point.innerHTML = '<span>測点名</span><b></b>';
+      point.querySelector('b').textContent = label.point;
+    }
+    const deg = byId('vr012Deg');
+    const min = byId('vr012Min');
+    const sec = byId('vr012Sec');
+    if(deg) deg.textContent = angleValue('input.deg', '35', '°');
+    if(min) min.textContent = angleValue('input.min', '05', "'");
+    if(sec) sec.textContent = angleValue('input.sec', '05', '"');
+  }
+  function rebuildButtons(){
+    const grid = byId('numericKeypad')?.querySelector('.keypad-grid');
+    if(!grid || grid.dataset.vr012ImageButtons === '1') return;
+    const buttons = [
+      ['1','keypadPress("1")','vr012-green'], ['2','keypadPress("2")','vr012-orange'], ['3','keypadPress("3")','vr012-green'],
+      ['4','keypadPress("4")','vr012-orange'], ['5','keypadPress("5")','vr012-green'], ['6','keypadPress("6")','vr012-orange'],
+      ['7','keypadPress("7")','vr012-green'], ['8','keypadPress("8")','vr012-orange'], ['9','keypadPress("9")','vr012-green'],
+      ['BS','keypadBackspace()','vr012-orange vr012-command'], ['0','keypadPress("0")','vr012-green'], ['クリア','keypadClear()','vr012-orange vr012-command'],
+      ['元に戻す','keypadUndoValue()','vr012-green vr012-command'], ['上','focusRelativeInput(-1)','vr012-orange vr012-command'], ['閉じる','closeNumericKeypad()','vr012-green vr012-command'],
+      ['前へ','focusRelativeInput(-1)','vr012-orange vr012-command'], ['下','focusRelativeInput(1)','vr012-green vr012-command'], ['次へ','focusRelativeInput(1)','vr012-orange vr012-command'],
+    ];
+    grid.innerHTML = '';
+    for(const [text, action, cls] of buttons){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = cls;
+      btn.setAttribute('onclick', action);
+      btn.textContent = text;
+      grid.appendChild(btn);
+    }
+    grid.dataset.vr012ImageButtons = '1';
+  }
+  function speakNumber(ch){
+    if(!/^\d$/.test(String(ch))) return;
+    try{
+      if(!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(String(ch));
+      u.lang = 'ja-JP';
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  window.speechText = function(ch){ return /^\d$/.test(String(ch)) ? String(ch) : ''; };
+  window.speakNextField = function(){};
+  window.speakField = function(){};
+
+  const previousShowNumericKeypad = window.showNumericKeypad;
+  window.showNumericKeypad = function(source){
+    const result = previousShowNumericKeypad ? previousShowNumericKeypad.apply(this, arguments) : undefined;
+    rebuildButtons();
+    updateKeypadFace(source);
+    setTimeout(() => updateKeypadFace(source), 0);
+    return result;
+  };
+
+  const previousKeypadSet = window.keypadSet;
+  window.keypadSet = function(v){
+    const result = previousKeypadSet ? previousKeypadSet.apply(this, arguments) : undefined;
+    updateKeypadFace(activeSourceInput);
+    return result;
+  };
+
+  window.keypadPress = function(ch){
+    if(!activeSourceInput) return;
+    speakNumber(ch);
+    let v = keypadReplaceOnNextInput ? '' : String(activeSourceInput.value || '');
+    keypadReplaceOnNextInput = false;
+    byId('keypadValue')?.classList.remove('selected');
+    if(String(ch) === '.' && v.includes('.')) return;
+    if(String(ch) === '-' && v) return;
+    keypadSet(v + ch);
+    activeSourceInput.dataset.keypadDirty = '1';
+    updateKeypadFace(activeSourceInput);
+  };
+
+  const previousKeypadBackspace = window.keypadBackspace;
+  window.keypadBackspace = function(){
+    const result = previousKeypadBackspace ? previousKeypadBackspace.apply(this, arguments) : undefined;
+    updateKeypadFace(activeSourceInput);
+    return result;
+  };
+
+  const previousKeypadClear = window.keypadClear;
+  window.keypadClear = function(){
+    const result = previousKeypadClear ? previousKeypadClear.apply(this, arguments) : undefined;
+    updateKeypadFace(activeSourceInput);
+    return result;
+  };
+
+  const previousFocusRelativeInput = window.focusRelativeInput;
+  window.focusRelativeInput = function(step){
+    if(typeof keypadCommit === 'function') keypadCommit();
+    const fields = [...document.querySelectorAll('input.dist,input.deg,input.min,input.sec')].filter(el => !el.disabled && el.offsetParent !== null);
+    const current = fields.indexOf(activeSourceInput || document.activeElement);
+    const next = fields[Math.max(0, Math.min(fields.length - 1, (current < 0 ? 0 : current) + Number(step || 0)))];
+    if(next){
+      next.focus();
+      next.select?.();
+      showNumericKeypad(next);
+      return;
+    }
+    if(previousFocusRelativeInput) previousFocusRelativeInput.apply(this, arguments);
+  };
+
+  function currentProjectData(){
+    let data = typeof integratedProjectData === 'function' ? integratedProjectData() : {...(project || {})};
+    data = data && typeof data === 'object' ? data : {};
+    if(Array.isArray(measurementHistory)) data.measurements = measurementHistory.slice();
+    if(!data.geometry && geom) data.geometry = geom;
+    data.updatedAt = new Date().toISOString();
+    return data;
+  }
+  function fileName(){
+    return typeof integratedProjectFileName === 'function' ? integratedProjectFileName() : 'measurement.json';
+  }
+  function showSaveGuide(name, url, picked){
+    let box = byId('vr012SimpleSaveGuide');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'vr012SimpleSaveGuide';
+      box.className = 'vr012-save-fallback no-print';
+      box.innerHTML = '<div><b>保存しました</b></div><div id="vr012SavePlace"></div><div id="vr012SaveName" class="vr012-save-name"></div><a id="vr012SaveLink" href="#" download="measurement.json">もう一度保存</a><button type="button" id="vr012SaveClose">閉じる</button>';
+      document.body.appendChild(box);
+      byId('vr012SaveClose')?.addEventListener('click', () => box.classList.remove('visible'));
+    }
+    byId('vr012SavePlace').textContent = picked ? '指定した場所に保存しました。' : 'ブラウザのダウンロード先に保存しました。通常は「ダウンロード」フォルダです。';
+    byId('vr012SaveName').textContent = name;
+    const link = byId('vr012SaveLink');
+    if(link && url){
+      link.href = url;
+      link.download = name;
+    }
+    box.classList.add('visible');
+    if(typeof showActionMessage === 'function'){
+      showActionMessage((picked ? '指定した場所' : 'ダウンロード先') + 'に保存しました：' + name, 'measurementSaveMessage');
+    }
+  }
+  async function saveJsonSimple(data, name){
+    const text = JSON.stringify(data, null, 2);
+    if(window.showSaveFilePicker){
+      try{
+        const handle = await window.showSaveFilePicker({
+          suggestedName:name,
+          types:[{description:'JSON', accept:{'application/json':['.json']}}],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([text], {type:'application/json;charset=utf-8'}));
+        await writable.close();
+        showSaveGuide(name, null, true);
+        return true;
+      }catch(e){
+        if(e && e.name === 'AbortError') return false;
+      }
+    }
+    if(lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
+    lastObjectUrl = URL.createObjectURL(new Blob([text], {type:'application/json;charset=utf-8'}));
+    const a = document.createElement('a');
+    a.href = lastObjectUrl;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showSaveGuide(name, lastObjectUrl, false);
+    return true;
+  }
+  window.saveMeasurement = async function(){
+    try{
+      if(typeof keypadCommit === 'function') keypadCommit();
+      if(typeof calculateAll === 'function' && geom) calculateAll(false);
+      if(typeof collectMeasurementData !== 'function') throw new Error('collectMeasurementData missing');
+      const data = collectMeasurementData();
+      if(typeof validateMeasurementData === 'function' && !validateMeasurementData(data)) return false;
+      const key = clean(data.pipeCount);
+      const idx = (measurementHistory || []).findIndex(m => clean(m.pipeCount) === key);
+      if(idx >= 0 && !savingFromKeypadClose){
+        const old = measurementHistory[idx];
+        if(!confirm(key + '本目は ' + (old.measureDate || '日付不明') + ' の測量結果が保存済みです。\n\n上書きして保存しますか？')) return false;
+      }
+      if(typeof ensureMeasurementInProject === 'function') ensureMeasurementInProject(data);
+      else if(typeof persistMeasurement === 'function') persistMeasurement(data, false);
+      else{
+        measurementHistory = measurementHistory || [];
+        if(idx >= 0) measurementHistory[idx] = data;
+        else measurementHistory.push(data);
+        project.measurements = measurementHistory;
+      }
+      const out = currentProjectData();
+      localStorage.setItem('vr012LastSavedProjectJson', JSON.stringify(out));
+      localStorage.setItem('curvedJackingProject', JSON.stringify(out));
+      return await saveJsonSimple(out, fileName());
+    }catch(e){
+      console.error(e);
+      alert('保存できませんでした。入力内容を確認してください。');
+      return false;
+    }
+  };
+
+  const previousCloseNumericKeypad = window.closeNumericKeypad;
+  window.closeNumericKeypad = function(){
+    if(activeSourceInput && !keypadCloseConfirmed){
+      if(confirm('テンキーを閉じる前に、この測量データを保存しますか？')){
+        keypadCloseConfirmed = true;
+        savingFromKeypadClose = true;
+        Promise.resolve(window.saveMeasurement()).finally(() => {
+          savingFromKeypadClose = false;
+          if(previousCloseNumericKeypad) previousCloseNumericKeypad(false);
+          keypadCloseConfirmed = false;
+        });
+        return;
+      }
+    }
+    if(previousCloseNumericKeypad) previousCloseNumericKeypad.apply(this, arguments);
+  };
+
+  function startDrag(e){
+    if(!isTablet) return;
+    const box = byId('numericKeypad');
+    if(!box?.classList.contains('visible')) return;
+    if(e.target?.closest?.('.keypad-grid button')) return;
+    const p = e.touches?.[0] || e;
+    const rect = box.getBoundingClientRect();
+    dragState = { dx:p.clientX - rect.left, dy:p.clientY - rect.top };
+    box.setPointerCapture?.(e.pointerId);
+    e.preventDefault?.();
+  }
+  function moveDrag(e){
+    if(!dragState || !isTablet) return;
+    const box = byId('numericKeypad');
+    const p = e.touches?.[0] || e;
+    const w = window.visualViewport?.width || window.innerWidth;
+    const h = window.visualViewport?.height || window.innerHeight;
+    const rect = box.getBoundingClientRect();
+    const left = Math.max(4, Math.min(w - rect.width - 4, p.clientX - dragState.dx));
+    const top = Math.max(4, Math.min(h - rect.height - 4, p.clientY - dragState.dy));
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.style.transform = 'none';
+  }
+  function endDrag(){ dragState = null; }
+  document.addEventListener('pointerdown', (e) => {
+    if(e.target?.closest?.('#numericKeypad .keypad-display')) startDrag(e);
+  }, {capture:true});
+  document.addEventListener('pointermove', moveDrag, {capture:true});
+  document.addEventListener('pointerup', endDrag, {capture:true});
+  document.addEventListener('pointercancel', endDrag, {capture:true});
+  document.addEventListener('DOMContentLoaded', () => {
+    rebuildButtons();
+    updateKeypadFace(activeSourceInput);
+  });
+  if(document.readyState !== 'loading'){
+    rebuildButtons();
+    updateKeypadFace(activeSourceInput);
+  }
+})();
+</script>
 </body>
 </html>
