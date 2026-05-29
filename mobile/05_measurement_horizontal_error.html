@@ -2236,8 +2236,8 @@ window.addEventListener('DOMContentLoaded',()=>{
       '</div>'+
       '<div class="excel-input" style="margin-top:8px">'+
         '<div class="count-grid">'+
-          '<label for="tpCount">TP数</label><input class="num" id="tpCount" value="1">'+
-          '<label for="kpCount">KP数</label><input class="num" id="kpCount" value="4">'+
+          '<label for="tpCount">TP数</label><input class="num" id="tpCount" value="">'+
+          '<label for="kpCount">KP数</label><input class="num" id="kpCount" value="">'+
         '</div>'+
       '</div>'+
       '<div class="vr013-top-actions">'+
@@ -2266,8 +2266,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!fromHistory){
       if(!pipe){ alert('本数を入力してください。'); byId('pipeCount')?.focus(); return; }
       if(!date){ alert('測定日を入力してください。'); byId('measureDate')?.focus(); return; }
-      if(!tp || Number(tp)<=0){ alert('TP数を入力してください。'); byId('tpCount')?.focus(); return; }
-      if(!kp || Number(kp)<=0){ alert('KP数を入力してください。'); byId('kpCount')?.focus(); return; }
+      if(tp==='' || Number(tp)<0){ alert('TP数を入力してください。TP無しの場合は 0 を入力してください。'); byId('tpCount')?.focus(); return; }
+      if(kp==='' || Number(kp)<1){ alert('KP数は 1 以上を入力してください。'); byId('kpCount')?.focus(); return; }
       if(typeof buildRows==='function') buildRows();
       clearMeasurementValues();
       if(typeof renderSummary==='function') renderSummary();
@@ -2283,8 +2283,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.newMeasurementData = function(){
     if(byId('measureDate')) byId('measureDate').value=new Date().toISOString().slice(0,10);
     if(byId('pipeCount')) byId('pipeCount').value='';
-    if(byId('tpCount')) byId('tpCount').value='1';
-    if(byId('kpCount')) byId('kpCount').value='4';
+    if(byId('tpCount')) byId('tpCount').value='';
+    if(byId('kpCount')) byId('kpCount').value='';
     if(typeof buildRows==='function') buildRows();
     clearMeasurementValues();
     if(typeof openSection==='function') openSection('measurementInputStage');
@@ -2484,6 +2484,163 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
   else boot();
+})();
+</script>
+<!-- Vr013 TP/KP rows immediate generation hotfix -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function clean(v){ return String(v ?? '').trim(); }
+  function toInt(v){ const n=Number(String(v??'').replace(/[^0-9-]/g,'')); return Number.isFinite(n)?n:NaN; }
+  let locking=false;
+
+  function clearRows(){
+    const mt=byId('measurementTable'); if(mt) mt.innerHTML='';
+    const tp=byId('tpTable'); if(tp) tp.innerHTML='';
+    const kp=byId('kpTable'); if(kp) kp.innerHTML='';
+  }
+
+  function refreshRows(){
+    if(locking) return;
+    const tpEl=byId('tpCount'), kpEl=byId('kpCount');
+    if(!tpEl || !kpEl) return;
+    const tpRaw=clean(tpEl.value), kpRaw=clean(kpEl.value);
+    if(tpRaw==='' || kpRaw===''){ clearRows(); return; }
+    const tp=toInt(tpRaw), kp=toInt(kpRaw);
+    if(!Number.isFinite(tp) || tp<0){ clearRows(); return; }
+    if(!Number.isFinite(kp) || kp<1){ clearRows(); return; }
+
+    locking=true;
+    try{
+      tpEl.value=String(tp);
+      kpEl.value=String(kp);
+      if(typeof buildRows==='function') buildRows();
+    }finally{
+      locking=false;
+    }
+  }
+
+  function wire(){
+    const tpEl=byId('tpCount'), kpEl=byId('kpCount');
+    if(!tpEl || !kpEl) return;
+    if(tpEl.dataset.vr013RowHotfix==='1') return;
+    tpEl.dataset.vr013RowHotfix='1';
+    kpEl.dataset.vr013RowHotfix='1';
+    ['input','change','blur'].forEach(ev=>{
+      tpEl.addEventListener(ev, refreshRows);
+      kpEl.addEventListener(ev, refreshRows);
+    });
+    refreshRows();
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+})();
+</script>
+<!-- Vr013 duplicate-id resolution hotfix -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function moveCountStage(){
+    const measurementCard = byId('measurementInputStage');
+    const countStage = byId('countStage');
+    const top = byId('vr013TopInputs');
+    if(top) top.remove();
+    if(!measurementCard || !countStage) return;
+    countStage.style.display='block';
+    countStage.classList.remove('stage-hidden','collapsed');
+    const h2 = measurementCard.querySelector('h2');
+    if(h2 && countStage.parentElement!==measurementCard){
+      h2.insertAdjacentElement('afterend', countStage);
+    }
+  }
+  function syncGenerate(){
+    const tp=byId('tpCount'), kp=byId('kpCount');
+    if(!tp || !kp) return;
+    const tv=String(tp.value||'').trim();
+    const kv=String(kp.value||'').trim();
+    if(tv!=='' && kv!==''){
+      const tn=Number(tv), kn=Number(kv);
+      if(Number.isFinite(tn) && tn>=0 && Number.isFinite(kn) && kn>=1){
+        if(typeof buildRows==='function') buildRows();
+      }
+    }
+  }
+  function wire(){
+    moveCountStage();
+    const tp=byId('tpCount'), kp=byId('kpCount');
+    if(tp && !tp.dataset.vr013SyncWired){
+      tp.dataset.vr013SyncWired='1';
+      ['input','change','blur'].forEach(ev=>tp.addEventListener(ev,syncGenerate));
+    }
+    if(kp && !kp.dataset.vr013SyncWired){
+      kp.dataset.vr013SyncWired='1';
+      ['input','change','blur'].forEach(ev=>kp.addEventListener(ev,syncGenerate));
+    }
+    syncGenerate();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',wire);
+  else wire();
+})();
+</script>
+<!-- Vr013 emergency fix: section open + TP/KP row generation -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function clean(v){ return String(v ?? '').trim(); }
+  function toInt(v){ const n=Number(clean(v).replace(/[^0-9-]/g,'')); return Number.isFinite(n)?n:NaN; }
+  function clearRows(){
+    const mt=byId('measurementTable'); if(mt) mt.innerHTML='';
+    const tp=byId('tpTable'); if(tp) tp.innerHTML='';
+    const kp=byId('kpTable'); if(kp) kp.innerHTML='';
+  }
+  function rebuildRows(){
+    const tp=byId('tpCount'), kp=byId('kpCount');
+    if(!tp || !kp) return;
+    const tv=clean(tp.value), kv=clean(kp.value);
+    if(tv==='' || kv===''){ clearRows(); return; }
+    const tn=toInt(tv), kn=toInt(kv);
+    if(!Number.isFinite(tn) || tn<0 || !Number.isFinite(kn) || kn<1){ clearRows(); return; }
+    tp.value=String(tn); kp.value=String(kn);
+    if(typeof window.buildRows==='function') window.buildRows();
+  }
+  function wireOpenCards(){
+    document.querySelectorAll('.section-card > h2').forEach(h2=>{
+      if(h2.dataset.vr013OpenFixed==='1') return;
+      h2.dataset.vr013OpenFixed='1';
+      h2.addEventListener('click', function(){
+        const card=this.parentElement;
+        if(!card) return;
+        card.classList.toggle('collapsed');
+        card.classList.remove('stage-hidden');
+      });
+    });
+  }
+  function wireCounts(){
+    const tp=byId('tpCount'), kp=byId('kpCount');
+    if(tp && tp.dataset.vr013CountFixed!=='1'){
+      tp.dataset.vr013CountFixed='1';
+      ['input','change','blur'].forEach(ev=>tp.addEventListener(ev,rebuildRows));
+    }
+    if(kp && kp.dataset.vr013CountFixed!=='1'){
+      kp.dataset.vr013CountFixed='1';
+      ['input','change','blur'].forEach(ev=>kp.addEventListener(ev,rebuildRows));
+    }
+  }
+  function boot(){
+    wireOpenCards();
+    wireCounts();
+    rebuildRows();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<!-- Vr014 device lock: mobile only -->
+<script>
+(function(){
+  window.__DEVICE_MODE__='mobile';
+  window.isTouchLayout=function(){ return true; };
 })();
 </script></body>
 </html>

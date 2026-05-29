@@ -4820,5 +4820,12 @@ body{
   }
 })();
 </script>
+<!-- Vr014 device lock: tablet only -->
+<script>
+(function(){
+  window.__DEVICE_MODE__='tablet';
+  window.isTouchLayout=function(){ return true; };
+})();
+</script>
 </body>
 </html>
