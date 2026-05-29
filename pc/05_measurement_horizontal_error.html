@@ -2460,5 +2460,82 @@ body{
   };
 })();
 </script>
+<!-- Vr012 PC history no checkbox patch -->
+<style>
+#historyStage .history-item input[type="checkbox"],
+#historyStage .history-item .history-points,
+#historyStage .history-options,
+#historyStage label:has(input[type="checkbox"]){
+  display:none!important;
+}
+#historyStage .history-item{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+  padding:12px 8px!important;
+  border-bottom:1px solid #e2e8f0!important;
+}
+#historyStage .history-title{
+  min-width:150px!important;
+  font-weight:700!important;
+}
+#historyStage .history-item button{
+  min-width:56px!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){
+    if(typeof esc === 'function') return esc(v);
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  renderHistoryList = function(){
+    const box = byId('historyList');
+    if(!box) return;
+    if(!measurementHistory.length){
+      box.innerHTML = '<p class="note">保存済み測量データはありません。</p>';
+      return;
+    }
+    box.innerHTML = measurementHistory.map((m, i) => {
+      const title = safeEsc(m.measureDate || '-') + ' / ' + safeEsc(m.pipeCount || '-') + '本目';
+      return '<div class="history-item"><span class="history-title">' + title + '</span><button class="secondary" type="button" onclick="loadHistoryMeasurement(' + i + ')">呼出</button></div>';
+    }).join('');
+  };
+  historyDateChanged = function(){};
+  historyPointChanged = function(){};
+  getHistoryOverlayPoints = function(){
+    const pts = [];
+    if(!geom) return pts;
+    (measurementHistory || []).forEach((m, i) => {
+      const prevRows = { tp:tpPoints.map(p=>({...p})), kp:kpPoints.map(p=>({...p})) };
+      try{
+        applyMeasurementData(m);
+        const calc = calculateAll(false, true);
+        (calc.results || []).forEach((r, j) => pts.push({...r, history:m, histIndex:i, kpIndex:j}));
+      }catch(e){
+        console.warn('history overlay skipped', e);
+      }finally{
+        tpPoints = prevRows.tp;
+        kpPoints = prevRows.kp;
+        buildRows();
+      }
+    });
+    return pts;
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#historyStage label').forEach(label => {
+      if(label.querySelector('input[type="checkbox"]')) label.remove();
+    });
+    renderHistoryList();
+  });
+  if(document.readyState !== 'loading'){
+    document.querySelectorAll('#historyStage label').forEach(label => {
+      if(label.querySelector('input[type="checkbox"]')) label.remove();
+    });
+    renderHistoryList();
+  }
+})();
+</script>
 </body>
 </html>

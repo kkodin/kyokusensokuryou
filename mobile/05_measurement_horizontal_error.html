@@ -5065,5 +5065,128 @@ body{
   }
 })();
 </script>
+<!-- Vr012 mobile history decide and keypad size patch -->
+<style>
+#historyStage .vr012-history-select-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 74px!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#historyStage #measurementHistorySelect{
+  width:100%!important;
+}
+#historyStage #vr012HistoryLoadButton{
+  min-height:44px!important;
+  padding:8px 10px!important;
+  border-radius:7px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-weight:700!important;
+}
+#numericKeypad.vr012-image-keypad{
+  width:216px!important;
+  min-width:216px!important;
+  max-width:216px!important;
+  max-height:calc(100dvh - 8px)!important;
+  overflow:hidden!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid{
+  grid-template-columns:repeat(3,72px)!important;
+  grid-auto-rows:44px!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-grid button{
+  width:72px!important;
+  height:44px!important;
+}
+#numericKeypad.vr012-image-keypad .keypad-display{
+  grid-template-columns:72px 72px 72px!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){
+    if(typeof esc === 'function') return esc(v);
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function historyLabel(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function selectedHistoryIndex(){
+    const sel = byId('measurementHistorySelect');
+    if(!sel) return null;
+    if(sel.value === '__new__') return '__new__';
+    if(sel.value === '__blank__') return null;
+    const n = Number(sel.value);
+    return Number.isFinite(n) ? n : null;
+  }
+  window.loadSelectedMeasurementHistory = function(){
+    const idx = selectedHistoryIndex();
+    const note = byId('historySelectNote');
+    if(idx === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      if(note) note.textContent = '新規入力に切り替えました。';
+      return;
+    }
+    if(idx === null || !measurementHistory[idx]){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    const data = measurementHistory[idx];
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    if(typeof calculateAll === 'function') calculateAll(false);
+    if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+    if(note) note.textContent = historyLabel(data) + ' を測定数値入力欄へ呼び出しました。';
+    openSection?.('countStage');
+  };
+  renderHistoryList = function(){
+    const box = byId('historyList');
+    if(!box) return;
+    if(!(measurementHistory || []).length){
+      box.innerHTML = '<p class="note">保存済み測量データはありません。</p>';
+      return;
+    }
+    const options = (measurementHistory || []).map((m, i) => '<option value="' + i + '">' + safeEsc(historyLabel(m)) + '</option>').join('');
+    box.innerHTML =
+      '<div class="vr012-history-select-row">' +
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+        '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+      '</div>' +
+      '<div id="historySelectNote" class="note">選択して「決定」を押すと、測定数値入力欄へ呼び出します。</div>';
+  };
+  historyChanged = function(){};
+  onHistorySelectFinal = function(){};
+  measurementHistorySelectionChanged = function(){};
+
+  const previousShowNumericKeypad = window.showNumericKeypad;
+  window.showNumericKeypad = function(source){
+    const result = previousShowNumericKeypad ? previousShowNumericKeypad.apply(this, arguments) : undefined;
+    const fit = () => {
+      const box = byId('numericKeypad');
+      if(!box) return;
+      box.classList.remove('vr012-keypad-fit','vr012-compact-keypad');
+      box.classList.add('vr012-image-keypad');
+      box.style.width = '216px';
+      box.style.minWidth = '216px';
+      box.style.maxWidth = '216px';
+      box.style.maxHeight = 'calc(100dvh - 8px)';
+      box.style.left = '50%';
+      box.style.top = '50%';
+      box.style.right = 'auto';
+      box.style.bottom = 'auto';
+      box.style.transform = 'translate(-50%,-50%)';
+      box.style.overflow = 'hidden';
+    };
+    fit();
+    setTimeout(fit, 0);
+    setTimeout(fit, 220);
+    setTimeout(fit, 520);
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', renderHistoryList);
+  if(document.readyState !== 'loading') renderHistoryList();
+})();
+</script>
 </body>
 </html>
