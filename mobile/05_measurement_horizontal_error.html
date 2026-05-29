@@ -2328,5 +2328,166 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+</script>
+<!-- Vr013 sequential input + DMS guard patch -->
+<style>
+#vr013TopInputs input:disabled{background:#e5e7eb;color:#64748b;cursor:not-allowed}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function clean(v){ return String(v ?? '').trim(); }
+  function intVal(v){ const n=Number(String(v??'').replace(/[^0-9-]/g,'')); return Number.isFinite(n)?n:NaN; }
+  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+
+  function format2(v){
+    const n=clamp(Number(v)||0,0,59);
+    return String(Math.floor(n)).padStart(2,'0');
+  }
+  function format3(v){
+    const n=clamp(Number(v)||0,0,359);
+    return String(Math.floor(n)).padStart(3,'0');
+  }
+
+  function applyDmsLimit(el){
+    if(!el) return;
+    const cls = el.className || '';
+    const raw = String(el.value||'').replace(/[^0-9]/g,'');
+    if(cls.includes('deg')){
+      const n = raw==='' ? NaN : Number(raw);
+      if(Number.isFinite(n)) el.value = format3(n);
+    }else if(cls.includes('min') || cls.includes('sec')){
+      const n = raw==='' ? NaN : Number(raw);
+      if(Number.isFinite(n)) el.value = format2(n);
+    }
+  }
+
+  function wireDmsGuards(root){
+    (root||document).querySelectorAll('input.deg,input.min,input.sec').forEach(el=>{
+      if(el.dataset.vr013DmsWired==='1') return;
+      el.dataset.vr013DmsWired='1';
+      el.setAttribute('inputmode','numeric');
+      if(el.classList.contains('deg')){
+        el.setAttribute('maxlength','3');
+        el.setAttribute('placeholder','000');
+      }else{
+        el.setAttribute('maxlength','2');
+        el.setAttribute('placeholder','00');
+      }
+      el.addEventListener('input',()=>{
+        const digits=String(el.value||'').replace(/[^0-9]/g,'');
+        el.value=el.classList.contains('deg')?digits.slice(0,3):digits.slice(0,2);
+      });
+      el.addEventListener('blur',()=>applyDmsLimit(el));
+    });
+  }
+
+  function fields(){
+    return {
+      pipe: byId('pipeCount'),
+      date: byId('measureDate'),
+      tp: byId('tpCount'),
+      kp: byId('kpCount')
+    };
+  }
+
+  function isPipeOk(){ return clean(fields().pipe?.value) !== ''; }
+  function isDateOk(){ return clean(fields().date?.value) !== ''; }
+  function isTpOk(){ const v=clean(fields().tp?.value); if(v==='') return false; const n=intVal(v); return Number.isFinite(n) && n>=0; }
+  function isKpOk(){ const v=clean(fields().kp?.value); if(v==='') return false; const n=intVal(v); return Number.isFinite(n) && n>=1; }
+
+  function applySequentialLock(){
+    const f=fields();
+    if(!f.pipe||!f.date||!f.tp||!f.kp) return;
+    f.date.disabled = !isPipeOk();
+    f.tp.disabled = !isDateOk();
+    f.kp.disabled = !isTpOk();
+
+    if(f.date.disabled) f.date.value='';
+    if(f.tp.disabled) f.tp.value='';
+    if(f.kp.disabled) f.kp.value='';
+
+    if(!f.kp.disabled){
+      const kp=clean(f.kp.value);
+      if(kp!=='' && (!Number.isFinite(intVal(kp)) || intVal(kp)<1)) f.kp.value='1';
+    }
+    if(!f.tp.disabled){
+      const tp=clean(f.tp.value);
+      if(tp!=='' && (!Number.isFinite(intVal(tp)) || intVal(tp)<0)) f.tp.value='0';
+    }
+  }
+
+  function ensureTopValid(){
+    const f=fields();
+    if(!isPipeOk()){ alert('本数を入力してください。'); f.pipe?.focus(); return false; }
+    if(!isDateOk()){ alert('測定日を入力してください。'); f.date?.focus(); return false; }
+    if(!isTpOk()){ alert('TP数を入力してください。TP無しの場合は 0 を入力してください。'); f.tp?.focus(); return false; }
+    if(!isKpOk()){ alert('KP数は 1 以上を入力してください。'); f.kp?.focus(); return false; }
+    return true;
+  }
+
+  function setupSequentialHandlers(){
+    const f=fields();
+    if(!f.pipe||!f.date||!f.tp||!f.kp) return;
+    [f.pipe,f.date,f.tp,f.kp].forEach(el=>{
+      if(el.dataset.vr013SeqWired==='1') return;
+      el.dataset.vr013SeqWired='1';
+      el.addEventListener('input',applySequentialLock);
+      el.addEventListener('change',applySequentialLock);
+    });
+    f.pipe.addEventListener('keydown',e=>{ if(e.key==='Enter' && isPipeOk()){ f.date.focus(); }});
+    f.date.addEventListener('keydown',e=>{ if(e.key==='Enter' && isDateOk()){ f.tp.focus(); }});
+    f.tp.addEventListener('keydown',e=>{ if(e.key==='Enter' && isTpOk()){ f.kp.focus(); }});
+    applySequentialLock();
+  }
+
+  const prevPrepare = window.prepareInputTable;
+  if(typeof prevPrepare==='function'){
+    window.prepareInputTable = function(fromHistory){
+      if(!fromHistory && !ensureTopValid()) return;
+      if(fromHistory){
+        const f=fields();
+        if(clean(f.tp?.value)==='') f.tp.value='0';
+        if(clean(f.kp?.value)==='') f.kp.value='1';
+      }
+      const out = prevPrepare.apply(this, arguments);
+      wireDmsGuards(document);
+      return out;
+    };
+  }
+
+  const prevNew = window.newMeasurementData;
+  window.newMeasurementData = function(){
+    const out = prevNew ? prevNew.apply(this, arguments) : undefined;
+    const f=fields();
+    if(f.pipe) f.pipe.value='';
+    if(f.date) f.date.value='';
+    if(f.tp) f.tp.value='';
+    if(f.kp) f.kp.value='';
+    applySequentialLock();
+    f.pipe?.focus();
+    return out;
+  };
+
+  const prevBuildRows = window.buildRows;
+  if(typeof prevBuildRows==='function'){
+    window.buildRows = function(){
+      const f=fields();
+      if(f.tp && clean(f.tp.value)!=='') f.tp.value=String(Math.max(0,intVal(f.tp.value)||0));
+      if(f.kp && clean(f.kp.value)!=='') f.kp.value=String(Math.max(1,intVal(f.kp.value)||1));
+      const out = prevBuildRows.apply(this, arguments);
+      wireDmsGuards(document);
+      return out;
+    };
+  }
+
+  function boot(){
+    setupSequentialHandlers();
+    wireDmsGuards(document);
+    applySequentialLock();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
+  else boot();
+})();
 </script></body>
 </html>
