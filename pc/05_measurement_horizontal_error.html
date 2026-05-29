@@ -2340,25 +2340,26 @@ window.addEventListener('DOMContentLoaded',()=>{
   function intVal(v){ const n=Number(String(v??'').replace(/[^0-9-]/g,'')); return Number.isFinite(n)?n:NaN; }
   function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
 
-  function format2(v){
+  function formatMinSec(v){
+    if(v==='' || v===null || v===undefined) return '';
     const n=clamp(Number(v)||0,0,59);
     return String(Math.floor(n)).padStart(2,'0');
   }
-  function format3(v){
+  function formatDeg(v){
+    if(v==='' || v===null || v===undefined) return '';
     const n=clamp(Number(v)||0,0,359);
-    return String(Math.floor(n)).padStart(3,'0');
+    return String(Math.floor(n));
   }
 
   function applyDmsLimit(el){
     if(!el) return;
     const cls = el.className || '';
     const raw = String(el.value||'').replace(/[^0-9]/g,'');
+    if(raw===''){ el.value=''; return; }
     if(cls.includes('deg')){
-      const n = raw==='' ? NaN : Number(raw);
-      if(Number.isFinite(n)) el.value = format3(n);
+      el.value = formatDeg(Number(raw));
     }else if(cls.includes('min') || cls.includes('sec')){
-      const n = raw==='' ? NaN : Number(raw);
-      if(Number.isFinite(n)) el.value = format2(n);
+      el.value = formatMinSec(Number(raw));
     }
   }
 
@@ -2367,13 +2368,8 @@ window.addEventListener('DOMContentLoaded',()=>{
       if(el.dataset.vr013DmsWired==='1') return;
       el.dataset.vr013DmsWired='1';
       el.setAttribute('inputmode','numeric');
-      if(el.classList.contains('deg')){
-        el.setAttribute('maxlength','3');
-        el.setAttribute('placeholder','000');
-      }else{
-        el.setAttribute('maxlength','2');
-        el.setAttribute('placeholder','00');
-      }
+      if(el.classList.contains('deg')) el.setAttribute('maxlength','3');
+      else el.setAttribute('maxlength','2');
       el.addEventListener('input',()=>{
         const digits=String(el.value||'').replace(/[^0-9]/g,'');
         el.value=el.classList.contains('deg')?digits.slice(0,3):digits.slice(0,2);
@@ -2396,6 +2392,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   function isTpOk(){ const v=clean(fields().tp?.value); if(v==='') return false; const n=intVal(v); return Number.isFinite(n) && n>=0; }
   function isKpOk(){ const v=clean(fields().kp?.value); if(v==='') return false; const n=intVal(v); return Number.isFinite(n) && n>=1; }
 
+  function clearMeasurementRows(){
+    const mt=byId('measurementTable'); if(mt) mt.innerHTML='';
+    const tp=byId('tpTable'); if(tp) tp.innerHTML='';
+    const kp=byId('kpTable'); if(kp) kp.innerHTML='';
+  }
+
   function applySequentialLock(){
     const f=fields();
     if(!f.pipe||!f.date||!f.tp||!f.kp) return;
@@ -2407,14 +2409,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(f.tp.disabled) f.tp.value='';
     if(f.kp.disabled) f.kp.value='';
 
-    if(!f.kp.disabled){
-      const kp=clean(f.kp.value);
-      if(kp!=='' && (!Number.isFinite(intVal(kp)) || intVal(kp)<1)) f.kp.value='1';
-    }
-    if(!f.tp.disabled){
-      const tp=clean(f.tp.value);
-      if(tp!=='' && (!Number.isFinite(intVal(tp)) || intVal(tp)<0)) f.tp.value='0';
-    }
+    if(!f.tp.disabled && clean(f.tp.value)!=='') f.tp.value=String(Math.max(0,intVal(f.tp.value)||0));
+    if(!f.kp.disabled && clean(f.kp.value)!=='') f.kp.value=String(Math.max(1,intVal(f.kp.value)||1));
+
+    if(!isTpOk() || !isKpOk()) clearMeasurementRows();
   }
 
   function ensureTopValid(){
@@ -2445,11 +2443,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(typeof prevPrepare==='function'){
     window.prepareInputTable = function(fromHistory){
       if(!fromHistory && !ensureTopValid()) return;
-      if(fromHistory){
-        const f=fields();
-        if(clean(f.tp?.value)==='') f.tp.value='0';
-        if(clean(f.kp?.value)==='') f.kp.value='1';
-      }
       const out = prevPrepare.apply(this, arguments);
       wireDmsGuards(document);
       return out;
@@ -2464,18 +2457,21 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(f.date) f.date.value='';
     if(f.tp) f.tp.value='';
     if(f.kp) f.kp.value='';
+    clearMeasurementRows();
     applySequentialLock();
     f.pipe?.focus();
     return out;
   };
 
-  const prevBuildRows = window.buildRows;
-  if(typeof prevBuildRows==='function'){
+  const rawBuildRows = window.buildRows;
+  if(typeof rawBuildRows==='function'){
     window.buildRows = function(){
       const f=fields();
-      if(f.tp && clean(f.tp.value)!=='') f.tp.value=String(Math.max(0,intVal(f.tp.value)||0));
-      if(f.kp && clean(f.kp.value)!=='') f.kp.value=String(Math.max(1,intVal(f.kp.value)||1));
-      const out = prevBuildRows.apply(this, arguments);
+      if(!f.tp || !f.kp) return;
+      if(clean(f.tp.value)==='' || clean(f.kp.value)===''){ clearMeasurementRows(); return; }
+      f.tp.value=String(Math.max(0,intVal(f.tp.value)||0));
+      f.kp.value=String(Math.max(1,intVal(f.kp.value)||1));
+      const out = rawBuildRows.apply(this, arguments);
       wireDmsGuards(document);
       return out;
     };
