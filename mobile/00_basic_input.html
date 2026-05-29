@@ -1779,7 +1779,106 @@ body.show-frame #workFrame{
   };
 })();
 </script>
-</body></html>
+
+<!-- Vr012 final preserve measurements patch -->
+<script>
+(function(){
+  function readProject(){
+    try{ return JSON.parse(localStorage.getItem('curvedJackingProject')||'null'); }catch(e){ return null; }
+  }
+  function asArray(v){ return Array.isArray(v) ? v : []; }
+  function mergeMeasurements(base){
+    const current = readProject();
+    const loaded = current && Array.isArray(current.measurements) ? current.measurements : [];
+    const own = base && Array.isArray(base.measurements) ? base.measurements : [];
+    const merged = own.length ? own : loaded;
+    if(merged.length) base.measurements = merged;
+    return base;
+  }
+  const prevCollectBase = window.collectBase;
+  if(typeof prevCollectBase === 'function'){
+    window.collectBase = function(){
+      const base = prevCollectBase.apply(this, arguments) || {};
+      return mergeMeasurements(base);
+    };
+  }
+  const prevSaveDraftNow = window.saveDraftNow;
+  if(typeof prevSaveDraftNow === 'function'){
+    window.saveDraftNow = function(){
+      const out = prevSaveDraftNow.apply(this, arguments);
+      const project = readProject();
+      if(project){
+        mergeMeasurements(project);
+        try{ localStorage.setItem('curvedJackingProject', JSON.stringify(project)); }catch(e){}
+      }
+      return out;
+    };
+  }
+  const prevSaveCurrentBase = window.saveCurrentBase;
+  if(typeof prevSaveCurrentBase === 'function'){
+    window.saveCurrentBase = function(download){
+      const out = prevSaveCurrentBase.apply(this, arguments);
+      const project = readProject();
+      if(project){
+        mergeMeasurements(project);
+        try{ localStorage.setItem('curvedJackingProject', JSON.stringify(project)); }catch(e){}
+      }
+      return out;
+    };
+  }
+  const prevLoadProjectFile = window.loadProjectFile;
+  if(typeof prevLoadProjectFile === 'function'){
+    window.loadProjectFile = function(input, cb){
+      return prevLoadProjectFile.call(this, input, function(obj){
+        try{
+          const current = readProject();
+          if(current && Array.isArray(current.measurements) && obj && !Array.isArray(obj.measurements)){
+            obj.measurements = current.measurements;
+            localStorage.setItem('curvedJackingProject', JSON.stringify(obj));
+          }
+        }catch(e){}
+        if(typeof cb === 'function') cb(obj);
+      });
+    };
+  }
+})();
+</script>
+<!-- Vr013 final preserve measurements patch -->
+<script>
+(function(){
+  function readP(){ try{return JSON.parse(localStorage.getItem('curvedJackingProject')||'null')}catch(e){return null} }
+  function keep(base){
+    const cur=readP();
+    const old=Array.isArray(cur?.measurements)?cur.measurements:[];
+    if(base && !Array.isArray(base.measurements) && old.length) base.measurements=old;
+    return base;
+  }
+  const prevCollect=window.collectBase;
+  if(typeof prevCollect==='function'){
+    window.collectBase=function(){ return keep(prevCollect.apply(this, arguments)||{}); };
+  }
+  const prevSaveDraft=window.saveDraftNow;
+  if(typeof prevSaveDraft==='function'){
+    window.saveDraftNow=function(){
+      const out=prevSaveDraft.apply(this, arguments);
+      const cur=readP();
+      if(cur){ keep(cur); try{localStorage.setItem('curvedJackingProject',JSON.stringify(cur));}catch(e){} }
+      return out;
+    };
+  }
+  const prevLoad=window.loadProjectFile;
+  if(typeof prevLoad==='function'){
+    window.loadProjectFile=function(input, cb){
+      return prevLoad.call(this,input,function(obj){
+        if(obj && Array.isArray(obj.measurements)){
+          try{ localStorage.setItem('curvedJackingProject', JSON.stringify(obj)); }catch(e){}
+        }
+        if(typeof cb==='function') cb(obj);
+      });
+    };
+  }
+})();
+</script></body></html>
 
 
 
