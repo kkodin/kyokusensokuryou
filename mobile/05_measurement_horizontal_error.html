@@ -5295,5 +5295,165 @@ body{
   setTimeout(renderHistoryList, 300);
 })();
 </script>
+<!-- Vr012 mobile robust loaded project history patch -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){
+    if(typeof esc === 'function') return esc(v);
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function looksLikeMeasurement(v){
+    return v && typeof v === 'object' && (
+      Object.prototype.hasOwnProperty.call(v, 'pipeCount') ||
+      Object.prototype.hasOwnProperty.call(v, 'measureDate') ||
+      Array.isArray(v.kpRows) ||
+      Array.isArray(v.tpRows)
+    );
+  }
+  function findMeasurementArray(obj, depth){
+    if(!obj || typeof obj !== 'object' || depth > 4) return [];
+    if(Array.isArray(obj)){
+      return obj.some(looksLikeMeasurement) ? obj : [];
+    }
+    if(Array.isArray(obj.measurements) && obj.measurements.some(looksLikeMeasurement)) return obj.measurements;
+    const keys = ['measurementHistory','history','surveyHistory','surveyMeasurements','measurementData'];
+    for(const key of keys){
+      if(Array.isArray(obj[key]) && obj[key].some(looksLikeMeasurement)) return obj[key];
+    }
+    for(const value of Object.values(obj)){
+      const found = findMeasurementArray(value, depth + 1);
+      if(found.length) return found;
+    }
+    return [];
+  }
+  function readJsonStorage(key){
+    try{ return JSON.parse(localStorage.getItem(key) || 'null'); }catch(e){ return null; }
+  }
+  function collectHistories(){
+    const sources = [
+      measurementHistory,
+      project?.measurements,
+      project,
+      readJsonStorage('curvedJackingProject')?.measurements,
+      readJsonStorage('curvedJackingProject'),
+      readJsonStorage('vr012LastSavedProjectJson')?.measurements,
+      readJsonStorage('vr012LastSavedProjectJson'),
+    ];
+    for(const source of sources){
+      const found = findMeasurementArray(source, 0);
+      if(found.length){
+        measurementHistory = found;
+        project = project || {};
+        project.measurements = found;
+        try{ localStorage.setItem('curvedJackingProject', JSON.stringify(project)); }catch(e){}
+        return found;
+      }
+    }
+    return [];
+  }
+  function historyLabel(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function renderDropdown(){
+    const box = byId('historyList');
+    if(!box) return;
+    const histories = collectHistories();
+    const current = byId('measurementHistorySelect')?.value;
+    if(!histories.length){
+      box.innerHTML =
+        '<div class="vr012-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"><option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">現場データ内に測量履歴が見つかりません。現場JSONを読み込み直してください。</div>';
+      return;
+    }
+    const options = histories.map((m, i) => '<option value="' + i + '">' + safeEsc(historyLabel(m)) + '</option>').join('');
+    box.innerHTML =
+      '<div class="vr012-history-select-row">' +
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+        '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+      '</div>' +
+      '<div id="historySelectNote" class="note">' + histories.length + '件の測量データを読み込みました。選択して「決定」を押してください。</div>';
+    const sel = byId('measurementHistorySelect');
+    if(sel && current && [...sel.options].some(o => o.value === current)) sel.value = current;
+  }
+  renderHistoryList = renderDropdown;
+  window.loadSelectedMeasurementHistory = function(){
+    const histories = collectHistories();
+    const sel = byId('measurementHistorySelect');
+    const note = byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      if(note) note.textContent = '新規入力に切り替えました。';
+      return;
+    }
+    const data = histories[Number(sel.value)];
+    if(!data){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    if(typeof calculateAll === 'function') calculateAll(false);
+    if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+    if(note) note.textContent = historyLabel(data) + ' を測定数値入力欄へ呼び出しました。';
+    if(typeof openSection === 'function') openSection('countStage');
+  };
+  historyChanged = function(){};
+  onHistorySelectFinal = function(){};
+  measurementHistorySelectionChanged = function(){};
+
+  if(typeof applyProject === 'function'){
+    const previousApplyProject = applyProject;
+    applyProject = function(obj){
+      const result = previousApplyProject.apply(this, arguments);
+      const found = findMeasurementArray(obj, 0);
+      if(found.length){
+        measurementHistory = found;
+        project = project || {};
+        project.measurements = found;
+        try{ localStorage.setItem('curvedJackingProject', JSON.stringify(project)); }catch(e){}
+      }
+      setTimeout(renderDropdown, 0);
+      setTimeout(renderDropdown, 250);
+      return result;
+    };
+  }
+  if(typeof loadProjectFromStorage === 'function'){
+    const previousLoadProjectFromStorage = loadProjectFromStorage;
+    loadProjectFromStorage = function(){
+      const result = previousLoadProjectFromStorage.apply(this, arguments);
+      setTimeout(renderDropdown, 0);
+      setTimeout(renderDropdown, 250);
+      return result;
+    };
+  }
+  document.addEventListener('change', (event) => {
+    if(event.target?.matches?.('input[type="file"]')){
+      setTimeout(renderDropdown, 300);
+      setTimeout(renderDropdown, 900);
+    }
+  }, true);
+  const previousOpenSection = typeof openSection === 'function' ? openSection : null;
+  if(previousOpenSection){
+    openSection = function(id){
+      const result = previousOpenSection.apply(this, arguments);
+      if(id === 'historyStage'){
+        setTimeout(renderDropdown, 0);
+        setTimeout(renderDropdown, 250);
+      }
+      return result;
+    };
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(renderDropdown, 0);
+    setTimeout(renderDropdown, 500);
+  });
+  setTimeout(renderDropdown, 0);
+  setTimeout(renderDropdown, 500);
+})();
+</script>
 </body>
 </html>
