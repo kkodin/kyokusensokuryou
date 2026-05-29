@@ -5455,5 +5455,149 @@ body{
   setTimeout(renderDropdown, 500);
 })();
 </script>
+<!-- Vr012 mobile direct project measurement load patch -->
+<script>
+(function(){
+  let vr012LastLoadedProject = null;
+
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){
+    if(typeof esc === 'function') return esc(v);
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function isMeasurement(v){
+    return v && typeof v === 'object' && (
+      'pipeCount' in v || 'measureDate' in v || Array.isArray(v.tpRows) || Array.isArray(v.kpRows)
+    );
+  }
+  function findMeasurements(obj, depth){
+    if(!obj || typeof obj !== 'object' || depth > 5) return [];
+    if(Array.isArray(obj)) return obj.some(isMeasurement) ? obj : [];
+    if(Array.isArray(obj.measurements) && obj.measurements.some(isMeasurement)) return obj.measurements;
+    for(const key of ['measurementHistory','history','surveyHistory','surveyMeasurements']){
+      if(Array.isArray(obj[key]) && obj[key].some(isMeasurement)) return obj[key];
+    }
+    for(const value of Object.values(obj)){
+      const found = findMeasurements(value, depth + 1);
+      if(found.length) return found;
+    }
+    return [];
+  }
+  function label(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function setMeasurementHistoryFromProject(obj){
+    const found = findMeasurements(obj, 0);
+    if(!found.length) return [];
+    measurementHistory = found;
+    project = project || {};
+    project.measurements = found;
+    if(obj && typeof obj === 'object'){
+      vr012LastLoadedProject = obj;
+      try{ localStorage.setItem('curvedJackingProject', JSON.stringify(obj)); }catch(e){}
+    }
+    return found;
+  }
+  function renderMeasurementDropdownFrom(histories){
+    const box = byId('historyList');
+    if(!box) return;
+    histories = histories && histories.length ? histories : setMeasurementHistoryFromProject(project).length ? measurementHistory : [];
+    if(!histories.length && vr012LastLoadedProject) histories = setMeasurementHistoryFromProject(vr012LastLoadedProject);
+    if(!histories.length){
+      box.innerHTML =
+        '<div class="vr012-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"><option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">この現場データ内に測量履歴が見つかりません。</div>';
+      return;
+    }
+    const options = histories.map((m, i) => '<option value="' + i + '">' + safeEsc(label(m)) + '</option>').join('');
+    box.innerHTML =
+      '<div class="vr012-history-select-row">' +
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+        '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+      '</div>' +
+      '<div id="historySelectNote" class="note">' + histories.length + '件の測量データを読み込みました。選択して「決定」を押してください。</div>';
+  }
+
+  renderHistoryList = function(){
+    renderMeasurementDropdownFrom(setMeasurementHistoryFromProject(project));
+  };
+
+  window.loadSelectedMeasurementHistory = function(){
+    const histories = measurementHistory && measurementHistory.length ? measurementHistory : setMeasurementHistoryFromProject(project);
+    const sel = byId('measurementHistorySelect');
+    const note = byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      if(note) note.textContent = '新規入力に切り替えました。';
+      return;
+    }
+    const data = histories[Number(sel.value)];
+    if(!data){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    if(typeof calculateAll === 'function') calculateAll(false);
+    if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+    if(note) note.textContent = label(data) + ' を測定数値入力欄へ呼び出しました。';
+    if(typeof openSection === 'function') openSection('countStage');
+  };
+
+  loadProjectFile = function(input){
+    const f = input?.files?.[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(String(reader.result || '').replace(/^\ufeff/, ''));
+        const histories = setMeasurementHistoryFromProject(data);
+        if(typeof applyProject === 'function') applyProject(data);
+        setMeasurementHistoryFromProject(data);
+        renderMeasurementDropdownFrom(histories);
+        setTimeout(() => renderMeasurementDropdownFrom(histories), 0);
+        setTimeout(() => renderMeasurementDropdownFrom(histories), 300);
+        if(typeof showActionMessage === 'function'){
+          showActionMessage('現場データを読み込みました。測量データ ' + histories.length + '件', 'actionMessage');
+        }
+        if(!histories.length) alert('現場データは読み込みましたが、測量履歴が見つかりませんでした。');
+      }catch(e){
+        console.error(e);
+        alert('JSONを読み込めませんでした。');
+      }finally{
+        if(input) input.value = '';
+      }
+    };
+    reader.readAsText(f);
+  };
+
+  const previousApplyProject = typeof applyProject === 'function' ? applyProject : null;
+  if(previousApplyProject){
+    applyProject = function(obj){
+      const histories = setMeasurementHistoryFromProject(obj);
+      const result = previousApplyProject.apply(this, arguments);
+      if(histories.length) setMeasurementHistoryFromProject({...obj, measurements:histories});
+      setTimeout(() => renderMeasurementDropdownFrom(histories), 0);
+      setTimeout(() => renderMeasurementDropdownFrom(histories), 300);
+      return result;
+    };
+  }
+
+  const previousOpenSection = typeof openSection === 'function' ? openSection : null;
+  if(previousOpenSection){
+    openSection = function(id){
+      const result = previousOpenSection.apply(this, arguments);
+      if(id === 'historyStage') setTimeout(renderHistoryList, 0);
+      return result;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => setTimeout(renderHistoryList, 500));
+  setTimeout(renderHistoryList, 500);
+})();
+</script>
 </body>
 </html>
