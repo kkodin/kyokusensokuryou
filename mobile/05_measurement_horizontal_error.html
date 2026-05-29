@@ -5188,5 +5188,112 @@ body{
   if(document.readyState !== 'loading') renderHistoryList();
 })();
 </script>
+<!-- Vr012 mobile history dropdown data source fix -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){
+    if(typeof esc === 'function') return esc(v);
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function readStoredMeasurements(){
+    try{
+      const saved = JSON.parse(localStorage.getItem('curvedJackingProject') || 'null');
+      if(saved && Array.isArray(saved.measurements)) return saved.measurements;
+    }catch(e){}
+    return [];
+  }
+  function getHistories(){
+    let histories = [];
+    if(Array.isArray(measurementHistory) && measurementHistory.length) histories = measurementHistory;
+    else if(project && Array.isArray(project.measurements) && project.measurements.length) histories = project.measurements;
+    else histories = readStoredMeasurements();
+    if(histories.length){
+      measurementHistory = histories;
+      project = project || {};
+      project.measurements = histories;
+    }
+    return histories;
+  }
+  function historyLabel(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function selectedHistoryValue(){
+    const sel = byId('measurementHistorySelect');
+    return sel ? sel.value : null;
+  }
+  renderHistoryList = function(){
+    const box = byId('historyList');
+    if(!box) return;
+    const histories = getHistories();
+    if(!histories.length){
+      box.innerHTML =
+        '<div class="vr012-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"><option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">保存済み測量データがありません。新規入力を選んで「決定」を押してください。</div>';
+      return;
+    }
+    const previous = selectedHistoryValue();
+    const options = histories.map((m, i) => '<option value="' + i + '">' + safeEsc(historyLabel(m)) + '</option>').join('');
+    box.innerHTML =
+      '<div class="vr012-history-select-row">' +
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+        '<button type="button" id="vr012HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+      '</div>' +
+      '<div id="historySelectNote" class="note">保存済み本数を選んで「決定」を押すと、測定数値入力欄へ呼び出します。</div>';
+    const sel = byId('measurementHistorySelect');
+    if(sel && previous && [...sel.options].some(o => o.value === previous)) sel.value = previous;
+  };
+  window.loadSelectedMeasurementHistory = function(){
+    const histories = getHistories();
+    const sel = byId('measurementHistorySelect');
+    const note = byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      if(note) note.textContent = '新規入力に切り替えました。';
+      return;
+    }
+    const idx = Number(sel.value);
+    const data = histories[idx];
+    if(!data){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    if(typeof applyMeasurementData === 'function') applyMeasurementData(data);
+    if(typeof calculateAll === 'function') calculateAll(false);
+    if(typeof closeNumericKeypad === 'function') closeNumericKeypad(false);
+    if(note) note.textContent = historyLabel(data) + ' を測定数値入力欄へ呼び出しました。';
+    if(typeof openSection === 'function') openSection('countStage');
+  };
+  historyChanged = function(){};
+  onHistorySelectFinal = function(){};
+  measurementHistorySelectionChanged = function(){};
+
+  if(typeof applyProject === 'function' && !applyProject.vr012HistoryRefresh){
+    const previousApplyProject = applyProject;
+    applyProject = function(obj){
+      const result = previousApplyProject.apply(this, arguments);
+      setTimeout(renderHistoryList, 0);
+      return result;
+    };
+    applyProject.vr012HistoryRefresh = true;
+  }
+  if(typeof saveMeasurement === 'function' && !saveMeasurement.vr012HistoryRefresh){
+    const previousSaveMeasurement = saveMeasurement;
+    saveMeasurement = async function(){
+      const result = await previousSaveMeasurement.apply(this, arguments);
+      setTimeout(renderHistoryList, 0);
+      return result;
+    };
+    saveMeasurement.vr012HistoryRefresh = true;
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(renderHistoryList, 0));
+  setTimeout(renderHistoryList, 0);
+  setTimeout(renderHistoryList, 300);
+})();
+</script>
 </body>
 </html>
