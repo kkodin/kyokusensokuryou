@@ -261,6 +261,73 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .side-group{border-top:1px solid #d8dee6;margin-top:10px;padding-top:10px}.side-group:first-child{border-top:0;margin-top:0;padding-top:0}.side-group-title{font-weight:bold;color:#334155;font-size:12px;margin:0 0 6px}.action-message,.inline-message{display:none;margin-top:8px;border:1px solid #86efac;background:#dcfce7;color:#166534;border-radius:8px;padding:8px 10px;font-weight:bold;font-size:13px}.action-message.visible,.inline-message.visible{display:block}.stage-actions .secondary.save-local{background:#64748b}
 @media print{header,.no-print{display:none!important}main{max-width:none;margin:0}.card{box-shadow:none;break-inside:avoid}}
 
+/* 電卓入力: 中央表示・大型化・初期全選択 */
+.numeric-keypad{
+  top:50%!important;
+  bottom:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(94vw,520px)!important;
+  max-width:min(94vw,520px)!important;
+  border-radius:16px!important;
+}
+.keypad-display{
+  grid-template-columns:112px 1fr!important;
+}
+.keypad-label{
+  padding:12px 10px!important;
+  font-size:17px!important;
+}
+.keypad-label b{
+  font-size:32px!important;
+}
+.keypad-value{
+  min-height:76px!important;
+  padding:12px 16px!important;
+  font-size:52px!important;
+  line-height:1!important;
+}
+.keypad-value.selected{
+  background:#bfdbfe!important;
+  outline:4px solid #60a5fa;
+  outline-offset:-4px;
+  color:#071b3a!important;
+}
+.keypad-grid button{
+  min-height:66px!important;
+  font-size:28px!important;
+  font-weight:800!important;
+  padding:10px!important;
+}
+.keypad-grid button.command{
+  font-size:20px!important;
+}
+@media(max-width:640px){
+  .numeric-keypad{
+    width:96vw!important;
+    max-width:96vw!important;
+    top:52%!important;
+  }
+  .keypad-display{
+    grid-template-columns:96px 1fr!important;
+  }
+  .keypad-label{font-size:16px!important}
+  .keypad-label b{font-size:30px!important}
+  .keypad-value{
+    min-height:82px!important;
+    font-size:56px!important;
+  }
+  .keypad-grid button{
+    min-height:72px!important;
+    font-size:30px!important;
+  }
+  .keypad-grid button.command{
+    font-size:20px!important;
+  }
+}
+
+
 /* Vr012 summary coordinate display */
 .coord-note{
   margin-top:6px;
@@ -435,7 +502,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <h2>測定数値入力</h2>
     <div class="note">TPとKPを同じ表で入力します。TP行は青、KP行は桃色で表示します。</div>
     <div id="measurementTable"></div>
-    <div class="stage-actions"><button class="ok" type="button" onclick="confirmMeasurementInput()">入力確認へ進む</button><button class="secondary save-local" type="button" onclick="saveMeasurement()">この測量を保存</button></div><div id="measurementSaveMessage" class="inline-message" aria-live="polite"></div>
+    <div class="stage-actions"><button class="ok" type="button" onclick="confirmMeasurementInput()">入力確認へ進む</button></div><div id="measurementSaveMessage" class="inline-message" aria-live="polite"></div>
   </div>
 
   <div class="card section-card collapsed stage-hidden" id="summaryStage">
@@ -493,7 +560,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <button type="button" class="command" onclick="keypadClear()">クリア</button>
     <button type="button" class="command" onclick="keypadBackspace()">⌫</button>
     <button type="button" class="ok" onclick="closeNumericKeypad()">閉じる</button>
-    <button type="button" class="command" onclick="keypadCommit()">確定</button>
+    <button type="button" class="command" onclick="keypadUndoValue()">元に戻す</button>
   </div>
 </div>
 <div id="csvPasteModal" class="modal no-print" style="display:none">
@@ -756,11 +823,7 @@ function editableFields(){
 function activeInputIndex(){
   return editableFields().indexOf(activeSourceInput||document.activeElement);
 }
-function isTouchLayout(){
-  const path=location.pathname.toLowerCase();
-  if(path.includes('/pc/')||path.includes('\\pc\\'))return false;
-  return window.matchMedia('(max-width:1024px)').matches || (navigator.maxTouchPoints||0)>0;
-}
+function isTouchLayout(){return window.matchMedia('(max-width:1024px)').matches || (navigator.maxTouchPoints||0)>0}
 function isMeasurementNumericField(el){return !!el && el.matches('#measurementTable input.num,#measurementTable input.dms') && !el.disabled}
 function isNumericFocusField(el){return !!el && isTouchLayout() && isMeasurementNumericField(el)}
 function focusFieldLabel(el){
@@ -786,8 +849,12 @@ function showNumericKeypad(source){
   const label=focusFieldLabel(source);
   document.getElementById('keypadRowName').textContent=label.rowName || '入力';
   document.getElementById('keypadFieldName').textContent=label.field;
-  document.getElementById('keypadValue').textContent=source.value || '0';
+  const valueBox=document.getElementById('keypadValue');
+  valueBox.textContent=source.value || '0';
+  valueBox.classList.add('selected');
+  keypadReplaceOnNextInput=true;
   source.classList.add('keypad-active');
+  setTimeout(()=>source.select?.(),0);
   box.classList.add('visible');
   box.setAttribute('aria-hidden','false');
 }
@@ -795,6 +862,8 @@ function closeNumericKeypad(blur=true){
   keypadCommit();
   const box=document.getElementById('numericKeypad');
   if(box){box.classList.remove('visible');box.setAttribute('aria-hidden','true')}
+  document.getElementById('keypadValue')?.classList.remove('selected');
+  keypadReplaceOnNextInput=false;
   activeSourceInput?.classList.remove('keypad-active');
   if(blur)activeSourceInput?.blur?.();
   activeSourceInput=null;
@@ -802,23 +871,34 @@ function closeNumericKeypad(blur=true){
 function keypadSet(v){
   if(!activeSourceInput)return;
   activeSourceInput.value=v;
-  document.getElementById('keypadValue').textContent=v || '0';
+  const valueBox=document.getElementById('keypadValue');
+  valueBox.textContent=v || '0';
+  valueBox.classList.toggle('selected',keypadReplaceOnNextInput);
   activeSourceInput.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function keypadPress(ch){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dms') && ch==='.')return;
-  let v=String(activeSourceInput.value||'');
+  let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
+  keypadReplaceOnNextInput=false;
+  document.getElementById('keypadValue')?.classList.remove('selected');
   if(v==='0' && ch!=='.')v='';
   if(ch==='.' && v.includes('.'))return;
   keypadSet(v+ch);
 }
-function keypadBackspace(){if(activeSourceInput)keypadSet(String(activeSourceInput.value||'').slice(0,-1))}
-function keypadClear(){keypadSet('')}
+function keypadBackspace(){
+  if(!activeSourceInput)return;
+  if(keypadReplaceOnNextInput){keypadReplaceOnNextInput=false;document.getElementById('keypadValue')?.classList.remove('selected');keypadSet('');return}
+  keypadSet(String(activeSourceInput.value||'').slice(0,-1));
+}
+function keypadClear(){keypadReplaceOnNextInput=false;document.getElementById('keypadValue')?.classList.remove('selected');keypadSet('')}
 function keypadCommit(){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dist'))activeSourceInput.value=formatDistanceValue(activeSourceInput.value);
-  document.getElementById('keypadValue').textContent=activeSourceInput.value || '0';
+  const valueBox=document.getElementById('keypadValue');
+  valueBox.textContent=activeSourceInput.value || '0';
+  valueBox.classList.remove('selected');
+  keypadReplaceOnNextInput=false;
   activeSourceInput.dispatchEvent(new Event('change',{bubbles:true}));
 }
 function focusRelativeInput(step){
@@ -2006,536 +2086,247 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
-<!-- Vr0011 unified measurement save spec -->
-<script>
-(function(){
-  function currentSiteName(){
-    return project?.site?.name || project?.projectName || '現場名未設定';
-  }
-  function currentSpanName(){
-    return project?.site?.span || project?.spanName || 'スパン未設定';
-  }
-  window.integratedProjectFileName = function(){
-    return safeFileName(currentSiteName()) + '_' + safeFileName(currentSpanName()) + '.json';
-  };
-  window.upsertMeasurementData = function(data, ask=true){
-    if(!validateMeasurementData(data)) return false;
-    const key = String(data.pipeCount).trim();
-    const idx = measurementHistory.findIndex(m => String(m.pipeCount || '').trim() === key);
-    if(idx >= 0 && ask){
-      const old = measurementHistory[idx];
-      const msg = key + '本目は ' + (old.measureDate || '日付不明') + ' に測定した結果が既にあります。\n\n保存すると現場データ内の ' + key + '本目の測量結果を上書きします。\n上書きしてよろしいですか？';
-      if(!confirm(msg)) return false;
-    }
-    const normalized = {...data, pipeCount:key, measureDate:String(data.measureDate || ''), updatedAt:new Date().toISOString()};
-    if(idx >= 0) measurementHistory[idx] = normalized;
-    else measurementHistory.push(normalized);
-    project.measurements = measurementHistory;
-    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
-    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
-    if(typeof renderHistoryList === 'function') renderHistoryList();
-    if(typeof drawAll === 'function') drawAll();
-    if(typeof updateMeasurementPipeStatus === 'function') updateMeasurementPipeStatus();
-    return true;
-  };
-  window.saveMeasurement = function(){
-    if(geom && typeof calculateAll === 'function') calculateAll(false);
-    const data = collectMeasurementData();
-    if(!upsertMeasurementData(data, true)) return;
-    const blob = new Blob([JSON.stringify(integratedProjectData(), null, 2)], {type:'application/json;charset=utf-8'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = integratedProjectFileName();
-    a.click();
-    URL.revokeObjectURL(a.href);
-    if(typeof showActionMessage === 'function') showActionMessage('現場データ内に測量結果を保存しました。計算結果へ移ります。', 'measurementSaveMessage');
-    if(typeof calculateAll === 'function') calculateAll(false);
-    if(typeof showResultStage === 'function') showResultStage();
-  };
-})();
-</script>
-<!-- Vr012 measurement critical fixes -->
-<style>
-/* Left-side handle: always reachable without scrolling back to the top. */
-.menu-toggle.no-print{
-  position:fixed!important;
-  left:0!important;
-  top:0!important;
-  bottom:0!important;
-  width:30px!important;
-  height:100dvh!important;
-  min-height:100vh!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  z-index:3000!important;
-  border:0!important;
-  border-radius:0!important;
-  background:#0f172a!important;
-  color:transparent!important;
-  box-shadow:2px 0 10px rgba(15,23,42,.26)!important;
-  cursor:pointer!important;
-  touch-action:manipulation!important;
-}
-.menu-toggle.no-print::before{
-  content:'';
-  width:5px;
-  height:74px;
-  border-radius:999px;
-  background:rgba(255,255,255,.9);
-  box-shadow:0 -16px 0 rgba(255,255,255,.58),0 16px 0 rgba(255,255,255,.58);
-}
-.menu-toggle.no-print::after{
-  content:'';
-  position:absolute;
-  inset:0 -12px 0 0;
-}
-body{
-  padding-left:max(30px, env(safe-area-inset-left))!important;
-}
-#numericKeypad.vr012-keypad-fit,
-.numeric-keypad.vr012-keypad-fit{
-  width:100dvw!important;
-  height:100dvh!important;
-  max-width:100dvw!important;
-  max-height:100dvh!important;
-  inset:0!important;
-  padding:calc(6px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))!important;
-  overflow:hidden!important;
-}
-#numericKeypad.vr012-keypad-fit.visible,
-.numeric-keypad.vr012-keypad-fit.visible{
-  display:grid!important;
-  grid-template-rows:minmax(86px,18dvh) minmax(0,1fr)!important;
-}
-#numericKeypad.vr012-keypad-fit .keypad-value{
-  min-height:0!important;
-  height:100%!important;
-  font-size:clamp(38px,11dvw,72px)!important;
-}
-#numericKeypad.vr012-keypad-fit .keypad-grid{
-  min-height:0!important;
-}
-#numericKeypad.vr012-keypad-fit .keypad-grid button{
-  min-height:0!important;
-  font-size:clamp(22px,6.3dvw,42px)!important;
-}
-#numericKeypad.vr012-keypad-fit .keypad-grid button.command{
-  font-size:clamp(16px,4.8dvw,28px)!important;
-}
-@supports not (width:100dvw){
-  #numericKeypad.vr012-keypad-fit,
-  .numeric-keypad.vr012-keypad-fit{
-    width:100vw!important;
-    height:100vh!important;
-    max-width:100vw!important;
-    max-height:100vh!important;
-  }
-}
-.vr012-download-fallback{
-  position:fixed;
-  left:50%;
-  bottom:18px;
-  transform:translateX(-50%);
-  z-index:20000;
-  display:none;
-  width:min(92vw,520px);
-  padding:12px;
-  border:1px solid #93c5fd;
-  border-radius:10px;
-  background:#eff6ff;
-  box-shadow:0 12px 32px rgba(15,23,42,.22);
-}
-.vr012-download-fallback.visible{display:block}
-.vr012-download-fallback a,
-.vr012-download-fallback button{
-  display:block;
-  width:100%;
-  min-height:44px;
-  margin-top:8px;
-  border:0;
-  border-radius:8px;
-  background:#166534;
-  color:#fff;
-  font-weight:800;
-  text-align:center;
-  text-decoration:none;
-  line-height:44px;
-}
-.vr012-download-fallback button{background:#64748b}
-</style>
-<script>
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  function normalizeMeasurementCounts(data){
-    if(!data || typeof data !== 'object') return data;
-    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
-    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
-    if(tpRows.length) data.tpCount = String(tpRows.length);
-    if(kpRows.length) data.kpCount = String(kpRows.length);
-    return data;
-  }
-  const previousApplyMeasurementData = window.applyMeasurementData;
-  window.applyMeasurementData = function(data){
-    data = normalizeMeasurementCounts(data);
-    if(data){
-      if(byId('tpCount')) byId('tpCount').value = String(data.tpCount || (data.tpRows?.length || 1));
-      if(byId('kpCount')) byId('kpCount').value = String(data.kpCount || (data.kpRows?.length || 4));
-      if(typeof buildRows === 'function') buildRows();
-    }
-    const result = previousApplyMeasurementData ? previousApplyMeasurementData.apply(this, arguments) : undefined;
-    if(data){
-      if(byId('tpCount')) byId('tpCount').value = String(data.tpCount || (data.tpRows?.length || 1));
-      if(byId('kpCount')) byId('kpCount').value = String(data.kpCount || (data.kpRows?.length || 4));
-      if(typeof updateSideInfo === 'function') updateSideInfo();
-      if(typeof prepareTouchNumericInputs === 'function') prepareTouchNumericInputs(document);
-    }
-    return result;
-  };
-  const previousMeasurementDataFromExcelText = window.measurementDataFromExcelText;
-  if(typeof previousMeasurementDataFromExcelText === 'function'){
-    window.measurementDataFromExcelText = function(text){
-      return normalizeMeasurementCounts(previousMeasurementDataFromExcelText.apply(this, arguments));
-    };
-  }
-  const previousMeasurementDataFromCsv = window.measurementDataFromCsv;
-  if(typeof previousMeasurementDataFromCsv === 'function'){
-    window.measurementDataFromCsv = function(text){
-      return normalizeMeasurementCounts(previousMeasurementDataFromCsv.apply(this, arguments));
-    };
-  }
-  function fallbackBox(){
-    let box = byId('vr012DownloadFallback');
-    if(box) return box;
-    box = document.createElement('div');
-    box.id = 'vr012DownloadFallback';
-    box.className = 'vr012-download-fallback no-print';
-    box.innerHTML = '<div><b>保存ファイルを作成しました</b><br><span>保存画面が出ない場合は下のボタンを押してください。</span></div><a id="vr012DownloadLink" href="#" download="measurement.json">保存する</a><button type="button" id="vr012DownloadClose">閉じる</button>';
-    document.body.appendChild(box);
-    byId('vr012DownloadClose')?.addEventListener('click', () => box.classList.remove('visible'));
-    return box;
-  }
-  function downloadJson(data, fileName){
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName || 'measurement.json';
-    a.rel = 'noopener';
-    a.style.position = 'fixed';
-    a.style.left = '-9999px';
-    document.body.appendChild(a);
-    const box = fallbackBox();
-    const link = byId('vr012DownloadLink');
-    if(link){
-      link.href = url;
-      link.download = a.download;
-    }
-    box.classList.add('visible');
-    try{ a.click(); }catch(e){}
-    setTimeout(() => {
-      a.remove();
-      if(!box.classList.contains('visible')) URL.revokeObjectURL(url);
-    }, 3000);
-  }
-  window.saveMeasurement = function(){
-    try{
-      if(typeof calculateAll === 'function' && window.geom) calculateAll(false);
-      if(typeof collectMeasurementData !== 'function') throw new Error('測量データを取得できません。');
-      const data = collectMeasurementData();
-      if(typeof upsertMeasurementData === 'function' && !upsertMeasurementData(data, true)) return;
-      const projectData = typeof integratedProjectData === 'function' ? integratedProjectData() : {measurements:[data]};
-      const fileName = typeof integratedProjectFileName === 'function' ? integratedProjectFileName() : 'measurement.json';
-      downloadJson(projectData, fileName);
-      if(typeof showActionMessage === 'function') showActionMessage('測量結果を保存しました。保存画面が出ない場合は下の保存ボタンを押してください。', 'measurementSaveMessage');
-    }catch(e){
-      console.error(e);
-      alert('保存できませんでした。現場名、本数、測定日、TP/KP入力を確認してください。');
-    }
-  };
-  const toggle = document.querySelector('.menu-toggle.no-print');
-  if(toggle){
-    toggle.setAttribute('aria-label','メニューを開く');
-    toggle.title = 'メニュー';
-  }
-})();
-</script>
-<!-- Vr012 keypad compact and save certainty patch -->
-<style>
-#numericKeypad.vr012-compact-keypad,
-.numeric-keypad.vr012-compact-keypad{
-  position:fixed!important;
-  left:50%!important;
-  top:50%!important;
-  right:auto!important;
-  bottom:auto!important;
-  transform:translate(-50%,-50%)!important;
-  width:min(calc(var(--vr012-vvw, 100vw) - 16px), 430px)!important;
-  max-width:calc(var(--vr012-vvw, 100vw) - 16px)!important;
-  height:auto!important;
-  max-height:calc(var(--vr012-vvh, 100vh) - 16px)!important;
-  margin:0!important;
-  padding:6px!important;
-  box-sizing:border-box!important;
-  overflow:auto!important;
-  border:1px solid #cbd5e1!important;
-  border-radius:12px!important;
-  background:#fff!important;
-  z-index:20000!important;
-}
-#numericKeypad.vr012-compact-keypad.visible,
-.numeric-keypad.vr012-compact-keypad.visible{
-  display:block!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-display{
-  display:grid!important;
-  grid-template-columns:82px minmax(0,1fr)!important;
-  gap:4px!important;
-  margin:0 0 6px!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-label{
-  padding:6px 4px!important;
-  min-height:54px!important;
-  border-radius:8px!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-label b{
-  font-size:clamp(22px,6vw,32px)!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-label small{
-  font-size:clamp(15px,4vw,22px)!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-value{
-  min-height:54px!important;
-  height:54px!important;
-  padding:4px 8px!important;
-  font-size:clamp(32px,9vw,46px)!important;
-  line-height:1.05!important;
-  border-radius:8px!important;
-  overflow:hidden!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-grid{
-  display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  grid-auto-rows:clamp(46px,8.4dvh,62px)!important;
-  gap:5px!important;
-  height:auto!important;
-  min-height:0!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-grid button{
-  min-height:0!important;
-  height:auto!important;
-  padding:2px!important;
-  border-radius:8px!important;
-  font-size:clamp(22px,6.2vw,34px)!important;
-  line-height:1!important;
-}
-#numericKeypad.vr012-compact-keypad .keypad-grid button.command{
-  font-size:clamp(16px,4.8vw,24px)!important;
-  white-space:nowrap!important;
-}
-@media (max-height:620px){
-  #numericKeypad.vr012-compact-keypad .keypad-display{
-    grid-template-columns:74px minmax(0,1fr)!important;
-  }
-  #numericKeypad.vr012-compact-keypad .keypad-label,
-  #numericKeypad.vr012-compact-keypad .keypad-value{
-    min-height:44px!important;
-    height:44px!important;
-  }
-  #numericKeypad.vr012-compact-keypad .keypad-grid{
-    grid-auto-rows:40px!important;
-  }
-}
-</style>
-<script>
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  function updateViewportVars(){
-    const vv = window.visualViewport;
-    const w = Math.max(240, Math.floor(vv?.width || window.innerWidth || document.documentElement.clientWidth || 360));
-    const h = Math.max(320, Math.floor(vv?.height || window.innerHeight || document.documentElement.clientHeight || 640));
-    document.documentElement.style.setProperty('--vr012-vvw', w + 'px');
-    document.documentElement.style.setProperty('--vr012-vvh', h + 'px');
-  }
-  function compactKeypad(){
-    updateViewportVars();
-    const box = byId('numericKeypad');
-    if(!box) return;
-    box.classList.remove('vr012-keypad-fit');
-    box.classList.add('vr012-compact-keypad');
-  }
-  const previousShowNumericKeypad = window.showNumericKeypad;
-  window.showNumericKeypad = function(source){
-    const result = previousShowNumericKeypad ? previousShowNumericKeypad.apply(this, arguments) : undefined;
-    compactKeypad();
-    setTimeout(compactKeypad, 0);
-    setTimeout(compactKeypad, 180);
-    return result;
-  };
-  window.visualViewport?.addEventListener('resize', compactKeypad);
-  window.visualViewport?.addEventListener('scroll', compactKeypad);
-  window.addEventListener('resize', compactKeypad);
-  document.addEventListener('DOMContentLoaded', compactKeypad);
-  if(document.readyState !== 'loading') compactKeypad();
 
-  function cleanKey(v){ return String(v ?? '').trim(); }
-  function sortedMeasurements(){
-    return (measurementHistory || []).slice().sort((a,b)=>(+a.pipeCount||0)-(+b.pipeCount||0)||String(a.measureDate||'').localeCompare(String(b.measureDate||'')));
+<!-- Vr013 final history sort/recover patch -->
+<script>
+(function(){
+  function clean(v){ return String(v ?? '').trim(); }
+  function no(v){ const n=Number(clean(v).replace(/[^0-9.-]/g,'')); return Number.isFinite(n)?n:Number.POSITIVE_INFINITY; }
+  function isM(v){ return v && typeof v==='object' && ('pipeCount' in v || 'measureDate' in v || Array.isArray(v.tpRows) || Array.isArray(v.kpRows)); }
+  function sortH(list){
+    return (Array.isArray(list)?list:[]).slice().sort((a,b)=>{
+      const da=no(a?.pipeCount), db=no(b?.pipeCount);
+      if(da!==db) return da-db;
+      return clean(a?.measureDate).localeCompare(clean(b?.measureDate));
+    });
   }
-  function ensureMeasurementInProject(data){
-    const key = cleanKey(data?.pipeCount);
-    if(!key) return false;
-    const idx = (measurementHistory || []).findIndex(m => cleanKey(m.pipeCount) === key);
-    const normalized = {...data, pipeCount:key, measureDate:String(data.measureDate || ''), updatedAt:new Date().toISOString()};
-    if(idx >= 0) measurementHistory[idx] = normalized;
-    else measurementHistory.push(normalized);
-    project = project || {};
-    project.measurements = sortedMeasurements();
-    project.updatedAt = new Date().toISOString();
-    localStorage.setItem('curvedJackingProject', JSON.stringify(project));
-    localStorage.setItem('lastMeasurementData', JSON.stringify(normalized));
-    localStorage.setItem('vr012LastSavedPipeCount', key);
-    if(typeof renderHistoryList === 'function') renderHistoryList();
-    return true;
+  function findH(obj,d){
+    if(!obj || d>6) return [];
+    if(Array.isArray(obj)) return obj.some(isM)?obj:[];
+    if(typeof obj!=='object') return [];
+    if(Array.isArray(obj.measurements) && obj.measurements.some(isM)) return obj.measurements;
+    for(const k of ['measurementHistory','history','surveyHistory','surveyMeasurements']){
+      if(Array.isArray(obj[k]) && obj[k].some(isM)) return obj[k];
+    }
+    for(const v of Object.values(obj)){ const f=findH(v,d+1); if(f.length) return f; }
+    return [];
   }
-  function saveFile(projectData, fileName){
-    const blob = new Blob([JSON.stringify(projectData, null, 2)], {type:'application/json;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName || 'measurement.json';
-    a.rel = 'noopener';
-    a.style.position = 'fixed';
-    a.style.left = '-9999px';
-    document.body.appendChild(a);
-    let box = byId('vr012DownloadFallback');
-    if(!box){
-      box = document.createElement('div');
-      box.id = 'vr012DownloadFallback';
-      box.className = 'vr012-download-fallback no-print';
-      box.innerHTML = '<div><b>保存ファイルを作成しました</b><br><span>保存画面が出ない場合は下のボタンを押してください。</span></div><a id="vr012DownloadLink" href="#" download="measurement.json">保存する</a><button type="button" id="vr012DownloadClose">閉じる</button>';
-      document.body.appendChild(box);
-      byId('vr012DownloadClose')?.addEventListener('click', () => box.classList.remove('visible'));
+  function readJ(key){ try{return JSON.parse(localStorage.getItem(key)||'null')}catch(e){return null} }
+  function sync(){
+    const cands=[project, readJ('curvedJackingProject'), readJ('vr012LastSavedProjectJson')];
+    let found=[];
+    for(const c of cands){ found=sortH(findH(c,0)); if(found.length) break; }
+    if(found.length){
+      measurementHistory = found;
+      if(!project || typeof project!=='object') project={};
+      project.measurements = found;
+      try{ localStorage.setItem('curvedJackingProject', JSON.stringify(project)); }catch(e){}
     }
-    const link = byId('vr012DownloadLink');
-    if(link){
-      link.href = url;
-      link.download = a.download;
-    }
-    box.classList.add('visible');
-    try{ a.click(); }catch(e){}
-    setTimeout(() => a.remove(), 1500);
+    measurementHistory = sortH(measurementHistory);
+    if(project && typeof project==='object') project.measurements = measurementHistory;
   }
-  window.saveMeasurement = function(){
-    try{
-      if(typeof keypadCommit === 'function') keypadCommit();
-      if(typeof calculateAll === 'function' && window.geom) calculateAll(false);
-      if(typeof collectMeasurementData !== 'function') throw new Error('collectMeasurementData missing');
-      const data = collectMeasurementData();
-      if(typeof validateMeasurementData === 'function' && !validateMeasurementData(data)) return;
-      const key = cleanKey(data.pipeCount);
-      const idx = (measurementHistory || []).findIndex(m => cleanKey(m.pipeCount) === key);
-      if(idx >= 0){
-        const old = measurementHistory[idx];
-        const msg = key + '本目は ' + (old.measureDate || '日付不明') + ' の測量結果が保存済みです。\n\n上書きして保存しますか？';
-        if(!confirm(msg)) return;
-      }
-      if(!ensureMeasurementInProject(data)) return;
-      let out = typeof integratedProjectData === 'function' ? integratedProjectData() : {...project};
-      out = out && typeof out === 'object' ? out : {};
-      out.measurements = sortedMeasurements();
-      if(!out.geometry && typeof geom !== 'undefined' && geom) out.geometry = geom;
-      if(!out.site && project?.site) out.site = project.site;
-      out.updatedAt = new Date().toISOString();
-      const contains = out.measurements.some(m => cleanKey(m.pipeCount) === key);
-      if(!contains) throw new Error('saved data did not include pipeCount ' + key);
-      const fileName = typeof integratedProjectFileName === 'function' ? integratedProjectFileName() : 'measurement.json';
-      localStorage.setItem('vr012LastSavedProjectJson', JSON.stringify(out));
-      saveFile(out, fileName);
-      if(typeof showActionMessage === 'function') showActionMessage(key + '本目を現場データに保存しました。保存画面が出ない場合は下の「保存する」を押してください。', 'measurementSaveMessage');
-    }catch(e){
-      console.error(e);
-      alert('保存できませんでした。入力内容を確認してください。');
-    }
-  };
+  const prevApply = window.applyProject;
+  if(typeof prevApply==='function') window.applyProject=function(){ const r=prevApply.apply(this,arguments); sync(); return r; };
+  const prevRender = window.renderHistoryList;
+  if(typeof prevRender==='function') window.renderHistoryList=function(){ sync(); return prevRender.apply(this,arguments); };
+  const prevUpsert = window.upsertMeasurementData;
+  if(typeof prevUpsert==='function') window.upsertMeasurementData=function(data,ask){ const ok=prevUpsert.apply(this,arguments); if(ok) sync(); return ok; };
+  const prevIntegrated = window.integratedProjectData;
+  if(typeof prevIntegrated==='function') window.integratedProjectData=function(){ sync(); const out=prevIntegrated.apply(this,arguments)||{}; out.measurements=sortH(out.measurements||measurementHistory); return out; };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.renderHistoryList?.(),0));
+  else setTimeout(()=>window.renderHistoryList?.(),0);
 })();
 </script>
-<!-- Vr012 PC history no checkbox patch -->
-<style>
-#historyStage .history-item input[type="checkbox"],
-#historyStage .history-item .history-points,
-#historyStage .history-options,
-#historyStage label:has(input[type="checkbox"]){
-  display:none!important;
-}
-#historyStage .history-item{
-  display:flex!important;
-  align-items:center!important;
-  gap:12px!important;
-  padding:12px 8px!important;
-  border-bottom:1px solid #e2e8f0!important;
-}
-#historyStage .history-title{
-  min-width:150px!important;
-  font-weight:700!important;
-}
-#historyStage .history-item button{
-  min-width:56px!important;
-}
-</style>
+
+<!-- Vr013 dropdown history UI patch -->
 <script>
 (function(){
   function byId(id){ return document.getElementById(id); }
-  function safeEsc(v){
-    if(typeof esc === 'function') return esc(v);
-    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function escText(v){
+    const s=String(v ?? '');
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-  renderHistoryList = function(){
-    const box = byId('historyList');
-    if(!box) return;
-    if(!measurementHistory.length){
-      box.innerHTML = '<p class="note">保存済み測量データはありません。</p>';
+  function clean(v){ return String(v ?? '').trim(); }
+  function sortHistory(list){
+    return (Array.isArray(list)?list:[]).slice().sort((a,b)=>{
+      const na=Number(clean(a?.pipeCount).replace(/[^0-9.-]/g,''));
+      const nb=Number(clean(b?.pipeCount).replace(/[^0-9.-]/g,''));
+      const va=Number.isFinite(na)?na:Number.POSITIVE_INFINITY;
+      const vb=Number.isFinite(nb)?nb:Number.POSITIVE_INFINITY;
+      if(va!==vb) return va-vb;
+      return clean(a?.measureDate).localeCompare(clean(b?.measureDate));
+    });
+  }
+  function label(m){
+    return (clean(m?.measureDate)||'-') + ' / 測定No.' + (clean(m?.pipeCount)||'-');
+  }
+  window.loadSelectedMeasurementHistory = function(){
+    const sel=byId('measurementHistorySelect');
+    const note=byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value==='__new__'){
+      if(typeof newMeasurementData==='function') newMeasurementData();
+      if(note) note.textContent='新規入力に切り替えました。';
       return;
     }
-    box.innerHTML = measurementHistory.map((m, i) => {
-      const title = safeEsc(m.measureDate || '-') + ' / ' + safeEsc(m.pipeCount || '-') + '本目';
-      return '<div class="history-item"><span class="history-title">' + title + '</span><button class="secondary" type="button" onclick="loadHistoryMeasurement(' + i + ')">呼出</button></div>';
-    }).join('');
+    const idx=Number(sel.value);
+    if(!Number.isFinite(idx) || !measurementHistory || !measurementHistory[idx]){
+      if(note) note.textContent='呼び出す測量データを選択してください。';
+      return;
+    }
+    const data=measurementHistory[idx];
+    if(typeof applyMeasurementData==='function') applyMeasurementData(data);
+    if(typeof calculateAll==='function') calculateAll(false);
+    if(typeof closeNumericKeypad==='function') closeNumericKeypad(false);
+    if(note) note.textContent=label(data) + ' を測定数値入力欄へ呼び出しました。';
+    if(typeof openSection==='function') openSection('countStage');
   };
-  historyDateChanged = function(){};
-  historyPointChanged = function(){};
-  getHistoryOverlayPoints = function(){
-    const pts = [];
-    if(!geom) return pts;
-    (measurementHistory || []).forEach((m, i) => {
-      const prevRows = { tp:tpPoints.map(p=>({...p})), kp:kpPoints.map(p=>({...p})) };
-      try{
-        applyMeasurementData(m);
-        const calc = calculateAll(false, true);
-        (calc.results || []).forEach((r, j) => pts.push({...r, history:m, histIndex:i, kpIndex:j}));
-      }catch(e){
-        console.warn('history overlay skipped', e);
-      }finally{
-        tpPoints = prevRows.tp;
-        kpPoints = prevRows.kp;
-        buildRows();
-      }
-    });
-    return pts;
+
+  const prevRender=window.renderHistoryList;
+  window.renderHistoryList = function(){
+    if(typeof prevRender==='function') prevRender.apply(this, arguments);
+    const box=byId('historyList');
+    if(!box) return;
+    measurementHistory = sortHistory(measurementHistory);
+    if(project && typeof project==='object') project.measurements = measurementHistory;
+
+    const options = measurementHistory.map((m,i)=>'<option value="'+i+'">'+escText(label(m))+'</option>').join('');
+    box.innerHTML =
+      '<div class="vr013-history-select-row">' +
+        '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">'+options+'<option value="__new__">新規入力</option></select></label>' +
+        '<button type="button" id="vr013HistoryLoadButton" onclick="loadSelectedMeasurementHistory()">決定</button>' +
+      '</div>' +
+      '<div id="historySelectNote" class="note">'+(measurementHistory.length ? (measurementHistory.length+'件の測量データを読み込みました。') : '保存済み測量データはありません。')+'</div>';
   };
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('#historyStage label').forEach(label => {
-      if(label.querySelector('input[type="checkbox"]')) label.remove();
-    });
-    renderHistoryList();
-  });
-  if(document.readyState !== 'loading'){
-    document.querySelectorAll('#historyStage label').forEach(label => {
-      if(label.querySelector('input[type="checkbox"]')) label.remove();
-    });
-    renderHistoryList();
-  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.renderHistoryList?.(),0));
+  else setTimeout(()=>window.renderHistoryList?.(),0);
 })();
 </script>
-</body>
+<!-- Vr013 workflow unification patch -->
+<style>
+#countStage{display:none!important}
+.vr013-top-inputs{border:1px solid #cfd7e3;border-radius:8px;padding:10px;background:#f8fafc;margin:8px 0 12px}
+.vr013-top-inputs .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vr013-top-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+@media(max-width:700px){.vr013-top-inputs .grid2{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function clean(v){ return String(v ?? '').trim(); }
+  function hideDeprecatedButtons(){
+    document.querySelectorAll('button').forEach(btn=>{
+      const t=clean(btn.textContent);
+      if(t==='測量データを開く' || t==='測量結果を保存') btn.style.display='none';
+      if(t==='TP/KP数') btn.style.display='none';
+    });
+  }
+  function mountTopInputs(){
+    const measurementCard=byId('measurementInputStage');
+    if(!measurementCard || byId('vr013TopInputs')) return;
+    const countCard=byId('countStage');
+    const wrap=document.createElement('div');
+    wrap.id='vr013TopInputs';
+    wrap.className='vr013-top-inputs';
+    wrap.innerHTML=''+
+      '<div class="grid2">'+
+        '<div class="row"><label>本数:</label><input class="num" id="pipeCount" value=""><span>本目</span></div>'+
+        '<div class="row"><label>測定日:</label><input type="date" id="measureDate"></div>'+
+      '</div>'+
+      '<div class="excel-input" style="margin-top:8px">'+
+        '<div class="count-grid">'+
+          '<label for="tpCount">TP数</label><input class="num" id="tpCount" value="1">'+
+          '<label for="kpCount">KP数</label><input class="num" id="kpCount" value="4">'+
+        '</div>'+
+      '</div>'+
+      '<div class="vr013-top-actions">'+
+        ''+
+      '</div>'+
+      '<div class="note">本数・日付・TP数・KP数を入力してから測定数値入力を開きます。</div>';
+    const h2=measurementCard.querySelector('h2');
+    if(h2) h2.insertAdjacentElement('afterend', wrap); else measurementCard.prepend(wrap);
+
+    const tp=byId('tpCount'), kp=byId('kpCount');
+    tp?.addEventListener('input',()=>{ if(typeof buildRows==='function') buildRows(); });
+    kp?.addEventListener('input',()=>{ if(typeof buildRows==='function') buildRows(); });
+    byId('vr013OpenInputBtn')?.addEventListener('click',()=>prepareInputTable(false));
+
+    if(countCard) countCard.remove();
+  }
+  function clearMeasurementValues(){
+    document.querySelectorAll('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec').forEach(el=>{el.value='';});
+    document.querySelectorAll('#measurementTable input.memo').forEach(el=>{el.value='';});
+  }
+  function prepareInputTable(fromHistory){
+    const pipe=clean(byId('pipeCount')?.value);
+    const date=clean(byId('measureDate')?.value);
+    const tp=clean(byId('tpCount')?.value);
+    const kp=clean(byId('kpCount')?.value);
+    if(!fromHistory){
+      if(!pipe){ alert('本数を入力してください。'); byId('pipeCount')?.focus(); return; }
+      if(!date){ alert('測定日を入力してください。'); byId('measureDate')?.focus(); return; }
+      if(!tp || Number(tp)<=0){ alert('TP数を入力してください。'); byId('tpCount')?.focus(); return; }
+      if(!kp || Number(kp)<=0){ alert('KP数を入力してください。'); byId('kpCount')?.focus(); return; }
+      if(typeof buildRows==='function') buildRows();
+      clearMeasurementValues();
+      if(typeof renderSummary==='function') renderSummary();
+      if(typeof renderTable==='function') renderTable();
+      if(typeof renderProcess==='function') renderProcess();
+      if(typeof drawAll==='function') drawAll();
+    }
+    if(typeof updateSideInfo==='function') updateSideInfo();
+    if(typeof openSection==='function') openSection('measurementInputStage');
+  }
+
+  const originalNew = window.newMeasurementData;
+  window.newMeasurementData = function(){
+    if(byId('measureDate')) byId('measureDate').value=new Date().toISOString().slice(0,10);
+    if(byId('pipeCount')) byId('pipeCount').value='';
+    if(byId('tpCount')) byId('tpCount').value='1';
+    if(byId('kpCount')) byId('kpCount').value='4';
+    if(typeof buildRows==='function') buildRows();
+    clearMeasurementValues();
+    if(typeof openSection==='function') openSection('measurementInputStage');
+    byId('pipeCount')?.focus();
+  };
+
+  const originalLoadSelected = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const sel=byId('measurementHistorySelect');
+    const note=byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value==='__new__'){
+      window.newMeasurementData();
+      if(note) note.textContent='新規入力を選択しました。本数・日付・TP数・KP数を入力して測定数値入力を開いてください。';
+      return;
+    }
+    if(typeof originalLoadSelected==='function') originalLoadSelected();
+    if(note) note.textContent='選択した履歴を読み込みました。';
+    prepareInputTable(true);
+  };
+
+  window.confirmMeasurementInput = function(){
+    if(typeof calculateAll==='function') calculateAll(true);
+    if(typeof showResultStage==='function') showResultStage();
+  };
+
+  function rewriteStageActions(){
+    const area = document.querySelector('#measurementInputStage .stage-actions');
+    if(!area) return;
+    area.innerHTML =
+      ''+
+      '<button type="button" class="ok" onclick="confirmMeasurementInput()">保存して測量結果を確認</button>';
+  }
+
+  function boot(){
+    mountTopInputs();
+    hideDeprecatedButtons();
+    rewriteStageActions();
+    if(byId('measureDate') && !byId('measureDate').value) byId('measureDate').value=new Date().toISOString().slice(0,10);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script></body>
 </html>
