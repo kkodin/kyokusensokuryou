@@ -473,13 +473,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
         <button class="secondary" type="button" onclick="saveMeasurement()">現場データを保存</button>
       </div>
       <div id="historyList" class="history-list"><p class="note">保存済み測量データはありません。</p></div>
-      <div class="label-options">
-        <b>表示ラベル:</b>
-        <label><input type="checkbox" id="histLabelDate" checked onchange="drawAll()">日付</label>
-        <label><input type="checkbox" id="histLabelPipe" checked onchange="drawAll()">本数+KP番号</label>
-        <label><input type="checkbox" id="histLabelError" onchange="drawAll()">誤差</label>
-        <label><input type="checkbox" id="histLabelCoord" onchange="drawAll()">座標</label>
-      </div>
     </div>
   </div>
 
@@ -1737,14 +1730,7 @@ function renderHistoryList(){
   if(!box)return;
   if(!measurementHistory.length){box.innerHTML='<p class="note">保存済み測量データはありません。</p>';return}
   box.innerHTML=measurementHistory.map((m,i)=>{
-    const key=`m${i}`;
-    const points=(m.kpRows||[]).map((r,j)=>{
-      const id=`${key}_kp${j}`;
-      const checked=historyChecks[id]?'checked':'';
-      return `<label><input type="checkbox" data-hist-point="${i}:${j}" id="${id}" ${checked} onchange="historyPointChanged(this)"> KP${j+1}</label>`;
-    }).join('');
-    const allChecked=(m.kpRows||[]).every((_,j)=>historyChecks[`${key}_kp${j}`]);
-    return `<div class="history-item"><label><input type="checkbox" data-hist-date="${i}" ${allChecked?'checked':''} onchange="historyDateChanged(this)"> ${esc(m.measureDate||'-')} / ${esc(m.pipeCount||'-')}本目</label> <button class="secondary" type="button" onclick="loadHistoryMeasurement(${i})">呼出</button><div class="history-points">${points}</div></div>`;
+    return `<div class="history-item"><label>${esc(m.measureDate||'-')} / ${esc(m.pipeCount||'-')}本目</label> <button class="secondary" type="button" onclick="loadHistoryMeasurement(${i})">呼出</button></div>`;
   }).join('');
 }
 function historyDateChanged(cb){
@@ -1761,7 +1747,7 @@ function selectedHistoryPoints(){
   const pts=[];
   measurementHistory.forEach((m,i)=>{
     const calc=computeMeasurementResults(m);
-    calc.results.forEach((r,j)=>{if(historyChecks[`m${i}_kp${j}`])pts.push({...r,history:m,histIndex:i,kpIndex:j})});
+    calc.results.forEach((r,j)=>{pts.push({...r,history:m,histIndex:i,kpIndex:j})});
   });
   return pts;
 }
@@ -2251,13 +2237,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   function firstDistanceFocus(){
     const first=document.querySelector('#measurementTable tbody tr input.dist');
     if(!first) return;
-    first.focus({preventScroll:true}); first.select?.(); window.showNumericKeypad?.(first);
+    first.focus({preventScroll:true});
+    first.select?.();
   }
   const oldBuild=window.buildRows;
   window.buildRows=function(){
-    const r=oldBuild.apply(this,arguments);
-    setTimeout(firstDistanceFocus,0);
-    return r;
+    return oldBuild.apply(this,arguments);
   };
   document.addEventListener('focusin',e=>{
     const t=e.target;
@@ -2271,7 +2256,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('DOMContentLoaded',()=>{
     patchKeypadUI();
     patchMainButtonText();
-    setTimeout(firstDistanceFocus,60);
   });
 })();
 </script>
