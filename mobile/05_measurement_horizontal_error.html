@@ -2076,6 +2076,9 @@ window.addEventListener('DOMContentLoaded',()=>{
 #numericKeypad .keypad-grid{grid-template-columns:repeat(3,1fr)!important}
 #numericKeypad .keypad-grid button{min-height:56px!important;font-size:34px!important}
 #numericKeypad .keypad-grid button.command{font-size:38px!important}
+#keypadContext{font-size:14px;line-height:1.35;background:#f8fafc;border-top:1px solid #cbd5e1;padding:6px 10px}
+#keypadContext .on{background:#fde68a;padding:1px 6px;border-radius:5px}
+#countStage{display:none!important}
 </style>
 <script>
 (function(){
@@ -2106,6 +2109,43 @@ window.addEventListener('DOMContentLoaded',()=>{
     }catch(e){}
   }
   function tableRows(){ return [...document.querySelectorAll('#measurementTable tbody tr')]; }
+  function rowContext(el){
+    const tr=el?.closest?.('tr');
+    if(!tr) return null;
+    const kind=(tr.dataset.kind||'').toUpperCase();
+    const idx=(parseInt(tr.dataset.idx||tr.dataset.index||'0',10)+1)||'';
+    const label=kind?(kind+idx):'';
+    const name=tr.querySelector('.name')?.value||'';
+    const dist=tr.querySelector('.dist')?.value||'';
+    const deg=tr.querySelector('.deg')?.value||'';
+    const min=tr.querySelector('.min')?.value||'';
+    const sec=tr.querySelector('.sec')?.value||'';
+    return {label,name,dist,deg,min,sec};
+  }
+  function activeFieldName(el){
+    if(!el) return '';
+    if(el.classList.contains('dist')) return '距離';
+    if(el.classList.contains('deg')) return '度';
+    if(el.classList.contains('min')) return '分';
+    if(el.classList.contains('sec')) return '秒';
+    return '';
+  }
+  function updateKeypadContext(el){
+    const box=byId('numericKeypad');
+    const display=box?.querySelector('.keypad-display');
+    if(!display) return;
+    let ctx=byId('keypadContext');
+    if(!ctx){
+      ctx=document.createElement('div');
+      ctx.id='keypadContext';
+      display.insertAdjacentElement('afterend',ctx);
+    }
+    const c=rowContext(el);
+    if(!c){ ctx.textContent=''; return; }
+    const af=activeFieldName(el);
+    const mark=(name,val)=> af===name?`<span class="on">${name}:${val||''}</span>`:`${name}:${val||''}`;
+    ctx.innerHTML=`${c.label} 測点名:${c.name||''} / ${mark('距離',c.dist)} / ${mark('度',c.deg)} ${mark('分',c.min)} ${mark('秒',c.sec)}`;
+  }
   function fieldList(){
     const out=[];
     tableRows().forEach(tr=>{
@@ -2143,6 +2183,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     last.el.dispatchEvent(new Event('input',{bubbles:true}));
     window.activeSourceInput=last.el;
     byId('keypadValue').textContent=last.el.value||'';
+    updateKeypadContext(last.el);
     window.showNumericKeypad?.(last.el);
   };
   function setValue(el,v,ss,se){
@@ -2150,6 +2191,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     el.focus({preventScroll:true});
     if(el.setSelectionRange) el.setSelectionRange(ss,se);
     byId('keypadValue').textContent=v||'';
+    updateKeypadContext(el);
   }
   window.keypadPress=function(ch){
     const el=window.activeSourceInput; if(!el) return;
@@ -2189,6 +2231,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.showNumericKeypad=function(source){
     if(typeof oldShow==='function') oldShow(source);
     source?.select?.(); byId('keypadValue')?.classList.add('selected');
+    updateKeypadContext(source);
   };
   const oldClose=window.closeNumericKeypad;
   window.closeNumericKeypad=function(blur=true){
@@ -2317,11 +2360,6 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!pipe) return;
     const n=normalizePipeCount(pipe.value);
     pipe.value=n;
-    if(n){
-      const date=byId('measureDate');
-      if(date?.showPicker){ try{ date.showPicker(); }catch(e){} }
-      date?.focus();
-    }
   }
 
   function tryConfirmPipeAndDate(){
@@ -2345,7 +2383,9 @@ window.addEventListener('DOMContentLoaded',()=>{
     const dObj=new Date(date+'T00:00:00');
     const msg=`${pipe}本 ${dObj.getFullYear()}年${dObj.getMonth()+1}月${dObj.getDate()}日(${jpWeekday(date)})で間違えないですか？`;
     if(!confirm(msg)){
-      dateEl?.focus();
+      pipeEl.value='';
+      dateEl.value=todayStr();
+      pipeEl?.focus();
       return;
     }
 
@@ -2378,6 +2418,80 @@ window.addEventListener('DOMContentLoaded',()=>{
     return out;
   };
 
+  function createFlowButtons(){
+    const dateRow=byId('measureDate')?.closest('.row');
+    if(!dateRow || byId('newFlowNextBtn')) return;
+    const wrap=document.createElement('div');
+    wrap.className='stage-actions';
+    wrap.style.marginTop='8px';
+    wrap.innerHTML='<button type="button" id="newFlowNextBtn" class="ok">次へ</button><button type="button" id="newFlowCancelBtn" class="secondary">キャンセル</button>';
+    dateRow.insertAdjacentElement('afterend',wrap);
+    byId('newFlowNextBtn')?.addEventListener('click',()=>{
+      onPipeInput();
+      const date=byId('measureDate');
+      if(date?.showPicker){ try{ date.showPicker(); }catch(e){} }
+      if(String(date?.value||'').trim()) tryConfirmPipeAndDate();
+      else date?.focus();
+    });
+    byId('newFlowCancelBtn')?.addEventListener('click',()=>{
+      awaitingDateConfirm=false;
+      dateConfirmed=false;
+      if(typeof window.openSection==='function') window.openSection('historyStage');
+    });
+  }
+  function mergeCountIntoMeasurementInput(){
+    const countStage=byId('countStage');
+    const inputStage=byId('measurementInputStage');
+    if(!countStage || !inputStage) return;
+    if(byId('vr015MergedMeta')) return;
+    const pipeRow=countStage.querySelector('.grid2');
+    const note=countStage.querySelector('.note');
+    const wrap=document.createElement('div');
+    wrap.id='vr015MergedMeta';
+    if(pipeRow) wrap.appendChild(pipeRow);
+    if(note) wrap.appendChild(note);
+    const anchor=inputStage.querySelector('#measurementTable');
+    if(anchor) inputStage.insertBefore(wrap, anchor);
+
+    const tpEl=byId('tpCount');
+    const kpEl=byId('kpCount');
+    if(tpEl && kpEl && !byId('vr015TpKpStandalone') && anchor){
+      const tpWrap=document.createElement('div');
+      tpWrap.id='vr015TpKpStandalone';
+      tpWrap.className='excel-input';
+      tpWrap.innerHTML=
+        '<div class="count-grid">'+
+        '<label for="tpCount_proxy">TP数</label><input class="num" id="tpCount_proxy" value="">'+
+        '<label for="kpCount_proxy">KP数</label><input class="num" id="kpCount_proxy" value="">'+
+        '</div>';
+      inputStage.insertBefore(tpWrap, anchor);
+      const tpProxy=tpWrap.querySelector('#tpCount_proxy');
+      const kpProxy=tpWrap.querySelector('#kpCount_proxy');
+      tpProxy.value=tpEl.value||'';
+      kpProxy.value=kpEl.value||'';
+      tpEl.style.display='none';
+      kpEl.style.display='none';
+      tpEl.disabled=true;
+      kpEl.disabled=true;
+    }
+  }
+  function removeCountStageToc(){
+    document.querySelectorAll('.toc button').forEach(btn=>{
+      if((btn.textContent||'').includes('TP/KP数') || (btn.textContent||'').includes('新規測量データ')) btn.style.display='none';
+    });
+  }
+
+  function fixBackNavigationMenu(){
+    const reset=()=>{
+      document.body.classList.remove('nav-open');
+      const btn=document.querySelector('.menu-toggle.no-print');
+      if(btn) btn.onclick=()=>window.toggleNav?.();
+    };
+    window.addEventListener('pageshow',reset);
+    window.addEventListener('popstate',reset);
+    reset();
+  }
+
   document.addEventListener('DOMContentLoaded',()=>{
     const pipe=byId('pipeCount');
     const date=byId('measureDate');
@@ -2387,14 +2501,39 @@ window.addEventListener('DOMContentLoaded',()=>{
     pipe?.addEventListener('blur',onPipeInput);
     pipe?.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); onPipeInput(); date?.focus(); }});
     date?.addEventListener('change',tryConfirmPipeAndDate);
-    if(tp && !tp.dataset.vr015Flow){
-      tp.dataset.vr015Flow='1';
-      tp.addEventListener('input',()=>{ if(dateConfirmed) window.buildRows?.(); });
-    }
-    if(kp && !kp.dataset.vr015Flow){
-      kp.dataset.vr015Flow='1';
-      kp.addEventListener('input',()=>{ if(dateConfirmed) window.buildRows?.(); });
-    }
+    mergeCountIntoMeasurementInput();
+    const tpProxy=byId('tpCount_proxy');
+    const kpProxy=byId('kpCount_proxy');
+    const syncTpKp=()=>{
+      const tRaw=String(tpProxy?.value||'').replace(/[^\d]/g,'');
+      const kRaw=String(kpProxy?.value||'').replace(/[^\d]/g,'');
+      if(tpProxy) tpProxy.value=tRaw;
+      if(kpProxy) kpProxy.value=kRaw;
+      if(tp) tp.value=tRaw;
+      if(kp) kp.value=kRaw;
+      if(!dateConfirmed){ return; }
+      if(tRaw==='' || kRaw===''){ clearInputTable(); return; }
+      const tNum=Number(tRaw), kNum=Number(kRaw);
+      if(!Number.isFinite(tNum) || tNum<0){ clearInputTable(); return; }
+      if(!Number.isFinite(kNum) || kNum<1){ clearInputTable(); return; }
+      if(typeof window.buildRows==='function') window.buildRows();
+    };
+    [tpProxy,kpProxy].forEach(el=>{
+      if(!el) return;
+      el.type='number';
+      el.inputMode='numeric';
+      el.step='1';
+      el.min = (el===kpProxy) ? '1' : '0';
+      el.autocomplete='off';
+      el.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      el.addEventListener('input',syncTpKp);
+      el.addEventListener('change',syncTpKp);
+      el.addEventListener('focus',()=>window.closeNumericKeypad?.(false));
+    });
+    syncTpKp();
+    removeCountStageToc();
+    createFlowButtons();
+    fixBackNavigationMenu();
   });
 })();
 </script>
