@@ -470,7 +470,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <div class="history-tools">
       <div class="history-actions">
         <button class="ok" type="button" onclick="newMeasurementData()">新しい測量を入力</button>
-        <button class="secondary" type="button" onclick="saveMeasurement()">現場データを保存</button>
       </div>
       <div id="historyList" class="history-list"><p class="note">保存済み測量データはありません。</p></div>
     </div>
@@ -485,7 +484,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <div class="excel-input">
       <div class="count-grid">
         <label for="tpCount">TP数</label><input class="num" id="tpCount" value="1" oninput="buildRows()">
-        <label for="kpCount">KP数</label><input class="num" id="kpCount" value="4" oninput="buildRows()">
+        <label for="kpCount">KP数</label><input class="num" id="kpCount" value="0" oninput="buildRows()">
       </div>
     </div>
     <div class="note" style="margin-top:10px">ここで点数を決めると、下の測定数値入力に表を生成します。</div>
@@ -930,7 +929,7 @@ function rowData(sel){
     memo:tr.querySelector('.memo')?.value||''
   }));
 }
-function dmsInputs(r={}){return `<input class="dms deg" value="${esc(r.deg??'0')}" data-field="deg"> <input class="dms min" value="${esc(r.min??'0')}" data-field="min"> <input class="dms sec" value="${esc(r.sec??'0')}" data-field="sec">`}
+function dmsInputs(r={}){return `<input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"> <input class="dms min" value="${esc(r.min??'')}" data-field="min"> <input class="dms sec" value="${esc(r.sec??'')}" data-field="sec">`}
 function stationCard(kind,i,r,roleText=''){
   const fixedName=kind, defaultPointName=kind+(i+1), open=i===0?' open':'';
   const pointName=esc(r.name||defaultPointName), roleValue=esc(r.role||roleText||'');
@@ -940,7 +939,7 @@ function stationCard(kind,i,r,roleText=''){
     <button type="button" class="station-title" onclick="toggleStation(this)"><span class="station-arrow">▼</span><span>${esc(fixedName)}</span>${sub}</button>
     <div class="station-body">
       <div class="station-row ${kind==='KP'?'kp-row':'tp-row'}"><label><span class="field-label">名前</span><span class="station-name-display fixed-kind" data-value="${esc(fixedName)}">${esc(fixedName)}</span></label><label><span class="field-label">測点名</span><input class="text name" value="${pointName}"></label>${roleField}<label><span class="field-label">距離</span><input class="num dist" value="${esc(r.dist||'')}" data-field="dist"></label></div>
-      <div class="station-row dms-row"><label><span class="field-label">度</span><input class="dms deg" value="${esc(r.deg??'0')}" data-field="deg"></label><label><span class="field-label">分</span><input class="dms min" value="${esc(r.min??'0')}" data-field="min"></label><label><span class="field-label">秒</span><input class="dms sec" value="${esc(r.sec??'0')}" data-field="sec"></label></div>
+      <div class="station-row dms-row"><label><span class="field-label">度</span><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></label><label><span class="field-label">分</span><input class="dms min" value="${esc(r.min??'')}" data-field="min"></label><label><span class="field-label">秒</span><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></label></div>
     </div>
   </div>`;
 }
@@ -973,7 +972,7 @@ function buildRows(){
     const r=oldTp[i]||{};
     if(i===0 && !r.dist){r.dist='15.511';r.deg='356';r.min='29';r.sec='45'}
     const name=`TP${i+1}`;
-    h+=`<tr class="tp-row" data-kind="TP"><td class="name-cell">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'0')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'0')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'0')}" data-field="sec"></td></tr>`;
+    h+=`<tr class="tp-row" data-kind="TP"><td class="name-cell">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
   }
   const defaults=[
     ['1F','9.691','165','11','05'],
@@ -985,7 +984,7 @@ function buildRows(){
     const r=oldKp[i]||{};
     if(!r.dist && defaults[i]){r.role=defaults[i][0];r.dist=defaults[i][1];r.deg=defaults[i][2];r.min=defaults[i][3];r.sec=defaults[i][4]}
     const name=`KP${i+1}`;
-    h+=`<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'0')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'0')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'0')}" data-field="sec"></td></tr>`;
+    h+=`<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
   }
   h+='</tbody></table></div>'; document.getElementById('measurementTable').innerHTML=h;
   applyInputModes();
@@ -2256,6 +2255,146 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('DOMContentLoaded',()=>{
     patchKeypadUI();
     patchMainButtonText();
+  });
+})();
+</script>
+
+<!-- Vr015 mobile new measurement flow patch -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function jpWeekday(dateStr){
+    const d=new Date(dateStr+'T00:00:00');
+    const w=['日','月','火','水','木','金','土'];
+    return w[d.getDay()] || '';
+  }
+  function normalizePipeCount(v){ return String(v ?? '').replace(/[^\d]/g,''); }
+  function hasDuplicatePipe(pipe){
+    const key=String(pipe||'').trim();
+    return (window.measurementHistory||[]).some(m=>String(m?.pipeCount||'').trim()===key);
+  }
+  function clearInputTable(){
+    const box=byId('measurementTable');
+    if(box) box.innerHTML='';
+  }
+
+  let awaitingDateConfirm=false;
+  let dateConfirmed=false;
+
+  function beginNewMeasurementFlow(){
+    const pipe=byId('pipeCount');
+    const date=byId('measureDate');
+    const tp=byId('tpCount');
+    const kp=byId('kpCount');
+    if(!pipe||!date||!tp||!kp) return;
+
+    awaitingDateConfirm=true;
+    dateConfirmed=false;
+
+    pipe.value='';
+    date.value=todayStr();
+    tp.value='1';
+    kp.value='0';
+    clearInputTable();
+    window.results=[]; window.tpPoints=[]; window.kpPoints=[];
+    if(typeof window.renderSummary==='function') window.renderSummary();
+    if(typeof window.renderTable==='function') window.renderTable();
+    if(typeof window.renderProcess==='function') window.renderProcess();
+    if(typeof window.drawAll==='function') window.drawAll();
+    if(typeof window.updateSideInfo==='function') window.updateSideInfo();
+    if(typeof window.setStageVisible==='function') window.setStageVisible(['countStage']);
+    if(typeof window.openSection==='function') window.openSection('countStage');
+
+    pipe.focus();
+    pipe.select?.();
+  }
+
+  window.newMeasurementData=beginNewMeasurementFlow;
+
+  function onPipeInput(){
+    const pipe=byId('pipeCount');
+    if(!pipe) return;
+    const n=normalizePipeCount(pipe.value);
+    pipe.value=n;
+    if(n){
+      const date=byId('measureDate');
+      if(date?.showPicker){ try{ date.showPicker(); }catch(e){} }
+      date?.focus();
+    }
+  }
+
+  function tryConfirmPipeAndDate(){
+    if(!awaitingDateConfirm || dateConfirmed) return;
+    const pipeEl=byId('pipeCount');
+    const dateEl=byId('measureDate');
+    const pipe=normalizePipeCount(pipeEl?.value);
+    const date=String(dateEl?.value||'').trim();
+
+    if(!pipe){ alert('本数を入力してください。'); pipeEl?.focus(); return; }
+    if(/^0+$/.test(pipe)){ alert('本数は1以上の整数を入力してください。'); pipeEl.value=''; pipeEl?.focus(); return; }
+    if(!date){ alert('測定日を選択してください。'); dateEl?.focus(); return; }
+
+    if(hasDuplicatePipe(pipe)){
+      alert(`すでに${pipe}本目は入力済みです。編集する場合は履歴から行って下さい。`);
+      awaitingDateConfirm=false;
+      if(typeof window.openSection==='function') window.openSection('historyStage');
+      return;
+    }
+
+    const dObj=new Date(date+'T00:00:00');
+    const msg=`${pipe}本 ${dObj.getFullYear()}年${dObj.getMonth()+1}月${dObj.getDate()}日(${jpWeekday(date)})で間違えないですか？`;
+    if(!confirm(msg)){
+      dateEl?.focus();
+      return;
+    }
+
+    dateConfirmed=true;
+    awaitingDateConfirm=false;
+    byId('tpCount').value='1';
+    byId('kpCount').value='0';
+    clearInputTable();
+    if(typeof window.setStageVisible==='function') window.setStageVisible(['countStage','measurementInputStage']);
+    if(typeof window.openSection==='function') window.openSection('measurementInputStage');
+    byId('kpCount')?.focus();
+    byId('kpCount')?.select?.();
+    if(typeof window.updateSideInfo==='function') window.updateSideInfo();
+  }
+
+  const oldBuildRows=window.buildRows;
+  window.buildRows=function(){
+    const tpEl=byId('tpCount');
+    const kpEl=byId('kpCount');
+    const tpVal=normalizePipeCount(tpEl?.value);
+    const kpVal=normalizePipeCount(kpEl?.value);
+    if(tpEl) tpEl.value=tpVal;
+    if(kpEl) kpEl.value=kpVal;
+    if(tpEl && kpEl){
+      if(tpVal==='' || kpVal===''){ clearInputTable(); return; }
+    }
+    const out=oldBuildRows.apply(this,arguments);
+    const first=byId('measurementTable')?.querySelector('tbody tr input.dist');
+    if(first){ first.focus({preventScroll:true}); first.select?.(); }
+    return out;
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const pipe=byId('pipeCount');
+    const date=byId('measureDate');
+    const tp=byId('tpCount');
+    const kp=byId('kpCount');
+    pipe?.addEventListener('input',onPipeInput);
+    pipe?.addEventListener('blur',onPipeInput);
+    pipe?.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); onPipeInput(); date?.focus(); }});
+    date?.addEventListener('change',tryConfirmPipeAndDate);
+    if(tp && !tp.dataset.vr015Flow){
+      tp.dataset.vr015Flow='1';
+      tp.addEventListener('input',()=>{ if(dateConfirmed) window.buildRows?.(); });
+    }
+    if(kp && !kp.dataset.vr015Flow){
+      kp.dataset.vr015Flow='1';
+      kp.addEventListener('input',()=>{ if(dateConfirmed) window.buildRows?.(); });
+    }
   });
 })();
 </script>
