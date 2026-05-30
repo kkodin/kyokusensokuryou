@@ -3646,5 +3646,919 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+
+<!-- Vr014 mobile sequential meta keypad format patch -->
+<style>
+#vr014MetaInline input[disabled],
+#vr014CountInline input[disabled]{
+  background:#e5e7eb!important;
+  color:#64748b!important;
+}
+#measurementTable input.dist,
+#measurementTable input.dms{
+  text-align:right;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function cleanDigits(v){ return String(v || '').replace(/[^0-9]/g, ''); }
+  function hasValue(id){ return String(byId(id)?.value || '').trim() !== ''; }
+  function validPipe(){ return hasValue('vr014PipeInline'); }
+  function validDate(){ return hasValue('vr014DateInline'); }
+  function validTp(){ return hasValue('vr014TpCountInline'); }
+  function validKp(){ return hasValue('vr014KpCountInline') && Number(byId('vr014KpCountInline')?.value) >= 1; }
+  function setMain(id, value){ const el = byId(id); if(el) el.value = value; }
+  function decimal3(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? n.toFixed(3) : s;
+  }
+  function twoDigits(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? String(Math.trunc(n)).padStart(2,'0') : s;
+  }
+  function normalizeInlineNumber(el){
+    if(!el) return;
+    el.value = cleanDigits(el.value);
+  }
+  function normalizeMeasurementFormats(root=document){
+    root.querySelectorAll('#measurementTable input.dist').forEach(el => {
+      if(el.value) el.value = decimal3(el.value);
+    });
+    root.querySelectorAll('#measurementTable input.min,#measurementTable input.sec').forEach(el => {
+      if(el.value) el.value = twoDigits(el.value);
+    });
+  }
+  function syncInlineToHidden(){
+    setMain('pipeCount', cleanDigits(byId('vr014PipeInline')?.value || ''));
+    setMain('measureDate', byId('vr014DateInline')?.value || '');
+    setMain('tpCount', cleanDigits(byId('vr014TpCountInline')?.value || ''));
+    setMain('kpCount', cleanDigits(byId('vr014KpCountInline')?.value || ''));
+    if(typeof updateSideInfo === 'function') updateSideInfo();
+  }
+  function updateLocks(){
+    const date = byId('vr014DateInline');
+    const tp = byId('vr014TpCountInline');
+    const kp = byId('vr014KpCountInline');
+    if(date) date.disabled = !validPipe();
+    if(tp) tp.disabled = !validPipe() || !validDate();
+    if(kp) kp.disabled = !validPipe() || !validDate() || !validTp();
+    const save = byId('measurementInputStage')?.querySelector('.stage-actions .ok');
+    if(save) save.disabled = !validPipe() || !validDate() || !validTp() || !validKp();
+  }
+  function ensureMobileKeypadTargets(root=document){
+    root.querySelectorAll('#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline,#measurementTable input.num,#measurementTable input.dms').forEach(el => {
+      if(!el || el.disabled) return;
+      el.readOnly = true;
+      el.setAttribute('inputmode','none');
+      el.setAttribute('autocomplete','off');
+      el.setAttribute('aria-readonly','false');
+    });
+  }
+  function generateTableIfReady(scroll){
+    syncInlineToHidden();
+    if(!validPipe()){ alert('本数を入力してください。'); byId('vr014PipeInline')?.focus(); return false; }
+    if(!validDate()){ alert('測定日を入力してください。'); byId('vr014DateInline')?.focus(); return false; }
+    if(!validTp()){ alert('TP数を入力してください。'); byId('vr014TpCountInline')?.focus(); return false; }
+    if(!validKp()){ alert('KP数を入力してください。'); byId('vr014KpCountInline')?.focus(); return false; }
+    if(typeof buildRows === 'function') buildRows();
+    normalizeMeasurementFormats();
+    ensureMobileKeypadTargets();
+    if(scroll) byId('measurementTable')?.scrollIntoView({block:'start', behavior:'smooth'});
+    return true;
+  }
+  function wireSequentialInputs(){
+    const pipe = byId('vr014PipeInline');
+    const date = byId('vr014DateInline');
+    const tp = byId('vr014TpCountInline');
+    const kp = byId('vr014KpCountInline');
+    [pipe,tp,kp].forEach(el => {
+      if(!el || el.dataset.vr014Sequential === '1') return;
+      el.dataset.vr014Sequential = '1';
+      el.addEventListener('input', () => { normalizeInlineNumber(el); syncInlineToHidden(); updateLocks(); });
+      el.addEventListener('change', () => { normalizeInlineNumber(el); syncInlineToHidden(); updateLocks(); if(el === kp && validKp()) generateTableIfReady(true); });
+    });
+    if(date && date.dataset.vr014Sequential !== '1'){
+      date.dataset.vr014Sequential = '1';
+      date.addEventListener('input', () => { syncInlineToHidden(); updateLocks(); });
+      date.addEventListener('change', () => { syncInlineToHidden(); updateLocks(); });
+    }
+    updateLocks();
+    ensureMobileKeypadTargets();
+  }
+  const oldIsMeasurementNumericField = window.isMeasurementNumericField;
+  window.isMeasurementNumericField = function(el){
+    return !!el && !el.disabled && (
+      el.matches('#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline,#measurementTable input.num,#measurementTable input.dms') ||
+      (oldIsMeasurementNumericField && oldIsMeasurementNumericField(el))
+    );
+  };
+  window.isNumericFocusField = function(el){
+    return !!el && typeof isTouchLayout === 'function' && isTouchLayout() && window.isMeasurementNumericField(el);
+  };
+  const oldFocusLabel = window.focusFieldLabel;
+  window.focusFieldLabel = function(el){
+    if(el?.id === 'vr014PipeInline') return {rowName:'', field:'本数'};
+    if(el?.id === 'vr014TpCountInline') return {rowName:'', field:'TP数'};
+    if(el?.id === 'vr014KpCountInline') return {rowName:'', field:'KP数'};
+    return oldFocusLabel ? oldFocusLabel(el) : {rowName:'', field:el?.id || ''};
+  };
+  const oldKeypadCommit = window.keypadCommit;
+  window.keypadCommit = function(){
+    const src = activeSourceInput;
+    if(oldKeypadCommit) oldKeypadCommit();
+    if(src?.id === 'vr014PipeInline'){
+      normalizeInlineNumber(src); syncInlineToHidden(); updateLocks();
+      if(validPipe()) byId('vr014DateInline')?.focus();
+    }else if(src?.id === 'vr014TpCountInline'){
+      normalizeInlineNumber(src); syncInlineToHidden(); updateLocks();
+      if(validTp()) byId('vr014KpCountInline')?.focus();
+    }else if(src?.id === 'vr014KpCountInline'){
+      normalizeInlineNumber(src); syncInlineToHidden(); updateLocks();
+      if(validKp()) generateTableIfReady(true);
+    }else if(src?.classList?.contains('dist')){
+      src.value = decimal3(src.value);
+    }else if(src?.classList?.contains('min') || src?.classList?.contains('sec')){
+      src.value = twoDigits(src.value);
+    }
+  };
+  const oldPrepare = window.prepareTouchNumericInputs;
+  window.prepareTouchNumericInputs = function(root=document){
+    if(oldPrepare) oldPrepare(root);
+    ensureMobileKeypadTargets(root);
+  };
+  const oldBuildRows = window.buildRows;
+  window.buildRows = function(){
+    const result = oldBuildRows ? oldBuildRows.apply(this, arguments) : undefined;
+    normalizeMeasurementFormats();
+    ensureMobileKeypadTargets();
+    return result;
+  };
+  const oldStart = window.vr014StartNewMeasurementFlow;
+  window.vr014StartNewMeasurementFlow = function(){
+    if(oldStart) oldStart.apply(this, arguments);
+    setMain('pipeCount','');
+    setMain('measureDate','');
+    setMain('tpCount','');
+    setMain('kpCount','');
+    const pipe = byId('vr014PipeInline');
+    const date = byId('vr014DateInline');
+    const tp = byId('vr014TpCountInline');
+    const kp = byId('vr014KpCountInline');
+    if(pipe) pipe.value = '';
+    if(date) date.value = '';
+    if(tp) tp.value = '';
+    if(kp) kp.value = '';
+    const table = byId('measurementTable');
+    if(table) table.innerHTML = '';
+    wireSequentialInputs();
+    setTimeout(() => byId('vr014PipeInline')?.focus(), 0);
+  };
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if(el?.id === 'vr014DateInline' && !validPipe()){
+      setTimeout(() => byId('vr014PipeInline')?.focus(), 0);
+    }
+    if(el?.id === 'vr014TpCountInline' && (!validPipe() || !validDate())){
+      setTimeout(() => (!validPipe() ? byId('vr014PipeInline') : byId('vr014DateInline'))?.focus(), 0);
+    }
+    if(el?.id === 'vr014KpCountInline' && (!validPipe() || !validDate() || !validTp())){
+      setTimeout(() => (!validPipe() ? byId('vr014PipeInline') : !validDate() ? byId('vr014DateInline') : byId('vr014TpCountInline'))?.focus(), 0);
+    }
+  });
+  document.addEventListener('change', e => {
+    if(e.target?.matches?.('#measurementTable input.dist')) e.target.value = decimal3(e.target.value);
+    if(e.target?.matches?.('#measurementTable input.min,#measurementTable input.sec')) e.target.value = twoDigits(e.target.value);
+  });
+  const oldConfirm = window.confirmMeasurementInput;
+  window.confirmMeasurementInput = function(){
+    if(!generateTableIfReady(false)) return;
+    return oldConfirm ? oldConfirm.apply(this, arguments) : undefined;
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    wireSequentialInputs();
+    normalizeMeasurementFormats();
+  });
+  setTimeout(() => {
+    wireSequentialInputs();
+    normalizeMeasurementFormats();
+  }, 0);
+})();
+</script>
+
+
+<!-- Vr014 mobile table-only keypad redesign patch -->
+<style>
+#numericKeypad{
+  width:min(96vw,216px)!important;
+  max-width:216px!important;
+  border:1px solid #111!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  background:#fff!important;
+  overflow:hidden!important;
+}
+#numericKeypad .keypad-display{
+  display:grid!important;
+  grid-template-columns:72px 72px 72px!important;
+  border:0!important;
+  background:#fff!important;
+}
+#numericKeypad .kp-top,
+#numericKeypad .kp-angle{
+  display:contents!important;
+}
+#numericKeypad .kp-cell{
+  min-height:26px;
+  display:grid;
+  place-items:center;
+  border-right:1px solid #111;
+  border-bottom:1px solid #111;
+  font-size:14px;
+  line-height:1.1;
+  color:#000;
+  background:#fff;
+  box-sizing:border-box;
+}
+#numericKeypad .kp-cell:nth-child(3n){
+  border-right:0;
+}
+#numericKeypad .kp-angle .kp-cell{
+  background:#c7eefa;
+}
+#numericKeypad .keypad-label,
+#numericKeypad .keypad-value{
+  display:none!important;
+}
+#numericKeypad .keypad-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,72px)!important;
+}
+#numericKeypad .keypad-grid button{
+  min-height:48px!important;
+  height:48px!important;
+  border:0!important;
+  border-right:1px solid #f4b183!important;
+  border-bottom:1px solid #f4b183!important;
+  border-radius:0!important;
+  padding:0!important;
+  font-size:18px!important;
+  font-weight:400!important;
+  color:#000!important;
+  background:#daf2d0!important;
+}
+#numericKeypad .keypad-grid button:nth-child(3n){
+  border-right:0!important;
+}
+#numericKeypad .keypad-grid button:nth-child(3n+2),
+#numericKeypad .keypad-grid button.kp-orange{
+  background:#f4b183!important;
+}
+#numericKeypad .keypad-grid button.kp-command{
+  font-size:14px!important;
+}
+#vr014PipeInline,
+#vr014TpCountInline,
+#vr014KpCountInline{
+  -webkit-user-select:text!important;
+  user-select:text!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function isInlineCount(el){
+    return !!el && el.matches('#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline');
+  }
+  function tableNumeric(el){
+    return !!el && !el.disabled && el.matches('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec');
+  }
+  function normalizeInlineInputs(){
+    document.querySelectorAll('#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline').forEach(el => {
+      el.readOnly = false;
+      el.setAttribute('inputmode','numeric');
+      el.removeAttribute('aria-readonly');
+    });
+  }
+  function tableFields(){
+    return [...document.querySelectorAll('#measurementTable tbody tr')].flatMap(tr => ['dist','deg','min','sec'].map(cls => tr.querySelector('.' + cls)).filter(Boolean));
+  }
+  function currentRow(){
+    return activeSourceInput?.closest?.('tr') || document.activeElement?.closest?.('#measurementTable tbody tr') || null;
+  }
+  function rowLabel(tr){
+    return tr?.querySelector('.name')?.value || tr?.querySelector('.name-cell')?.textContent?.trim() || '';
+  }
+  function roleLabel(tr){
+    return tr?.querySelector('.role')?.value || '';
+  }
+  function fieldValue(tr, cls){
+    return tr?.querySelector('.' + cls)?.value || '';
+  }
+  function pad2(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? String(Math.trunc(n)).padStart(2,'0') : s;
+  }
+  function distText(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? n.toFixed(3) + 'm' : s + 'm';
+  }
+  function angleText(v, unit){
+    const s = unit === '°' ? String(v || '').trim() : pad2(v);
+    return s ? s + unit : '';
+  }
+  function renderHeader(){
+    const box = byId('numericKeypad');
+    if(!box) return;
+    let display = box.querySelector('.keypad-display');
+    if(!display) return;
+    if(!display.querySelector('.kp-top')){
+      display.innerHTML =
+        '<div class="kp-top">' +
+          '<div class="kp-cell" id="kpHeadName"></div>' +
+          '<div class="kp-cell" id="kpHeadDist"></div>' +
+          '<div class="kp-cell" id="kpHeadRole"></div>' +
+        '</div>' +
+        '<div class="kp-angle">' +
+          '<div class="kp-cell" id="kpHeadDeg"></div>' +
+          '<div class="kp-cell" id="kpHeadMin"></div>' +
+          '<div class="kp-cell" id="kpHeadSec"></div>' +
+        '</div>';
+    }
+    const tr = currentRow();
+    const set = (id, value) => { const el = byId(id); if(el) el.textContent = value || ''; };
+    set('kpHeadName', rowLabel(tr));
+    set('kpHeadDist', distText(fieldValue(tr,'dist')));
+    set('kpHeadRole', roleLabel(tr));
+    set('kpHeadDeg', angleText(fieldValue(tr,'deg'), '°'));
+    set('kpHeadMin', angleText(fieldValue(tr,'min'), '′'));
+    set('kpHeadSec', angleText(fieldValue(tr,'sec'), '″'));
+  }
+  function renderGrid(){
+    const grid = byId('numericKeypad')?.querySelector('.keypad-grid');
+    if(!grid || grid.dataset.vr014TableOnly === '1') return;
+    grid.dataset.vr014TableOnly = '1';
+    grid.innerHTML =
+      '<button type="button" onclick="keypadPress(\'1\')">1</button>' +
+      '<button type="button" onclick="keypadPress(\'2\')">2</button>' +
+      '<button type="button" onclick="keypadPress(\'3\')">3</button>' +
+      '<button type="button" onclick="keypadPress(\'4\')">4</button>' +
+      '<button type="button" onclick="keypadPress(\'5\')">5</button>' +
+      '<button type="button" onclick="keypadPress(\'6\')">6</button>' +
+      '<button type="button" onclick="keypadPress(\'7\')">7</button>' +
+      '<button type="button" onclick="keypadPress(\'8\')">8</button>' +
+      '<button type="button" onclick="keypadPress(\'9\')">9</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="keypadBackspace()">BS</button>' +
+      '<button type="button" onclick="keypadPress(\'0\')">0</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="keypadClear()">クリア</button>' +
+      '<button type="button" class="kp-command" onclick="keypadRestoreValue()">元に戻す</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusSameColumn(-1)">上</button>' +
+      '<button type="button" class="kp-command" onclick="closeNumericKeypad()">閉じる</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusTableStep(-1)">前へ</button>' +
+      '<button type="button" class="kp-command" onclick="focusSameColumn(1)">下</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusTableStep(1)">次へ</button>';
+  }
+  function formatActive(){
+    const el = activeSourceInput;
+    if(!tableNumeric(el)) return;
+    if(el.classList.contains('dist')){
+      const s = String(el.value || '').trim();
+      if(s){
+        const n = Number(s);
+        if(Number.isFinite(n)) el.value = n.toFixed(3);
+      }
+    }
+    if(el.classList.contains('min') || el.classList.contains('sec')){
+      el.value = pad2(el.value);
+    }
+  }
+  function focusField(el){
+    if(!tableNumeric(el)) return;
+    el.focus({preventScroll:true});
+    el.scrollIntoView({block:'center', inline:'nearest'});
+    setTimeout(() => window.showNumericKeypad(el), 0);
+  }
+  window.focusTableStep = function(step){
+    formatActive();
+    const fields = tableFields();
+    const idx = fields.indexOf(activeSourceInput || document.activeElement);
+    if(idx < 0) return;
+    focusField(fields[Math.max(0, Math.min(fields.length - 1, idx + step))]);
+  };
+  window.focusSameColumn = function(step){
+    formatActive();
+    const el = activeSourceInput || document.activeElement;
+    if(!tableNumeric(el)) return;
+    const cls = ['dist','deg','min','sec'].find(c => el.classList.contains(c));
+    const rows = [...document.querySelectorAll('#measurementTable tbody tr')];
+    const row = el.closest('tr');
+    const next = rows[Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + step))]?.querySelector('.' + cls);
+    focusField(next);
+  };
+  window.keypadRestoreValue = function(){
+    if(!activeSourceInput) return;
+    activeSourceInput.value = activeSourceInput.dataset.keypadStartValue || '';
+    renderHeader();
+  };
+  window.isMeasurementNumericField = function(el){
+    return tableNumeric(el);
+  };
+  window.isNumericFocusField = function(el){
+    return !!el && typeof isTouchLayout === 'function' && isTouchLayout() && tableNumeric(el);
+  };
+  window.focusFieldLabel = function(el){
+    const tr = el?.closest?.('tr');
+    let field = '';
+    if(el?.classList?.contains('dist')) field = '距離';
+    else if(el?.classList?.contains('deg')) field = '度';
+    else if(el?.classList?.contains('min')) field = '分';
+    else if(el?.classList?.contains('sec')) field = '秒';
+    return {rowName:rowLabel(tr), field};
+  };
+  window.showNumericKeypad = function(source){
+    if(!tableNumeric(source)){
+      closeNumericKeypad(false);
+      return;
+    }
+    activeSourceInput = source;
+    source.dataset.keypadStartValue = source.value || '';
+    const box = byId('numericKeypad');
+    if(!box) return;
+    renderHeader();
+    renderGrid();
+    keypadReplaceOnNextInput = true;
+    source.classList.add('keypad-active');
+    box.classList.add('visible');
+    box.setAttribute('aria-hidden','false');
+  };
+  const oldKeypadSet = window.keypadSet;
+  window.keypadSet = function(v){
+    if(!tableNumeric(activeSourceInput)) return;
+    oldKeypadSet ? oldKeypadSet(v) : (activeSourceInput.value = v);
+    renderHeader();
+  };
+  const oldKeypadPress = window.keypadPress;
+  window.keypadPress = function(ch){
+    if(!tableNumeric(activeSourceInput)) return;
+    return oldKeypadPress ? oldKeypadPress.apply(this, arguments) : undefined;
+  };
+  const oldKeypadCommit = window.keypadCommit;
+  window.keypadCommit = function(){
+    if(tableNumeric(activeSourceInput)) formatActive();
+    const result = oldKeypadCommit ? oldKeypadCommit.apply(this, arguments) : undefined;
+    renderHeader();
+    return result;
+  };
+  const oldClose = window.closeNumericKeypad;
+  window.closeNumericKeypad = function(blur=true){
+    if(tableNumeric(activeSourceInput)) formatActive();
+    return oldClose ? oldClose.call(this, blur) : undefined;
+  };
+  window.focusRelativeInput = window.focusTableStep;
+  const oldPrepare = window.prepareTouchNumericInputs;
+  window.prepareTouchNumericInputs = function(root=document){
+    if(oldPrepare) oldPrepare(root);
+    normalizeInlineInputs();
+    root.querySelectorAll('#measurementTable input.num,#measurementTable input.dms').forEach(el => {
+      el.readOnly = true;
+      el.setAttribute('inputmode','none');
+      el.setAttribute('aria-readonly','false');
+    });
+  };
+  document.addEventListener('pointerdown', e => {
+    const inline = e.target?.closest?.('#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline');
+    if(inline){
+      normalizeInlineInputs();
+      return;
+    }
+    const el = e.target?.closest?.('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec');
+    if(!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    focusField(el);
+  }, true);
+  document.addEventListener('input', e => {
+    if(tableNumeric(e.target)) renderHeader();
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    normalizeInlineInputs();
+    renderGrid();
+    renderHeader();
+  });
+  setTimeout(() => {
+    normalizeInlineInputs();
+    renderGrid();
+    renderHeader();
+  }, 0);
+})();
+</script>
+
+
+<!-- Vr014 mobile inline integer normal input patch -->
+<script>
+(function(){
+  const selector = '#vr014PipeInline,#vr014TpCountInline,#vr014KpCountInline';
+  function inlineInputs(root=document){
+    return [...root.querySelectorAll(selector)];
+  }
+  function sanitize(el){
+    if(!el) return;
+    const next = String(el.value || '').replace(/[^0-9]/g, '');
+    if(el.value !== next) el.value = next;
+  }
+  function normalize(el){
+    if(!el) return;
+    el.readOnly = false;
+    el.removeAttribute('readonly');
+    el.removeAttribute('aria-readonly');
+    el.removeAttribute('maxlength');
+    el.removeAttribute('maxLength');
+    el.setAttribute('inputmode','numeric');
+    el.setAttribute('pattern','[0-9]*');
+    el.setAttribute('autocomplete','off');
+  }
+  function normalizeAll(root=document){
+    inlineInputs(root).forEach(el => {
+      normalize(el);
+      sanitize(el);
+    });
+  }
+  function syncHidden(){
+    const byId = id => document.getElementById(id);
+    const set = (id, v) => { const el = byId(id); if(el) el.value = v; };
+    set('pipeCount', byId('vr014PipeInline')?.value || '');
+    set('tpCount', byId('vr014TpCountInline')?.value || '');
+    set('kpCount', byId('vr014KpCountInline')?.value || '');
+    if(typeof updateSideInfo === 'function') updateSideInfo();
+  }
+  document.addEventListener('beforeinput', e => {
+    if(!e.target?.matches?.(selector)) return;
+    if(e.data && /[^0-9]/.test(e.data)) e.preventDefault();
+  }, true);
+  document.addEventListener('input', e => {
+    if(!e.target?.matches?.(selector)) return;
+    normalize(e.target);
+    sanitize(e.target);
+    syncHidden();
+    setTimeout(() => normalize(e.target), 0);
+    setTimeout(() => normalize(e.target), 30);
+  }, true);
+  document.addEventListener('focusin', e => {
+    if(e.target?.matches?.(selector)){
+      normalize(e.target);
+      setTimeout(() => normalize(e.target), 0);
+    }
+  }, true);
+  document.addEventListener('pointerdown', e => {
+    if(e.target?.matches?.(selector)){
+      normalize(e.target);
+    }
+  }, true);
+  const oldPrepare = window.prepareTouchNumericInputs;
+  window.prepareTouchNumericInputs = function(root=document){
+    if(oldPrepare) oldPrepare(root);
+    normalizeAll(root);
+  };
+  const oldBuildRows = window.buildRows;
+  window.buildRows = function(){
+    normalizeAll();
+    const result = oldBuildRows ? oldBuildRows.apply(this, arguments) : undefined;
+    normalizeAll();
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', () => normalizeAll());
+  setTimeout(() => normalizeAll(), 0);
+  setTimeout(() => normalizeAll(), 250);
+})();
+</script>
+
+
+<!-- Vr014 mobile final keypad design patch -->
+<style>
+#numericKeypad{
+  position:fixed!important;
+  top:50%!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+  width:216px!important;
+  max-width:216px!important;
+  background:#fff!important;
+  border:1px solid #111!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+  z-index:10020!important;
+}
+#numericKeypad .keypad-display{
+  display:grid!important;
+  grid-template-columns:72px 72px 72px!important;
+  grid-auto-rows:26px!important;
+  border:0!important;
+  background:#fff!important;
+}
+#numericKeypad .keypad-label,
+#numericKeypad .keypad-value{
+  display:none!important;
+}
+#numericKeypad .kp-cell{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:26px!important;
+  height:26px!important;
+  padding:0 3px!important;
+  box-sizing:border-box!important;
+  border-right:1px solid #111!important;
+  border-bottom:1px solid #111!important;
+  background:#fff!important;
+  color:#000!important;
+  font-size:14px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#numericKeypad .kp-cell:nth-child(3n){
+  border-right:0!important;
+}
+#numericKeypad .kp-angle-cell{
+  background:#c7eefa!important;
+}
+#numericKeypad .keypad-grid{
+  display:grid!important;
+  grid-template-columns:72px 72px 72px!important;
+}
+#numericKeypad .keypad-grid button{
+  width:72px!important;
+  height:48px!important;
+  min-height:48px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-right:1px solid #f4b183!important;
+  border-bottom:1px solid #f4b183!important;
+  border-radius:0!important;
+  box-sizing:border-box!important;
+  color:#000!important;
+  font-size:18px!important;
+  font-weight:400!important;
+  line-height:1!important;
+  background:#daf2d0!important;
+}
+#numericKeypad .keypad-grid button:nth-child(3n){
+  border-right:0!important;
+}
+#numericKeypad .keypad-grid button.kp-orange{
+  background:#f4b183!important;
+}
+#numericKeypad .keypad-grid button.kp-green{
+  background:#daf2d0!important;
+}
+#numericKeypad .keypad-grid button.kp-command{
+  font-size:14px!important;
+}
+#measurementTable input.keypad-active{
+  background:#bfdbfe!important;
+  outline:3px solid #60a5fa!important;
+  outline-offset:-3px!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function tableNumeric(el){
+    return !!el && !el.disabled && el.matches('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec');
+  }
+  function rows(){ return [...document.querySelectorAll('#measurementTable tbody tr')]; }
+  function fields(){
+    return rows().flatMap(tr => ['dist','deg','min','sec'].map(cls => tr.querySelector('.' + cls)).filter(Boolean));
+  }
+  function activeRow(){
+    return activeSourceInput?.closest?.('tr') || document.activeElement?.closest?.('#measurementTable tbody tr') || null;
+  }
+  function rowName(tr){
+    return tr?.querySelector('.name')?.value || tr?.querySelector('.name-cell')?.textContent?.trim() || '';
+  }
+  function roleName(tr){
+    return tr?.querySelector('.role')?.value || '';
+  }
+  function val(tr, cls){ return tr?.querySelector('.' + cls)?.value || ''; }
+  function pad2(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? String(Math.trunc(n)).padStart(2,'0') : s;
+  }
+  function dist(v){
+    const s = String(v || '').trim();
+    if(!s) return '';
+    const n = Number(s);
+    return Number.isFinite(n) ? n.toFixed(3) + 'm' : s + 'm';
+  }
+  function deg(v){ const s = String(v || '').trim(); return s ? s + '°' : ''; }
+  function min(v){ const s = pad2(v); return s ? s + '′' : ''; }
+  function sec(v){ const s = pad2(v); return s ? s + '″' : ''; }
+  function ensureHeader(){
+    const display = byId('numericKeypad')?.querySelector('.keypad-display');
+    if(!display) return;
+    display.innerHTML =
+      '<div class="kp-cell" id="kpFinalName"></div>' +
+      '<div class="kp-cell" id="kpFinalDist"></div>' +
+      '<div class="kp-cell" id="kpFinalRole"></div>' +
+      '<div class="kp-cell kp-angle-cell" id="kpFinalDeg"></div>' +
+      '<div class="kp-cell kp-angle-cell" id="kpFinalMin"></div>' +
+      '<div class="kp-cell kp-angle-cell" id="kpFinalSec"></div>';
+  }
+  function setText(id, text){ const el = byId(id); if(el) el.textContent = text || ''; }
+  function refreshHeader(){
+    ensureHeader();
+    const tr = activeRow();
+    setText('kpFinalName', rowName(tr));
+    setText('kpFinalDist', dist(val(tr,'dist')));
+    setText('kpFinalRole', roleName(tr));
+    setText('kpFinalDeg', deg(val(tr,'deg')));
+    setText('kpFinalMin', min(val(tr,'min')));
+    setText('kpFinalSec', sec(val(tr,'sec')));
+  }
+  function ensureGrid(){
+    const grid = byId('numericKeypad')?.querySelector('.keypad-grid');
+    if(!grid) return;
+    grid.innerHTML =
+      '<button type="button" class="kp-green" onclick="keypadPress(\'1\')">1</button>' +
+      '<button type="button" class="kp-orange" onclick="keypadPress(\'2\')">2</button>' +
+      '<button type="button" class="kp-green" onclick="keypadPress(\'3\')">3</button>' +
+      '<button type="button" class="kp-orange" onclick="keypadPress(\'4\')">4</button>' +
+      '<button type="button" class="kp-green" onclick="keypadPress(\'5\')">5</button>' +
+      '<button type="button" class="kp-orange" onclick="keypadPress(\'6\')">6</button>' +
+      '<button type="button" class="kp-green" onclick="keypadPress(\'7\')">7</button>' +
+      '<button type="button" class="kp-orange" onclick="keypadPress(\'8\')">8</button>' +
+      '<button type="button" class="kp-green" onclick="keypadPress(\'9\')">9</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="keypadBackspace()">BS</button>' +
+      '<button type="button" class="kp-green" onclick="keypadPress(\'0\')">0</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="keypadClear()">クリア</button>' +
+      '<button type="button" class="kp-command kp-green" onclick="keypadRestoreValue()">元に戻す</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusSameColumn(-1)">上</button>' +
+      '<button type="button" class="kp-command kp-green" onclick="closeNumericKeypad()">閉じる</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusTableStep(-1)">前へ</button>' +
+      '<button type="button" class="kp-command kp-green" onclick="focusSameColumn(1)">下</button>' +
+      '<button type="button" class="kp-command kp-orange" onclick="focusTableStep(1)">次へ</button>';
+  }
+  function speakValue(v){
+    try{
+      if(!window.speechSynthesis) return;
+      const text = String(v || '').replace(/\./g, 'てん');
+      if(!text) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function format(el){
+    if(!tableNumeric(el)) return;
+    if(el.classList.contains('dist')){
+      const s = String(el.value || '').trim();
+      if(s){
+        const n = Number(s);
+        if(Number.isFinite(n)) el.value = n.toFixed(3);
+      }
+    }
+    if(el.classList.contains('min') || el.classList.contains('sec')) el.value = pad2(el.value);
+  }
+  function focusField(el){
+    if(!tableNumeric(el)) return;
+    if(tableNumeric(activeSourceInput)) format(activeSourceInput);
+    document.querySelectorAll('#measurementTable input.keypad-active').forEach(x => x.classList.remove('keypad-active'));
+    activeSourceInput = el;
+    el.dataset.keypadStartValue = el.value || '';
+    el.focus({preventScroll:true});
+    el.scrollIntoView({block:'center', inline:'nearest'});
+    window.showNumericKeypad(el);
+  }
+  window.focusTableStep = function(step){
+    const list = fields();
+    const idx = list.indexOf(activeSourceInput || document.activeElement);
+    if(idx < 0) return;
+    focusField(list[Math.max(0, Math.min(list.length - 1, idx + step))]);
+  };
+  window.focusSameColumn = function(step){
+    const el = activeSourceInput || document.activeElement;
+    if(!tableNumeric(el)) return;
+    const cls = ['dist','deg','min','sec'].find(c => el.classList.contains(c));
+    const r = rows();
+    const next = r[Math.max(0, Math.min(r.length - 1, r.indexOf(el.closest('tr')) + step))]?.querySelector('.' + cls);
+    focusField(next);
+  };
+  window.keypadRestoreValue = function(){
+    if(!tableNumeric(activeSourceInput)) return;
+    activeSourceInput.value = activeSourceInput.dataset.keypadStartValue || '';
+    refreshHeader();
+  };
+  window.showNumericKeypad = function(source){
+    if(!tableNumeric(source)){
+      window.closeNumericKeypad(false);
+      return;
+    }
+    activeSourceInput = source;
+    source.dataset.keypadStartValue = source.value || '';
+    ensureHeader();
+    ensureGrid();
+    refreshHeader();
+    keypadReplaceOnNextInput = true;
+    source.classList.add('keypad-active');
+    const box = byId('numericKeypad');
+    if(box){
+      box.classList.add('visible');
+      box.setAttribute('aria-hidden','false');
+    }
+  };
+  window.closeNumericKeypad = function(blur=true){
+    if(tableNumeric(activeSourceInput)) format(activeSourceInput);
+    const box = byId('numericKeypad');
+    if(box){
+      box.classList.remove('visible');
+      box.setAttribute('aria-hidden','true');
+    }
+    document.querySelectorAll('#measurementTable input.keypad-active').forEach(x => x.classList.remove('keypad-active'));
+    keypadReplaceOnNextInput = false;
+    if(blur && activeSourceInput) activeSourceInput.blur();
+    activeSourceInput = null;
+  };
+  window.keypadSet = function(v){
+    if(!tableNumeric(activeSourceInput)) return;
+    activeSourceInput.value = v;
+    activeSourceInput.dispatchEvent(new Event('input',{bubbles:true}));
+    refreshHeader();
+    speakValue(v);
+  };
+  window.keypadPress = function(ch){
+    if(!tableNumeric(activeSourceInput)) return;
+    if(activeSourceInput.classList.contains('dms') && ch === '.') return;
+    let v = keypadReplaceOnNextInput ? '' : String(activeSourceInput.value || '');
+    keypadReplaceOnNextInput = false;
+    if(v === '0' && ch !== '.') v = '';
+    if(ch === '.' && v.includes('.')) return;
+    window.keypadSet(v + ch);
+  };
+  window.keypadBackspace = function(){
+    if(!tableNumeric(activeSourceInput)) return;
+    if(keypadReplaceOnNextInput){
+      keypadReplaceOnNextInput = false;
+      window.keypadSet('');
+      return;
+    }
+    window.keypadSet(String(activeSourceInput.value || '').slice(0,-1));
+  };
+  window.keypadClear = function(){
+    if(!tableNumeric(activeSourceInput)) return;
+    keypadReplaceOnNextInput = false;
+    window.keypadSet('');
+  };
+  window.keypadCommit = function(){
+    if(tableNumeric(activeSourceInput)){
+      format(activeSourceInput);
+      activeSourceInput.dispatchEvent(new Event('change',{bubbles:true}));
+      refreshHeader();
+    }
+    keypadReplaceOnNextInput = false;
+  };
+  window.isMeasurementNumericField = tableNumeric;
+  window.isNumericFocusField = function(el){
+    return !!el && typeof isTouchLayout === 'function' && isTouchLayout() && tableNumeric(el);
+  };
+  window.focusRelativeInput = window.focusTableStep;
+  document.addEventListener('pointerdown', e => {
+    const el = e.target?.closest?.('#measurementTable input.dist,#measurementTable input.deg,#measurementTable input.min,#measurementTable input.sec');
+    if(!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    focusField(el);
+  }, true);
+  document.addEventListener('input', e => {
+    if(tableNumeric(e.target)) refreshHeader();
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureHeader();
+    ensureGrid();
+    refreshHeader();
+  });
+  setTimeout(() => {
+    ensureHeader();
+    ensureGrid();
+    refreshHeader();
+  }, 0);
+})();
+</script>
+
 </body>
 </html>
