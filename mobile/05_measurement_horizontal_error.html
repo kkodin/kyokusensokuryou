@@ -157,7 +157,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   background:#0f172a; color:#fff; padding:8px 12px; display:flex; gap:12px; align-items:center;
   font-weight:bold;
 }
-.fullscreen-graph canvas{flex:1; width:100%; height:calc(100vh - 42px); border:0; border-radius:0; cursor:grab;}
+.fullscreen-graph canvas{flex:1; width:100%; height:calc(100vh - 42px); border:0; border-radius:0; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;}
 .fullscreen-graph canvas:active{cursor:grabbing;}
 .modal{
   position:fixed; inset:0; z-index:10000; background:rgba(15,23,42,.55);
@@ -527,7 +527,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
       <div><h3>全体</h3><canvas id="overviewCanvas" width="760" height="420" onclick="openGraphFullScreen('overview')"></canvas></div>
       <div><h3>拡大</h3><canvas id="zoomCanvas" width="760" height="420" onclick="openGraphFullScreen('zoom')"></canvas></div>
     </div>
-    <div class="note no-print">グラフをクリックすると全画面表示します。全画面ではホイールで拡大縮小、ドラッグで移動、ESCで閉じます。</div>
+    <div class="note no-print">グラフをタップすると全画面表示します。全画面ではピンチで拡大縮小、ドラッグで移動できます。</div>
     <div class="stage-actions"><button class="secondary" type="button" onclick="showResultStage()">計算結果へ戻る</button></div>
   </div>
 
@@ -576,7 +576,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   </div>
 </div>
 <div id="graphFullScreen" class="fullscreen-graph">
-  <div class="bar"><span id="fsTitle">グラフ全画面</span><span style="font-weight:normal">ホイール：拡大縮小 / ドラッグ：移動 / ESC：閉じる</span><button class="secondary" onclick="closeGraphFullScreen()" style="margin-left:auto">閉じる</button></div>
+  <div class="bar"><span id="fsTitle">グラフ全画面</span><span style="font-weight:normal">ピンチ：拡大縮小 / ドラッグ：移動</span><button class="secondary" onclick="closeGraphFullScreen()" style="margin-left:auto">閉じる</button></div>
   <canvas id="fsCanvas" width="1400" height="900"></canvas>
 </div>
 
@@ -1658,7 +1658,7 @@ function drawFullScreenGraph(){
   }
 }
 window.addEventListener('resize',()=>{if(document.getElementById('graphFullScreen')?.style.display==='flex'){resizeFsCanvas();drawFullScreenGraph();}});
-window.addEventListener('keydown',e=>{if(e.key==='Escape' && document.getElementById('graphFullScreen')?.style.display==='flex')closeGraphFullScreen();});
+
 window.addEventListener('DOMContentLoaded',()=>{
   const cvs=document.getElementById('fsCanvas');
   document.getElementById('graphFullScreen')?.addEventListener('click',e=>{if(e.target.id==='graphFullScreen')closeGraphFullScreen()});
@@ -2642,5 +2642,691 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.__DEVICE_MODE__='mobile';
   window.isTouchLayout=function(){ return true; };
 })();
-</script></body>
+</script>
+
+<!-- Vr014 mobile final history load repair -->
+<style>
+#historyStage > .stage-actions,
+#historyStage > .history-actions,
+#historyStage > .history-options,
+#historyStage label:has(input[type="checkbox"]),
+#historyStage input[type="checkbox"]{
+  display:none!important;
+}
+#historyList .vr014-history-select-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 74px!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#historyList #measurementHistorySelect{
+  width:100%!important;
+  min-height:42px!important;
+  font-size:16px!important;
+}
+#historyList #vr014HistoryLoadButton{
+  min-height:42px!important;
+  border-radius:7px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-weight:700!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function escText(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function isMeasurement(v){
+    return v && typeof v === 'object' && (
+      Array.isArray(v.tpRows) || Array.isArray(v.kpRows) || 'pipeCount' in v || 'measureDate' in v
+    );
+  }
+  function findMeasurements(obj, depth){
+    if(!obj || typeof obj !== 'object' || depth > 5) return [];
+    if(Array.isArray(obj)) return obj.some(isMeasurement) ? obj : [];
+    if(Array.isArray(obj.measurements) && obj.measurements.some(isMeasurement)) return obj.measurements;
+    for(const key of ['measurementHistory','history','surveyHistory','surveyMeasurements','measurementData']){
+      if(Array.isArray(obj[key]) && obj[key].some(isMeasurement)) return obj[key];
+    }
+    for(const value of Object.values(obj)){
+      const found = findMeasurements(value, depth + 1);
+      if(found.length) return found;
+    }
+    return [];
+  }
+  function readStore(key){
+    try{ return JSON.parse(localStorage.getItem(key) || 'null'); }catch(e){ return null; }
+  }
+  function histories(){
+    let found = findMeasurements(measurementHistory, 0);
+    if(!found.length) found = findMeasurements(project, 0);
+    if(!found.length) found = findMeasurements(readStore('curvedJackingProject'), 0);
+    if(!found.length) found = findMeasurements(readStore('vr014LastSavedProjectJson'), 0);
+    if(!found.length) found = findMeasurements(readStore('vr012LastSavedProjectJson'), 0);
+    if(found.length){
+      measurementHistory = found;
+      project = project || {};
+      project.measurements = found;
+    }
+    return found;
+  }
+  function label(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function removeUnwantedHistoryControls(){
+    byId('historyStage')?.querySelectorAll(':scope > .stage-actions,:scope > .history-options').forEach(el => el.remove());
+  }
+  window.renderHistoryList = function(){
+    removeUnwantedHistoryControls();
+    const box = byId('historyList');
+    if(!box) return;
+    const list = histories();
+    if(!list.length){
+      box.innerHTML =
+        '<div class="vr014-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"><option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr014HistoryLoadButton">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">保存済み測量データがありません。</div>';
+    }else{
+      const options = list.map((m, i) => '<option value="' + i + '">' + escText(label(m)) + '</option>').join('');
+      box.innerHTML =
+        '<div class="vr014-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr014HistoryLoadButton">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">' + list.length + '件の測量データを読み込みました。選択して「決定」を押してください。</div>';
+    }
+    byId('vr014HistoryLoadButton')?.addEventListener('click', window.loadSelectedMeasurementHistory);
+  };
+  function put(id, value){
+    const el = byId(id);
+    if(el && value !== undefined && value !== null) el.value = String(value);
+  }
+  function input(cls, value, field){
+    const attr = field ? ' data-field="' + field + '"' : '';
+    return '<input class="' + cls + '" value="' + escText(value ?? '') + '"' + attr + '>';
+  }
+  function renderMeasurementTable(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    let html = '<div class="excel-input"><table><colgroup><col class="name-col"><col class="role-col"><col class="dist-col"><col class="angle-col"><col class="angle-col"><col class="angle-col"></colgroup><thead><tr><th>名称</th><th>測点名</th><th>距離</th><th>度</th><th>分</th><th>秒</th></tr></thead><tbody>';
+    tpRows.forEach((row, i) => {
+      const name = row.name || ('TP' + (i + 1));
+      html += '<tr class="tp-row" data-kind="TP">' +
+        '<td class="name-cell">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td>' +
+        '<td class="role-cell">' + input('text role', row.role || '', '') + '</td>' +
+        '<td>' + input('num dist', row.dist || '', 'dist') + '</td>' +
+        '<td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td>' +
+        '<td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td>' +
+        '<td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td>' +
+      '</tr>';
+    });
+    kpRows.forEach((row, i) => {
+      const name = row.name || ('KP' + (i + 1));
+      html += '<tr class="kp-row" data-kind="KP">' +
+        '<td class="name-cell kp-name">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td>' +
+        '<td class="role-cell">' + input('text role', row.role || '', '') + '</td>' +
+        '<td>' + input('num dist', row.dist || '', 'dist') + '</td>' +
+        '<td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td>' +
+        '<td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td>' +
+        '<td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    table.innerHTML = html;
+  }
+  function applyRowsToRenderedTable(data){
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    put('tpCount', data.tpCount || tpRows.length || 0);
+    put('kpCount', data.kpCount || kpRows.length || 1);
+    renderMeasurementTable(data);
+    function setRows(kind, rows){
+      const trs = [...document.querySelectorAll('#measurementTable tbody tr[data-kind="' + kind + '"]')];
+      rows.forEach((row, i) => {
+        const tr = trs[i];
+        if(!tr) return;
+        ['name','role','dist','deg','min','sec','memo'].forEach(cls => {
+          const el = tr.querySelector('.' + cls);
+          if(el && row[cls] !== undefined) el.value = row[cls];
+        });
+      });
+    }
+    setRows('TP', tpRows);
+    setRows('KP', kpRows);
+  }
+  function openMeasurementInput(){
+    if(typeof setStageVisible === 'function') setStageVisible(['historyStage','countStage','measurementInputStage']);
+    const history = byId('historyStage');
+    const count = byId('countStage');
+    const input = byId('measurementInputStage');
+    history?.classList.remove('collapsed','stage-hidden');
+    count?.classList.remove('collapsed','stage-hidden');
+    input?.classList.remove('collapsed','stage-hidden');
+    input?.scrollIntoView({block:'start', behavior:'smooth'});
+  }
+  window.loadSelectedMeasurementHistory = function(){
+    const list = histories();
+    const sel = byId('measurementHistorySelect');
+    const note = byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      return;
+    }
+    const data = list[Number(sel.value)];
+    if(!data){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    put('measureDate', data.measureDate || '');
+    put('pipeCount', data.pipeCount || '');
+    put('predictionLength', data.predictionLength);
+    put('instX', data.instX);
+    put('instY', data.instY);
+    put('bsX', data.bsX);
+    put('bsY', data.bsY);
+    put('pipeDiaMm', data.pipeDiaMm);
+    put('internalPct', data.internalPct);
+    put('tolOk', data.tolOk);
+    put('tolWarn', data.tolWarn);
+    applyRowsToRenderedTable(data);
+    if(typeof applyInputModes === 'function') applyInputModes();
+    if(typeof updateToleranceDisplay === 'function') updateToleranceDisplay();
+    if(typeof updateSideInfo === 'function') updateSideInfo();
+    if(typeof calculateAll === 'function') calculateAll(false);
+    openMeasurementInput();
+    setTimeout(() => applyRowsToRenderedTable(data), 0);
+    setTimeout(() => {
+      applyRowsToRenderedTable(data);
+      if(typeof calculateAll === 'function') calculateAll(false);
+    }, 120);
+    if(note) note.textContent = label(data) + ' を測定数値入力欄へ呼び出しました。';
+  };
+  window.historyChanged = function(){};
+  window.onHistorySelectFinal = function(){};
+  window.measurementHistorySelectionChanged = function(){};
+  window.historyDateChanged = function(){};
+  window.historyPointChanged = function(){};
+
+  if(typeof applyProject === 'function' && !applyProject.vr014FinalHistoryRepair){
+    const previousApplyProject = applyProject;
+    applyProject = function(obj){
+      const result = previousApplyProject.apply(this, arguments);
+      const found = findMeasurements(obj, 0);
+      if(found.length){
+        measurementHistory = found;
+        project = project || {};
+        project.measurements = found;
+      }
+      setTimeout(window.renderHistoryList, 0);
+      return result;
+    };
+    applyProject.vr014FinalHistoryRepair = true;
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(window.renderHistoryList, 0));
+  setTimeout(window.renderHistoryList, 0);
+})();
+</script>
+
+<!-- Vr014 mobile history layout and count inputs patch -->
+<style>
+#historyStage > .stage-actions,
+#historyStage > .history-actions,
+#historyStage > .history-options,
+#historyStage > .label-options,
+#historyStage label:has(input[type="checkbox"]),
+#historyStage input[type="checkbox"]{
+  display:none!important;
+}
+#historyList .vr014-history-select-row{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:8px!important;
+  align-items:stretch!important;
+  max-width:100%!important;
+}
+#historyList #measurementHistorySelect{
+  width:100%!important;
+  min-height:44px!important;
+  box-sizing:border-box!important;
+  font-size:16px!important;
+}
+#historyList #vr014HistoryLoadButton{
+  width:100%!important;
+  min-height:42px!important;
+  border-radius:7px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-weight:700!important;
+}
+.vr014-count-inline{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:8px 0 10px;
+  padding:8px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.vr014-count-inline label{
+  display:grid;
+  gap:4px;
+  margin:0;
+  font-weight:700;
+  color:#334155;
+}
+.vr014-count-inline input{
+  width:100%;
+  min-height:38px;
+  box-sizing:border-box;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:16px;
+}
+@media(max-width:520px){
+  .vr014-count-inline{grid-template-columns:1fr 1fr}
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function removeHistoryControls(){
+    const stage = byId('historyStage');
+    if(!stage) return;
+    stage.querySelectorAll(':scope > .stage-actions,:scope > .history-actions,:scope > .history-options,:scope > .label-options').forEach(el => el.remove());
+    stage.querySelectorAll('label').forEach(label => {
+      if(label.querySelector('input[type="checkbox"]')) label.remove();
+    });
+  }
+  function escText(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function mountCountInputs(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    let box = byId('vr014CountInline');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'vr014CountInline';
+      box.className = 'vr014-count-inline';
+      box.innerHTML =
+        '<label>TP数<input class="num" id="vr014TpCountInline" inputmode="numeric"></label>' +
+        '<label>KP数<input class="num" id="vr014KpCountInline" inputmode="numeric"></label>';
+      table.parentNode.insertBefore(box, table);
+      byId('vr014TpCountInline')?.addEventListener('change', rebuildCountRows);
+      byId('vr014KpCountInline')?.addEventListener('change', rebuildCountRows);
+    }
+    const tpRows = Array.isArray(data?.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data?.kpRows) ? data.kpRows : [];
+    const tp = String(data?.tpCount || tpRows.length || byId('tpCount')?.value || 0);
+    const kp = String(data?.kpCount || kpRows.length || byId('kpCount')?.value || 1);
+    byId('vr014TpCountInline').value = tp;
+    byId('vr014KpCountInline').value = kp;
+    if(byId('tpCount')) byId('tpCount').value = tp;
+    if(byId('kpCount')) byId('kpCount').value = kp;
+  }
+  function rowFromTable(kind, index){
+    const tr = document.querySelectorAll('#measurementTable tbody tr[data-kind="' + kind + '"]')[index];
+    if(!tr) return {};
+    const q = cls => tr.querySelector('.' + cls)?.value || '';
+    return {
+      name:q('name') || (kind + (index + 1)),
+      role:q('role'),
+      dist:q('dist'),
+      deg:q('deg') || '0',
+      min:q('min') || '0',
+      sec:q('sec') || '0',
+      memo:q('memo')
+    };
+  }
+  function currentRows(kind, count){
+    return Array.from({length:count}, (_, i) => rowFromTable(kind, i));
+  }
+  function renderDirectTable(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    let html = '<div class="excel-input"><table><colgroup><col class="name-col"><col class="role-col"><col class="dist-col"><col class="angle-col"><col class="angle-col"><col class="angle-col"></colgroup><thead><tr><th>名称</th><th>測点名</th><th>距離</th><th>度</th><th>分</th><th>秒</th></tr></thead><tbody>';
+    function input(cls, value, field){
+      const attr = field ? ' data-field="' + field + '"' : '';
+      return '<input class="' + cls + '" value="' + escText(value ?? '') + '"' + attr + '>';
+    }
+    tpRows.forEach((row, i) => {
+      const name = row.name || ('TP' + (i + 1));
+      html += '<tr class="tp-row" data-kind="TP"><td class="name-cell">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td><td class="role-cell">' + input('text role', row.role || '', '') + '</td><td>' + input('num dist', row.dist || '', 'dist') + '</td><td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td><td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td><td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td></tr>';
+    });
+    kpRows.forEach((row, i) => {
+      const name = row.name || ('KP' + (i + 1));
+      html += '<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td><td class="role-cell">' + input('text role', row.role || '', '') + '</td><td>' + input('num dist', row.dist || '', 'dist') + '</td><td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td><td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td><td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    table.innerHTML = html;
+    if(typeof applyInputModes === 'function') applyInputModes();
+  }
+  function rebuildCountRows(){
+    const tp = Math.max(0, Number(byId('vr014TpCountInline')?.value || 0));
+    const kp = Math.max(1, Number(byId('vr014KpCountInline')?.value || 1));
+    const data = {
+      tpCount:String(tp),
+      kpCount:String(kp),
+      tpRows:currentRows('TP', tp).map((r, i) => ({...r, name:'TP' + (i + 1)})),
+      kpRows:currentRows('KP', kp).map((r, i) => ({...r, name:'KP' + (i + 1)}))
+    };
+    if(byId('tpCount')) byId('tpCount').value = data.tpCount;
+    if(byId('kpCount')) byId('kpCount').value = data.kpCount;
+    renderDirectTable(data);
+    mountCountInputs(data);
+  }
+  const previousLoad = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const result = previousLoad ? previousLoad.apply(this, arguments) : undefined;
+    const list = Array.isArray(measurementHistory) ? measurementHistory : [];
+    const sel = byId('measurementHistorySelect');
+    const data = sel && sel.value !== '__new__' ? list[Number(sel.value)] : null;
+    if(data){
+      setTimeout(() => {
+        renderDirectTable(data);
+        mountCountInputs(data);
+        byId('measurementInputStage')?.classList.remove('collapsed','stage-hidden');
+      }, 0);
+      setTimeout(() => {
+        renderDirectTable(data);
+        mountCountInputs(data);
+      }, 160);
+    }
+    return result;
+  };
+  const previousRenderHistoryList = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    const result = previousRenderHistoryList ? previousRenderHistoryList.apply(this, arguments) : undefined;
+    removeHistoryControls();
+    const row = byId('historyList')?.querySelector('.vr014-history-select-row');
+    if(row) row.style.gridTemplateColumns = '1fr';
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    removeHistoryControls();
+    mountCountInputs(null);
+  });
+  setTimeout(removeHistoryControls, 0);
+})();
+</script>
+
+<!-- Vr014 mobile keep history open and save confirm patch -->
+<style>
+#historyStage > .history-actions,
+#historyStage > .stage-actions,
+#historyStage > .history-options,
+#historyStage > .label-options{
+  display:none!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function keepHistoryVisible(){
+    const history = byId('historyStage');
+    if(history) history.classList.remove('collapsed','stage-hidden');
+  }
+  function removeUnwantedHistoryButtons(){
+    const history = byId('historyStage');
+    if(!history) return;
+    history.querySelectorAll(':scope > .stage-actions,:scope > .history-actions,:scope > .history-options,:scope > .label-options').forEach(el => el.remove());
+  }
+  function openResultsKeepingHistory(){
+    if(typeof setStageVisible === 'function'){
+      setStageVisible(['historyStage','measurementInputStage','summaryStage','resultStage','processStage']);
+    }
+    ['historyStage','measurementInputStage','summaryStage','resultStage','processStage'].forEach(id => {
+      const el = byId(id);
+      if(el) el.classList.remove('collapsed','stage-hidden');
+    });
+    byId('summaryStage')?.scrollIntoView({block:'start', behavior:'smooth'});
+  }
+  const previousLoad = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const result = previousLoad ? previousLoad.apply(this, arguments) : undefined;
+    keepHistoryVisible();
+    setTimeout(keepHistoryVisible, 0);
+    setTimeout(keepHistoryVisible, 180);
+    return result;
+  };
+  window.confirmMeasurementInput = function(){
+    try{
+      if(typeof calculateAll === 'function') calculateAll(true);
+      try{
+        if(typeof collectMeasurementData === 'function'){
+          localStorage.setItem('lastMeasurementData', JSON.stringify(collectMeasurementData()));
+        }
+      }catch(e){}
+      openResultsKeepingHistory();
+      const msg = byId('measurementSaveMessage');
+      if(msg){
+        msg.textContent = '保存して測量結果を表示しました。';
+        msg.classList.add('visible');
+        setTimeout(() => msg.classList.remove('visible'), 1800);
+      }
+    }catch(e){
+      console.error(e);
+      alert('測量結果の確認中にエラーが発生しました。入力値を確認してください。');
+    }
+  };
+  const previousRender = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    const result = previousRender ? previousRender.apply(this, arguments) : undefined;
+    removeUnwantedHistoryButtons();
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    removeUnwantedHistoryButtons();
+    const action = byId('measurementInputStage')?.querySelector('.stage-actions');
+    if(action){
+      action.innerHTML = '<button type="button" class="ok" onclick="confirmMeasurementInput()">保存して測量結果を確認</button>';
+    }
+  });
+  setTimeout(removeUnwantedHistoryButtons, 0);
+})();
+</script>
+
+
+<!-- Vr014 mobile nested history controls removal -->
+<style>
+#historyStage .history-actions,
+#historyStage .label-options,
+#historyStage .history-options,
+#historyStage label:has(input[type="checkbox"]),
+#historyStage input[type="checkbox"]{
+  display:none!important;
+}
+</style>
+<script>
+(function(){
+  function cleanHistoryControls(){
+    const history = document.getElementById('historyStage');
+    if(!history) return;
+    history.querySelectorAll('.history-actions,.label-options,.history-options').forEach(el => el.remove());
+    history.querySelectorAll('label').forEach(label => {
+      if(label.querySelector('input[type="checkbox"]')) label.remove();
+    });
+  }
+  const previousRender = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    const result = previousRender ? previousRender.apply(this, arguments) : undefined;
+    cleanHistoryControls();
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', cleanHistoryControls);
+  setTimeout(cleanHistoryControls, 0);
+  setTimeout(cleanHistoryControls, 200);
+})();
+</script>
+
+
+<!-- Vr014 mobile robust confirm result patch -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function showResults(){
+    if(typeof setStageVisible === 'function'){
+      setStageVisible(['historyStage','measurementInputStage','summaryStage','resultStage','processStage']);
+    }
+    ['historyStage','measurementInputStage','summaryStage','resultStage','processStage'].forEach(id => {
+      const el = byId(id);
+      if(el) el.classList.remove('collapsed','stage-hidden');
+    });
+  }
+  function safeSaveCurrentMeasurement(){
+    try{
+      if(typeof collectMeasurementData !== 'function') return;
+      const data = collectMeasurementData();
+      localStorage.setItem('lastMeasurementData', JSON.stringify(data));
+      if(Array.isArray(measurementHistory) && data && String(data.pipeCount || '').trim()){
+        const key = String(data.pipeCount).trim();
+        const idx = measurementHistory.findIndex(m => String(m.pipeCount || '').trim() === key);
+        const saved = {...data, pipeCount:key, updatedAt:new Date().toISOString()};
+        if(idx >= 0) measurementHistory[idx] = saved;
+        else measurementHistory.push(saved);
+        project = project || {};
+        project.measurements = measurementHistory;
+        localStorage.setItem('curvedJackingProject', JSON.stringify(project));
+        if(typeof renderHistoryList === 'function') renderHistoryList();
+      }
+    }catch(e){
+      console.error('Vr014 mobile save skipped:', e);
+    }
+  }
+  function fallbackRenderError(message){
+    const summary = byId('summaryCards');
+    const result = byId('resultTable');
+    const text = String(message || '計算処理でエラーが発生しました。');
+    if(summary) summary.innerHTML = '<p class="note">' + text + '</p>';
+    if(result) result.innerHTML = '<p class="note">' + text + '</p>';
+  }
+  window.confirmMeasurementInput = function(){
+    let calcError = null;
+    try{
+      if(typeof calculateAll === 'function') calculateAll(false);
+    }catch(e){
+      calcError = e;
+      console.error('Vr014 mobile calculate failed:', e);
+      fallbackRenderError('測量結果の計算中にエラーが発生しました。入力値または基線データを確認してください。');
+    }
+    safeSaveCurrentMeasurement();
+    showResults();
+    if(!calcError && typeof drawAll === 'function'){
+      try{ drawAll(); }catch(e){ console.error('Vr014 mobile draw failed:', e); }
+    }
+    const msg = byId('measurementSaveMessage');
+    if(msg){
+      msg.textContent = calcError ? '保存しました。計算結果は入力値または基線データを確認してください。' : '保存して測量結果を表示しました。';
+      msg.classList.add('visible');
+      setTimeout(() => msg.classList.remove('visible'), 2200);
+    }
+    byId(calcError ? 'resultStage' : 'summaryStage')?.scrollIntoView({block:'start', behavior:'smooth'});
+  };
+})();
+</script>
+
+
+<!-- Vr014 mobile graph touch controls patch -->
+<style>
+#fsCanvas{
+  touch-action:none!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+}
+</style>
+<script>
+(function(){
+  let activeTouches = new Map();
+  let pinchStartDistance = 0;
+  let pinchStartScale = 1;
+  let dragLast = null;
+
+  function canvas(){ return document.getElementById('fsCanvas'); }
+  function pointFromTouch(t){
+    return { x:t.clientX * window.devicePixelRatio, y:t.clientY * window.devicePixelRatio };
+  }
+  function distance(a,b){
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  function redraw(){
+    if(typeof drawFullScreenGraph === 'function') drawFullScreenGraph();
+  }
+  function isVisible(){
+    return document.getElementById('graphFullScreen')?.style.display === 'flex';
+  }
+  function touchPoints(){
+    return [...activeTouches.values()];
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const cvs = canvas();
+    if(!cvs || cvs.dataset.vr014MobileTouch === '1') return;
+    cvs.dataset.vr014MobileTouch = '1';
+
+    cvs.addEventListener('touchstart', e => {
+      if(!isVisible()) return;
+      e.preventDefault();
+      for(const t of e.changedTouches) activeTouches.set(t.identifier, pointFromTouch(t));
+      const pts = touchPoints();
+      if(pts.length >= 2){
+        pinchStartDistance = Math.max(1, distance(pts[0], pts[1]));
+        pinchStartScale = fsScale || 1;
+        dragLast = null;
+      }else if(pts.length === 1){
+        dragLast = pts[0];
+      }
+    }, {passive:false});
+
+    cvs.addEventListener('touchmove', e => {
+      if(!isVisible()) return;
+      e.preventDefault();
+      for(const t of e.changedTouches) activeTouches.set(t.identifier, pointFromTouch(t));
+      const pts = touchPoints();
+      if(pts.length >= 2){
+        const nextDistance = Math.max(1, distance(pts[0], pts[1]));
+        fsScale = Math.max(0.2, Math.min(20, pinchStartScale * (nextDistance / pinchStartDistance)));
+        redraw();
+        return;
+      }
+      if(pts.length === 1 && dragLast){
+        fsOffX += pts[0].x - dragLast.x;
+        fsOffY += pts[0].y - dragLast.y;
+        dragLast = pts[0];
+        redraw();
+      }
+    }, {passive:false});
+
+    function endTouch(e){
+      if(!isVisible()) return;
+      e.preventDefault();
+      for(const t of e.changedTouches) activeTouches.delete(t.identifier);
+      const pts = touchPoints();
+      if(pts.length === 1){
+        dragLast = pts[0];
+      }else{
+        dragLast = null;
+      }
+      if(pts.length >= 2){
+        pinchStartDistance = Math.max(1, distance(pts[0], pts[1]));
+        pinchStartScale = fsScale || 1;
+      }
+    }
+    cvs.addEventListener('touchend', endTouch, {passive:false});
+    cvs.addEventListener('touchcancel', endTouch, {passive:false});
+  });
+})();
+</script>
+
+</body>
 </html>

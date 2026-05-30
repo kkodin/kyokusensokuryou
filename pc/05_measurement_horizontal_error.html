@@ -2645,5 +2645,421 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.body.classList.remove('nav-open');
   });
 })();
-</script></body>
+</script>
+
+<!-- Vr014 pc final history load repair -->
+<style>
+#historyStage > .stage-actions,
+#historyStage > .history-options,
+#historyStage label:has(input[type="checkbox"]),
+#historyStage input[type="checkbox"]{
+  display:none!important;
+}
+#historyList .vr014-history-select-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 74px!important;
+  gap:8px!important;
+  align-items:end!important;
+}
+#historyList #measurementHistorySelect{
+  width:100%!important;
+  min-height:42px!important;
+  font-size:16px!important;
+}
+#historyList #vr014HistoryLoadButton{
+  min-height:42px!important;
+  border-radius:7px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-weight:700!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function escText(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function isMeasurement(v){
+    return v && typeof v === 'object' && (
+      Array.isArray(v.tpRows) || Array.isArray(v.kpRows) || 'pipeCount' in v || 'measureDate' in v
+    );
+  }
+  function findMeasurements(obj, depth){
+    if(!obj || typeof obj !== 'object' || depth > 5) return [];
+    if(Array.isArray(obj)) return obj.some(isMeasurement) ? obj : [];
+    if(Array.isArray(obj.measurements) && obj.measurements.some(isMeasurement)) return obj.measurements;
+    for(const key of ['measurementHistory','history','surveyHistory','surveyMeasurements','measurementData']){
+      if(Array.isArray(obj[key]) && obj[key].some(isMeasurement)) return obj[key];
+    }
+    for(const value of Object.values(obj)){
+      const found = findMeasurements(value, depth + 1);
+      if(found.length) return found;
+    }
+    return [];
+  }
+  function readStore(key){
+    try{ return JSON.parse(localStorage.getItem(key) || 'null'); }catch(e){ return null; }
+  }
+  function histories(){
+    let found = findMeasurements(measurementHistory, 0);
+    if(!found.length) found = findMeasurements(project, 0);
+    if(!found.length) found = findMeasurements(readStore('curvedJackingProject'), 0);
+    if(!found.length) found = findMeasurements(readStore('vr014LastSavedProjectJson'), 0);
+    if(!found.length) found = findMeasurements(readStore('vr012LastSavedProjectJson'), 0);
+    if(found.length){
+      measurementHistory = found;
+      project = project || {};
+      project.measurements = found;
+    }
+    return found;
+  }
+  function label(m){
+    return (m?.measureDate || '-') + ' / 測定No.' + (m?.pipeCount || '-');
+  }
+  function removeUnwantedHistoryControls(){
+    byId('historyStage')?.querySelectorAll(':scope > .stage-actions,:scope > .history-options').forEach(el => el.remove());
+  }
+  window.renderHistoryList = function(){
+    removeUnwantedHistoryControls();
+    const box = byId('historyList');
+    if(!box) return;
+    const list = histories();
+    if(!list.length){
+      box.innerHTML =
+        '<div class="vr014-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect"><option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr014HistoryLoadButton">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">保存済み測量データがありません。</div>';
+    }else{
+      const options = list.map((m, i) => '<option value="' + i + '">' + escText(label(m)) + '</option>').join('');
+      box.innerHTML =
+        '<div class="vr014-history-select-row">' +
+          '<label><b>測量データ選択</b><br><select id="measurementHistorySelect">' + options + '<option value="__new__">新規入力</option></select></label>' +
+          '<button type="button" id="vr014HistoryLoadButton">決定</button>' +
+        '</div>' +
+        '<div id="historySelectNote" class="note">' + list.length + '件の測量データを読み込みました。選択して「決定」を押してください。</div>';
+    }
+    byId('vr014HistoryLoadButton')?.addEventListener('click', window.loadSelectedMeasurementHistory);
+  };
+  function put(id, value){
+    const el = byId(id);
+    if(el && value !== undefined && value !== null) el.value = String(value);
+  }
+  function input(cls, value, field){
+    const attr = field ? ' data-field="' + field + '"' : '';
+    return '<input class="' + cls + '" value="' + escText(value ?? '') + '"' + attr + '>';
+  }
+  function renderMeasurementTable(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    let html = '<div class="excel-input"><table><colgroup><col class="name-col"><col class="role-col"><col class="dist-col"><col class="angle-col"><col class="angle-col"><col class="angle-col"></colgroup><thead><tr><th>名称</th><th>測点名</th><th>距離</th><th>度</th><th>分</th><th>秒</th></tr></thead><tbody>';
+    tpRows.forEach((row, i) => {
+      const name = row.name || ('TP' + (i + 1));
+      html += '<tr class="tp-row" data-kind="TP">' +
+        '<td class="name-cell">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td>' +
+        '<td class="role-cell">' + input('text role', row.role || '', '') + '</td>' +
+        '<td>' + input('num dist', row.dist || '', 'dist') + '</td>' +
+        '<td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td>' +
+        '<td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td>' +
+        '<td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td>' +
+      '</tr>';
+    });
+    kpRows.forEach((row, i) => {
+      const name = row.name || ('KP' + (i + 1));
+      html += '<tr class="kp-row" data-kind="KP">' +
+        '<td class="name-cell kp-name">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td>' +
+        '<td class="role-cell">' + input('text role', row.role || '', '') + '</td>' +
+        '<td>' + input('num dist', row.dist || '', 'dist') + '</td>' +
+        '<td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td>' +
+        '<td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td>' +
+        '<td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    table.innerHTML = html;
+  }
+  function applyRowsToRenderedTable(data){
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    put('tpCount', data.tpCount || tpRows.length || 0);
+    put('kpCount', data.kpCount || kpRows.length || 1);
+    renderMeasurementTable(data);
+    function setRows(kind, rows){
+      const trs = [...document.querySelectorAll('#measurementTable tbody tr[data-kind="' + kind + '"]')];
+      rows.forEach((row, i) => {
+        const tr = trs[i];
+        if(!tr) return;
+        ['name','role','dist','deg','min','sec','memo'].forEach(cls => {
+          const el = tr.querySelector('.' + cls);
+          if(el && row[cls] !== undefined) el.value = row[cls];
+        });
+      });
+    }
+    setRows('TP', tpRows);
+    setRows('KP', kpRows);
+  }
+  function openMeasurementInput(){
+    if(typeof setStageVisible === 'function') setStageVisible(['countStage','measurementInputStage']);
+    const history = byId('historyStage');
+    const count = byId('countStage');
+    const input = byId('measurementInputStage');
+    history?.classList.add('collapsed');
+    count?.classList.remove('collapsed','stage-hidden');
+    input?.classList.remove('collapsed','stage-hidden');
+    input?.scrollIntoView({block:'start', behavior:'smooth'});
+  }
+  window.loadSelectedMeasurementHistory = function(){
+    const list = histories();
+    const sel = byId('measurementHistorySelect');
+    const note = byId('historySelectNote');
+    if(!sel) return;
+    if(sel.value === '__new__'){
+      if(typeof newMeasurementData === 'function') newMeasurementData();
+      return;
+    }
+    const data = list[Number(sel.value)];
+    if(!data){
+      if(note) note.textContent = '呼び出す測量データを選択してください。';
+      return;
+    }
+    put('measureDate', data.measureDate || '');
+    put('pipeCount', data.pipeCount || '');
+    put('predictionLength', data.predictionLength);
+    put('instX', data.instX);
+    put('instY', data.instY);
+    put('bsX', data.bsX);
+    put('bsY', data.bsY);
+    put('pipeDiaMm', data.pipeDiaMm);
+    put('internalPct', data.internalPct);
+    put('tolOk', data.tolOk);
+    put('tolWarn', data.tolWarn);
+    applyRowsToRenderedTable(data);
+    if(typeof applyInputModes === 'function') applyInputModes();
+    if(typeof updateToleranceDisplay === 'function') updateToleranceDisplay();
+    if(typeof updateSideInfo === 'function') updateSideInfo();
+    if(typeof calculateAll === 'function') calculateAll(false);
+    openMeasurementInput();
+    setTimeout(() => applyRowsToRenderedTable(data), 0);
+    setTimeout(() => {
+      applyRowsToRenderedTable(data);
+      if(typeof calculateAll === 'function') calculateAll(false);
+    }, 120);
+    if(note) note.textContent = label(data) + ' を測定数値入力欄へ呼び出しました。';
+  };
+  window.historyChanged = function(){};
+  window.onHistorySelectFinal = function(){};
+  window.measurementHistorySelectionChanged = function(){};
+  window.historyDateChanged = function(){};
+  window.historyPointChanged = function(){};
+
+  if(typeof applyProject === 'function' && !applyProject.vr014FinalHistoryRepair){
+    const previousApplyProject = applyProject;
+    applyProject = function(obj){
+      const result = previousApplyProject.apply(this, arguments);
+      const found = findMeasurements(obj, 0);
+      if(found.length){
+        measurementHistory = found;
+        project = project || {};
+        project.measurements = found;
+      }
+      setTimeout(window.renderHistoryList, 0);
+      return result;
+    };
+    applyProject.vr014FinalHistoryRepair = true;
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(window.renderHistoryList, 0));
+  setTimeout(window.renderHistoryList, 0);
+})();
+</script>
+
+<!-- Vr014 pc history layout and count inputs patch -->
+<style>
+#historyStage > .stage-actions,
+#historyStage > .history-options,
+#historyStage > .label-options,
+#historyStage label:has(input[type="checkbox"]),
+#historyStage input[type="checkbox"]{
+  display:none!important;
+}
+#historyList .vr014-history-select-row{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:8px!important;
+  align-items:stretch!important;
+  max-width:520px!important;
+}
+#historyList #measurementHistorySelect{
+  width:100%!important;
+  min-height:44px!important;
+  box-sizing:border-box!important;
+  font-size:16px!important;
+}
+#historyList #vr014HistoryLoadButton{
+  width:100%!important;
+  min-height:42px!important;
+  border-radius:7px!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  font-weight:700!important;
+}
+.vr014-count-inline{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:8px 0 10px;
+  padding:8px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.vr014-count-inline label{
+  display:grid;
+  gap:4px;
+  margin:0;
+  font-weight:700;
+  color:#334155;
+}
+.vr014-count-inline input{
+  width:100%;
+  min-height:38px;
+  box-sizing:border-box;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:16px;
+}
+@media(max-width:520px){
+  .vr014-count-inline{grid-template-columns:1fr 1fr}
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function removeHistoryControls(){
+    const stage = byId('historyStage');
+    if(!stage) return;
+    stage.querySelectorAll(':scope > .stage-actions,:scope > .history-options,:scope > .label-options').forEach(el => el.remove());
+    stage.querySelectorAll('label').forEach(label => {
+      if(label.querySelector('input[type="checkbox"]')) label.remove();
+    });
+  }
+  function escText(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function mountCountInputs(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    let box = byId('vr014CountInline');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'vr014CountInline';
+      box.className = 'vr014-count-inline';
+      box.innerHTML =
+        '<label>TP数<input class="num" id="vr014TpCountInline" inputmode="numeric"></label>' +
+        '<label>KP数<input class="num" id="vr014KpCountInline" inputmode="numeric"></label>';
+      table.parentNode.insertBefore(box, table);
+      byId('vr014TpCountInline')?.addEventListener('change', rebuildCountRows);
+      byId('vr014KpCountInline')?.addEventListener('change', rebuildCountRows);
+    }
+    const tpRows = Array.isArray(data?.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data?.kpRows) ? data.kpRows : [];
+    const tp = String(data?.tpCount || tpRows.length || byId('tpCount')?.value || 0);
+    const kp = String(data?.kpCount || kpRows.length || byId('kpCount')?.value || 1);
+    byId('vr014TpCountInline').value = tp;
+    byId('vr014KpCountInline').value = kp;
+    if(byId('tpCount')) byId('tpCount').value = tp;
+    if(byId('kpCount')) byId('kpCount').value = kp;
+  }
+  function rowFromTable(kind, index){
+    const tr = document.querySelectorAll('#measurementTable tbody tr[data-kind="' + kind + '"]')[index];
+    if(!tr) return {};
+    const q = cls => tr.querySelector('.' + cls)?.value || '';
+    return {
+      name:q('name') || (kind + (index + 1)),
+      role:q('role'),
+      dist:q('dist'),
+      deg:q('deg') || '0',
+      min:q('min') || '0',
+      sec:q('sec') || '0',
+      memo:q('memo')
+    };
+  }
+  function currentRows(kind, count){
+    return Array.from({length:count}, (_, i) => rowFromTable(kind, i));
+  }
+  function renderDirectTable(data){
+    const table = byId('measurementTable');
+    if(!table) return;
+    const tpRows = Array.isArray(data.tpRows) ? data.tpRows : [];
+    const kpRows = Array.isArray(data.kpRows) ? data.kpRows : [];
+    let html = '<div class="excel-input"><table><colgroup><col class="name-col"><col class="role-col"><col class="dist-col"><col class="angle-col"><col class="angle-col"><col class="angle-col"></colgroup><thead><tr><th>名称</th><th>測点名</th><th>距離</th><th>度</th><th>分</th><th>秒</th></tr></thead><tbody>';
+    function input(cls, value, field){
+      const attr = field ? ' data-field="' + field + '"' : '';
+      return '<input class="' + cls + '" value="' + escText(value ?? '') + '"' + attr + '>';
+    }
+    tpRows.forEach((row, i) => {
+      const name = row.name || ('TP' + (i + 1));
+      html += '<tr class="tp-row" data-kind="TP"><td class="name-cell">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td><td class="role-cell">' + input('text role', row.role || '', '') + '</td><td>' + input('num dist', row.dist || '', 'dist') + '</td><td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td><td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td><td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td></tr>';
+    });
+    kpRows.forEach((row, i) => {
+      const name = row.name || ('KP' + (i + 1));
+      html += '<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">' + escText(name) + '<input type="hidden" class="name" value="' + escText(name) + '"></td><td class="role-cell">' + input('text role', row.role || '', '') + '</td><td>' + input('num dist', row.dist || '', 'dist') + '</td><td class="angle-cell">' + input('dms deg', row.deg ?? '0', 'deg') + '</td><td class="angle-cell">' + input('dms min', row.min ?? '0', 'min') + '</td><td class="angle-cell">' + input('dms sec', row.sec ?? '0', 'sec') + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    table.innerHTML = html;
+    if(typeof applyInputModes === 'function') applyInputModes();
+  }
+  function rebuildCountRows(){
+    const tp = Math.max(0, Number(byId('vr014TpCountInline')?.value || 0));
+    const kp = Math.max(1, Number(byId('vr014KpCountInline')?.value || 1));
+    const data = {
+      tpCount:String(tp),
+      kpCount:String(kp),
+      tpRows:currentRows('TP', tp).map((r, i) => ({...r, name:'TP' + (i + 1)})),
+      kpRows:currentRows('KP', kp).map((r, i) => ({...r, name:'KP' + (i + 1)}))
+    };
+    if(byId('tpCount')) byId('tpCount').value = data.tpCount;
+    if(byId('kpCount')) byId('kpCount').value = data.kpCount;
+    renderDirectTable(data);
+    mountCountInputs(data);
+  }
+  const previousLoad = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const result = previousLoad ? previousLoad.apply(this, arguments) : undefined;
+    const list = Array.isArray(measurementHistory) ? measurementHistory : [];
+    const sel = byId('measurementHistorySelect');
+    const data = sel && sel.value !== '__new__' ? list[Number(sel.value)] : null;
+    if(data){
+      setTimeout(() => {
+        renderDirectTable(data);
+        mountCountInputs(data);
+        byId('measurementInputStage')?.classList.remove('collapsed','stage-hidden');
+      }, 0);
+      setTimeout(() => {
+        renderDirectTable(data);
+        mountCountInputs(data);
+      }, 160);
+    }
+    return result;
+  };
+  const previousRenderHistoryList = window.renderHistoryList;
+  window.renderHistoryList = function(){
+    const result = previousRenderHistoryList ? previousRenderHistoryList.apply(this, arguments) : undefined;
+    removeHistoryControls();
+    const row = byId('historyList')?.querySelector('.vr014-history-select-row');
+    if(row) row.style.gridTemplateColumns = '1fr';
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    removeHistoryControls();
+    mountCountInputs(null);
+  });
+  setTimeout(removeHistoryControls, 0);
+})();
+</script>
+</body>
 </html>
