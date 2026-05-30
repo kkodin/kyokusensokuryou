@@ -3328,5 +3328,161 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+
+<!-- Vr014 mobile new measurement step flow patch -->
+<style>
+.vr014-new-flow{
+  margin:10px 0 12px;
+  padding:10px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.vr014-new-flow label{
+  display:grid;
+  gap:5px;
+  margin:0 0 8px;
+  font-weight:700;
+  color:#334155;
+}
+.vr014-new-flow input{
+  width:100%;
+  min-height:42px;
+  box-sizing:border-box;
+  font-size:16px;
+}
+.vr014-new-flow button{
+  width:100%;
+  min-height:42px;
+}
+.vr014-new-flow .count-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.vr014-new-flow .note{
+  margin-bottom:8px;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function ensurePanel(){
+    let panel = byId('vr014NewFlow');
+    if(panel) return panel;
+    panel = document.createElement('div');
+    panel.id = 'vr014NewFlow';
+    panel.className = 'vr014-new-flow';
+    const target = byId('measurementInputStage');
+    const table = byId('measurementTable');
+    if(target && table) target.insertBefore(panel, table);
+    return panel;
+  }
+  function openInputStageOnly(){
+    if(typeof setStageVisible === 'function'){
+      setStageVisible(['historyStage','measurementInputStage']);
+    }
+    ['historyStage','measurementInputStage'].forEach(id => {
+      const el = byId(id);
+      if(el) el.classList.remove('collapsed','stage-hidden');
+    });
+  }
+  function clearMeasurementArea(){
+    const table = byId('measurementTable');
+    if(table) table.innerHTML = '';
+    const inline = byId('vr014CountInline');
+    if(inline) inline.style.display = 'none';
+  }
+  function setValue(id, value){
+    const el = byId(id);
+    if(el) el.value = value;
+  }
+  function showPipeStep(){
+    openInputStageOnly();
+    clearMeasurementArea();
+    const panel = ensurePanel();
+    panel.style.display = 'block';
+    panel.innerHTML =
+      '<div class="note">新規入力する本数を入力してください。</div>' +
+      '<label>本数<input class="num" id="vr014NewPipeCount" inputmode="numeric" value="' + (byId('pipeCount')?.value || '') + '"></label>' +
+      '<button type="button" class="ok" id="vr014NewPipeNext">決定</button>';
+    byId('vr014NewPipeNext')?.addEventListener('click', () => {
+      const pipe = String(byId('vr014NewPipeCount')?.value || '').trim();
+      if(!pipe){ alert('本数を入力してください。'); byId('vr014NewPipeCount')?.focus(); return; }
+      setValue('pipeCount', pipe);
+      if(typeof updateSideInfo === 'function') updateSideInfo();
+      showDateStep();
+    });
+    setTimeout(() => byId('vr014NewPipeCount')?.focus(), 0);
+  }
+  function showDateStep(){
+    const panel = ensurePanel();
+    const value = byId('measureDate')?.value || today();
+    panel.innerHTML =
+      '<div class="note">測定日を入力してください。</div>' +
+      '<label>測定日<input type="date" id="vr014NewMeasureDate" value="' + value + '"></label>' +
+      '<button type="button" class="ok" id="vr014NewDateNext">決定</button>';
+    byId('vr014NewDateNext')?.addEventListener('click', () => {
+      const date = String(byId('vr014NewMeasureDate')?.value || '').trim();
+      if(!date){ alert('測定日を入力してください。'); byId('vr014NewMeasureDate')?.focus(); return; }
+      setValue('measureDate', date);
+      if(typeof updateSideInfo === 'function') updateSideInfo();
+      showCountStep();
+    });
+    setTimeout(() => byId('vr014NewMeasureDate')?.focus(), 0);
+  }
+  function showCountStep(){
+    const panel = ensurePanel();
+    panel.innerHTML =
+      '<div class="note">TP数、KP数を入力してください。</div>' +
+      '<div class="count-row">' +
+        '<label>TP数<input class="num" id="vr014NewTpCount" inputmode="numeric" value="' + (byId('tpCount')?.value || '1') + '"></label>' +
+        '<label>KP数<input class="num" id="vr014NewKpCount" inputmode="numeric" value="' + (byId('kpCount')?.value || '4') + '"></label>' +
+      '</div>' +
+      '<button type="button" class="ok" id="vr014NewCountNext">決定</button>';
+    byId('vr014NewCountNext')?.addEventListener('click', () => {
+      const tp = String(byId('vr014NewTpCount')?.value || '').trim();
+      const kp = String(byId('vr014NewKpCount')?.value || '').trim();
+      if(tp === '' || Number(tp) < 0){ alert('TP数を入力してください。TPなしの場合は 0 を入力してください。'); byId('vr014NewTpCount')?.focus(); return; }
+      if(kp === '' || Number(kp) < 1){ alert('KP数は 1 以上を入力してください。'); byId('vr014NewKpCount')?.focus(); return; }
+      setValue('tpCount', String(Math.floor(Number(tp))));
+      setValue('kpCount', String(Math.floor(Number(kp))));
+      if(typeof buildRows === 'function') buildRows();
+      const inline = byId('vr014CountInline');
+      if(inline) inline.style.display = '';
+      panel.style.display = 'none';
+      if(typeof applyInputModes === 'function') applyInputModes();
+      if(typeof updateSideInfo === 'function') updateSideInfo();
+      byId('measurementInputStage')?.scrollIntoView({block:'start', behavior:'smooth'});
+    });
+    setTimeout(() => byId('vr014NewTpCount')?.focus(), 0);
+  }
+  window.vr014StartNewMeasurementFlow = function(){
+    setValue('pipeCount', '');
+    setValue('measureDate', today());
+    setValue('tpCount', '1');
+    setValue('kpCount', '4');
+    results=[]; tpPoints=[]; kpPoints=[];
+    try{
+      if(typeof renderSummary === 'function') renderSummary();
+      if(typeof renderTable === 'function') renderTable();
+      if(typeof renderProcess === 'function') renderProcess();
+      if(typeof drawAll === 'function') drawAll();
+    }catch(e){}
+    showPipeStep();
+  };
+  const previousLoad = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const sel = byId('measurementHistorySelect');
+    if(sel && sel.value === '__new__'){
+      window.vr014StartNewMeasurementFlow();
+      return;
+    }
+    return previousLoad ? previousLoad.apply(this, arguments) : undefined;
+  };
+})();
+</script>
+
 </body>
 </html>
