@@ -3484,5 +3484,167 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+
+<!-- Vr014 mobile measurement meta inputs patch -->
+<style>
+.vr014-meta-inline{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:8px 0 8px;
+  padding:8px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.vr014-meta-inline label{
+  display:grid;
+  gap:4px;
+  margin:0;
+  font-weight:700;
+  color:#334155;
+}
+.vr014-meta-inline input{
+  width:100%;
+  min-height:38px;
+  box-sizing:border-box;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:16px;
+}
+#vr014NewFlow{
+  display:none!important;
+}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function setValue(id, value){
+    const el = byId(id);
+    if(el) el.value = value;
+  }
+  function syncMetaToMain(){
+    const pipe = byId('vr014PipeInline');
+    const date = byId('vr014DateInline');
+    if(pipe) setValue('pipeCount', pipe.value);
+    if(date) setValue('measureDate', date.value);
+    if(typeof updateSideInfo === 'function') updateSideInfo();
+  }
+  function syncCountsToMain(){
+    const tp = byId('vr014TpCountInline');
+    const kp = byId('vr014KpCountInline');
+    if(tp) setValue('tpCount', tp.value);
+    if(kp) setValue('kpCount', kp.value);
+  }
+  function ensureCountBox(){
+    const table = byId('measurementTable');
+    if(!table) return null;
+    let box = byId('vr014CountInline');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'vr014CountInline';
+      box.className = 'vr014-count-inline';
+      box.innerHTML =
+        '<label>TP数<input class="num" id="vr014TpCountInline" inputmode="numeric"></label>' +
+        '<label>KP数<input class="num" id="vr014KpCountInline" inputmode="numeric"></label>';
+      table.parentNode.insertBefore(box, table);
+    }
+    box.style.display = '';
+    return box;
+  }
+  function ensureMetaInputs(){
+    const table = byId('measurementTable');
+    if(!table) return;
+    const countBox = ensureCountBox();
+    let meta = byId('vr014MetaInline');
+    if(!meta){
+      meta = document.createElement('div');
+      meta.id = 'vr014MetaInline';
+      meta.className = 'vr014-meta-inline';
+      meta.innerHTML =
+        '<label>本数<input class="num" id="vr014PipeInline" inputmode="numeric"></label>' +
+        '<label>測定日<input type="date" id="vr014DateInline"></label>';
+      table.parentNode.insertBefore(meta, countBox || table);
+    }
+    meta.style.display = '';
+    const pipe = byId('vr014PipeInline');
+    const date = byId('vr014DateInline');
+    const tp = byId('vr014TpCountInline');
+    const kp = byId('vr014KpCountInline');
+    if(pipe && document.activeElement !== pipe) pipe.value = byId('pipeCount')?.value || '';
+    if(date && document.activeElement !== date) date.value = byId('measureDate')?.value || today();
+    if(tp && document.activeElement !== tp) tp.value = byId('tpCount')?.value || '0';
+    if(kp && document.activeElement !== kp) kp.value = byId('kpCount')?.value || '1';
+    if(pipe && pipe.dataset.vr014MetaWired !== '1'){
+      pipe.dataset.vr014MetaWired = '1';
+      pipe.addEventListener('input', syncMetaToMain);
+      pipe.addEventListener('change', syncMetaToMain);
+      pipe.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); byId('vr014DateInline')?.focus(); }
+      });
+    }
+    if(date && date.dataset.vr014MetaWired !== '1'){
+      date.dataset.vr014MetaWired = '1';
+      date.addEventListener('input', syncMetaToMain);
+      date.addEventListener('change', syncMetaToMain);
+      date.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); byId('vr014TpCountInline')?.focus(); }
+      });
+    }
+    if(tp && tp.dataset.vr014MetaWired !== '1'){
+      tp.dataset.vr014MetaWired = '1';
+      tp.addEventListener('input', syncCountsToMain);
+      tp.addEventListener('change', syncCountsToMain);
+      tp.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); byId('vr014KpCountInline')?.focus(); }
+      });
+    }
+    if(kp && kp.dataset.vr014MetaWired !== '1'){
+      kp.dataset.vr014MetaWired = '1';
+      kp.addEventListener('input', syncCountsToMain);
+      kp.addEventListener('change', syncCountsToMain);
+      kp.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); kp.blur(); }
+      });
+    }
+  }
+  function openMeasurementSetup(){
+    if(typeof setStageVisible === 'function'){
+      setStageVisible(['historyStage','measurementInputStage']);
+    }
+    ['historyStage','measurementInputStage'].forEach(id => byId(id)?.classList.remove('collapsed','stage-hidden'));
+    byId('vr014NewFlow')?.remove();
+    ensureMetaInputs();
+  }
+  window.vr014StartNewMeasurementFlow = function(){
+    setValue('pipeCount', '');
+    setValue('measureDate', today());
+    setValue('tpCount', '0');
+    setValue('kpCount', '1');
+    results=[]; tpPoints=[]; kpPoints=[];
+    const table = byId('measurementTable');
+    if(table) table.innerHTML = '';
+    openMeasurementSetup();
+    setTimeout(() => byId('vr014PipeInline')?.focus(), 0);
+  };
+  const previousLoad = window.loadSelectedMeasurementHistory;
+  window.loadSelectedMeasurementHistory = function(){
+    const sel = byId('measurementHistorySelect');
+    if(sel && sel.value === '__new__'){
+      window.vr014StartNewMeasurementFlow();
+      return;
+    }
+    const result = previousLoad ? previousLoad.apply(this, arguments) : undefined;
+    setTimeout(ensureMetaInputs, 0);
+    setTimeout(ensureMetaInputs, 180);
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded', ensureMetaInputs);
+  setTimeout(ensureMetaInputs, 0);
+})();
+</script>
+
 </body>
 </html>
