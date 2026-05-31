@@ -2374,9 +2374,9 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!date){ alert('測定日を選択してください。'); dateEl?.focus(); return; }
 
     if(hasDuplicatePipe(pipe)){
-      alert(`すでに${pipe}本目は入力済みです。編集する場合は履歴から行って下さい。`);
+      const go=confirm(`すでに${pipe}本目は入力済みです。修正する場合は履歴を開く　開きますか?`);
       awaitingDateConfirm=false;
-      if(typeof window.openSection==='function') window.openSection('historyStage');
+      if(go && typeof window.openSection==='function') window.openSection('historyStage');
       return;
     }
 
@@ -2429,8 +2429,15 @@ window.addEventListener('DOMContentLoaded',()=>{
     const wrap=document.createElement('div');
     wrap.className='stage-actions';
     wrap.style.marginTop='8px';
-    wrap.innerHTML='<button type="button" id="newFlowNextBtn" class="ok">次へ</button><button type="button" id="newFlowCancelBtn" class="secondary">キャンセル</button>';
+    wrap.innerHTML='<button type="button" id="newFlowNextBtn" class="ok">次へ</button>';
     dateRow.insertAdjacentElement('afterend',wrap);
+    const confirmArea=document.createElement('div');
+    confirmArea.id='newFlowConfirmArea';
+    confirmArea.className='stage-actions';
+    confirmArea.style.justifyContent='center';
+    confirmArea.style.display='none';
+    confirmArea.innerHTML='<button type="button" id="newFlowConfirmBtn" class="ok">本数/日付を確認</button>';
+    wrap.insertAdjacentElement('afterend',confirmArea);
     byId('newFlowNextBtn')?.addEventListener('click',()=>{
       onPipeInput();
       const pipe=normalizePipeCount(byId('pipeCount')?.value);
@@ -2447,14 +2454,11 @@ window.addEventListener('DOMContentLoaded',()=>{
       date?.focus();
       awaitingPipeNext=false;
     });
-    byId('newFlowCancelBtn')?.addEventListener('click',()=>{
-      awaitingDateConfirm=false;
-      dateConfirmed=false;
-      awaitingPipeNext=true;
-      window.toggleDateVisibility?.(false);
-      window.toggleTpKpVisibility?.(false);
-      if(typeof window.openSection==='function') window.openSection('historyStage');
+    byId('measureDate')?.addEventListener('change',()=>{
+      const dateVal=String(byId('measureDate')?.value||'').trim();
+      byId('newFlowConfirmArea').style.display = dateVal ? '' : 'none';
     });
+    byId('newFlowConfirmBtn')?.addEventListener('click',tryConfirmPipeAndDate);
   }
   function mergeCountIntoMeasurementInput(){
     const countStage=byId('countStage');
@@ -2517,7 +2521,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     pipe?.addEventListener('input',onPipeInput);
     pipe?.addEventListener('blur',onPipeInput);
     pipe?.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); onPipeInput(); date?.focus(); }});
-    date?.addEventListener('change',tryConfirmPipeAndDate);
+    date?.addEventListener('change',()=>{ const a=byId('newFlowConfirmArea'); if(a) a.style.display=String(date.value||'').trim()?'':'none'; });
     mergeCountIntoMeasurementInput();
     const tpProxy=byId('tpCount_proxy');
     const kpProxy=byId('kpCount_proxy');
@@ -2529,6 +2533,27 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
     window.toggleDateVisibility=toggleDateVisibility;
     window.toggleTpKpVisibility=toggleTpKpVisibility;
+    function setEntryMode(historyMode){
+      const pipe=byId('pipeCount');
+      const date=byId('measureDate');
+      const nextBtn=byId('newFlowNextBtn');
+      const confirmArea=byId('newFlowConfirmArea');
+      if(historyMode){
+        if(pipe){ pipe.readOnly=true; pipe.disabled=true; }
+        if(date){ date.readOnly=true; date.disabled=true; }
+        if(nextBtn) nextBtn.style.display='none';
+        if(confirmArea) confirmArea.style.display='none';
+        toggleDateVisibility(true);
+        toggleTpKpVisibility(true);
+      }else{
+        if(pipe){ pipe.readOnly=false; pipe.disabled=false; }
+        if(date){ date.readOnly=false; date.disabled=false; }
+        if(nextBtn) nextBtn.style.display='';
+        toggleDateVisibility(false);
+        toggleTpKpVisibility(false);
+      }
+    }
+    window.__setEntryMode = setEntryMode;
     const syncTpKp=()=>{
       const tRaw=String(tpProxy?.value||'').replace(/[^\d]/g,'');
       const kRaw=String(kpProxy?.value||'').replace(/[^\d]/g,'');
@@ -2620,6 +2645,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     window.loadHistoryMeasurement=function(index){
       if(typeof oldLoadHistory==='function') oldLoadHistory(index);
       setTimeout(()=>{
+        window.__setEntryMode?.(true);
         historyLoadedMode=true;
         historyLoadedSnapshot=currentInputSnapshot();
         refreshResultButtonState();
@@ -2627,6 +2653,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     };
     const oldNewFlow=window.newMeasurementData;
     window.newMeasurementData=function(){
+      window.__setEntryMode?.(false);
       historyLoadedMode=false;
       historyLoadedSnapshot='';
       if(typeof oldNewFlow==='function') oldNewFlow();
