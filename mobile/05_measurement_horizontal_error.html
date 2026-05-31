@@ -1497,6 +1497,16 @@ function drawDesign(ctx,toS){
   if(ep){let e=toS(ep.x,ep.y);ctx.lineTo(e.x,e.y)}
   ctx.stroke();
 }
+function graphLabelScale(){
+  const fs=document.getElementById('graphFullScreen')?.style.display==='flex';
+  const mobile=window.matchMedia?.('(max-width:640px)').matches;
+  return (mobile?2.15:1) * (fs?(window.devicePixelRatio||1):1);
+}
+function setGraphFont(ctx,px,bold=false){
+  const size=Math.round(px*graphLabelScale());
+  ctx.font=`${bold?'bold ':''}${size}px Meiryo`;
+  return size;
+}
 
 function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
   if(!geom)return;
@@ -1512,12 +1522,12 @@ function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
     pts.push({name:`EC${c.id}`,x:c.ec.x,y:c.ec.y});
   });
   if(ep)pts.push(ep);
-  ctx.font='12px Meiryo';ctx.textAlign='left';ctx.textBaseline='middle';
+  const fs=setGraphFont(ctx,12,true);ctx.textAlign='left';ctx.textBaseline='middle';
   pts.forEach((p,i)=>{
     const s=toS(p.x,p.y);
     if(visibleOnly && (s.x<0||s.x>W||s.y<0||s.y>H))return;
-    ctx.fillStyle='#111827';ctx.beginPath();ctx.arc(s.x,s.y,3.2,0,Math.PI*2);ctx.fill();
-    const dx=(i%2===0)?6:-26, dy=(i%3-1)*9;
+    ctx.fillStyle='#111827';ctx.beginPath();ctx.arc(s.x,s.y,Math.max(3.2,fs*.16),0,Math.PI*2);ctx.fill();
+    const dx=(i%2===0)?fs*.55:-fs*2.4, dy=(i%3-1)*fs*.75;
     ctx.fillText(p.name,s.x+dx,s.y+dy);
   });
 }
@@ -1531,12 +1541,12 @@ function drawZoomErrorLabel(ctx,toS,r,i,W,H){
   if(ly>H-28)ly=H-28;
   const text=r.short||fmt(r.errorMm,0);
   ctx.save();
-  ctx.font='13px Meiryo';
-  const tw=ctx.measureText(text).width+16, th=22;
-  ctx.strokeStyle='#4f83c4';ctx.lineWidth=2;ctx.fillStyle='rgba(255,255,255,0.92)';
+  const fs=setGraphFont(ctx,13,true);
+  const tw=ctx.measureText(text).width+fs*1.35, th=fs*1.8;
+  ctx.strokeStyle='#4f83c4';ctx.lineWidth=Math.max(2,fs*.12);ctx.fillStyle='rgba(255,255,255,0.94)';
   ctx.fillRect(lx,ly,tw,th);ctx.strokeRect(lx,ly,tw,th);
   ctx.fillStyle=r.rank==='OK'?'#15803d':(r.rank==='注意'?'#b45309':'#b91c1c');
-  ctx.fillText(text,lx+8,ly+15);
+  ctx.fillText(text,lx+fs*.65,ly+fs*1.2);
   ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);
   ctx.beginPath();ctx.moveTo(lx+tw,ly+th/2);ctx.lineTo(p.x,p.y);ctx.stroke();
   ctx.setLineDash([]);
@@ -1610,10 +1620,10 @@ function drawNextPointInfo(ctx,toS,W,H){
   ctx.save();
   ctx.fillStyle='rgba(255,248,225,0.95)';ctx.strokeStyle='#d97706';ctx.lineWidth=1.5;
   const msg=`${best.name}まで ${fmt(best.d,3)} m`;
-  ctx.font='13px Meiryo';const tw=ctx.measureText(msg).width+18;
-  let x=Math.min(Math.max(s.x+10,8),W-tw-8), y=Math.min(Math.max(s.y+12,8),H-34);
-  ctx.fillRect(x,y,tw,26);ctx.strokeRect(x,y,tw,26);
-  ctx.fillStyle='#111827';ctx.fillText(msg,x+9,y+18);
+  const fs=setGraphFont(ctx,13,true);const tw=ctx.measureText(msg).width+fs*1.4, th=fs*2.0;
+  let x=Math.min(Math.max(s.x+10,8),W-tw-8), y=Math.min(Math.max(s.y+12,8),H-th-8);
+  ctx.fillRect(x,y,tw,th);ctx.strokeRect(x,y,tw,th);
+  ctx.fillStyle='#111827';ctx.fillText(msg,x+fs*.7,y+fs*1.35);
   ctx.restore();
 }
 function stationOnAlignment(p){
@@ -1679,8 +1689,8 @@ function drawHistoryPoints(ctx,toS,W,H){
     ctx.fillStyle='#0ea5e9';ctx.strokeStyle='#075985';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(s.x,s.y,5,0,Math.PI*2);ctx.fill();ctx.stroke();
     const lines=historyLabelLines(p); if(!lines.length)return;
-    ctx.font='12px Meiryo';
-    const lh=16, maxW=Math.max(...lines.map(l=>ctx.measureText(l).width))+12, h=lh*lines.length+8;
+    const fs=setGraphFont(ctx,12,true);
+    const lh=Math.round(fs*1.35), maxW=Math.max(...lines.map(l=>ctx.measureText(l).width))+fs, h=lh*lines.length+fs*.7;
     const tries=[[10,-18],[18,16],[-maxW-8,-18],[-maxW-8,16],[10,-h-12]];
     let pos=tries[0];
     for(const t of tries){
@@ -1690,7 +1700,7 @@ function drawHistoryPoints(ctx,toS,W,H){
     const x=Math.min(Math.max(s.x+pos[0],4),W-maxW-4), y=Math.min(Math.max(s.y+pos[1],4),H-h-4);
     ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle='#0ea5e9';ctx.lineWidth=1;
     ctx.fillRect(x,y,maxW,h);ctx.strokeRect(x,y,maxW,h);
-    ctx.fillStyle='#0f172a';lines.forEach((l,i)=>ctx.fillText(l,x+6,y+14+i*lh));
+    ctx.fillStyle='#0f172a';lines.forEach((l,i)=>ctx.fillText(l,x+fs*.5,y+fs*1.05+i*lh));
   });
   ctx.restore();
 }
@@ -1710,7 +1720,8 @@ function drawCanvas(id,zoom){
     if(s.x<0||s.x>W||s.y<0||s.y>H)return s;
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,4.5,0,7);ctx.fill();
     if(label){
-      ctx.fillStyle='#111';ctx.font='11px Meiryo';ctx.textAlign='left';ctx.fillText(label,s.x+dx,s.y+dy);
+      const fs=setGraphFont(ctx,11,true);
+      ctx.fillStyle='#111';ctx.textAlign='left';ctx.fillText(label,s.x+Math.max(dx,fs*.45),s.y+dy);
     }
     return s;
   }
@@ -1761,7 +1772,7 @@ function drawCanvas(id,zoom){
         const pp=vp.toS(r.pred.x,r.pred.y);
         if(pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H){
           ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
-          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?('次回予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'次回予測',pp.x+8,pp.y-8);
+          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';const fs=setGraphFont(ctx,12,true);const pj=window.latestPredictionJudge; ctx.fillText(pj?('次回予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'次回予測',pp.x+fs*.65,pp.y-fs*.65);
         }
       }
       drawZoomErrorLabel(ctx,vp.toS,r,i,W,H);
@@ -1811,7 +1822,7 @@ function drawFullScreenGraph(){
   function dot(p,color,label,dx=8,dy=-8){
     const s=toS(p.x,p.y);
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.fill();
-    if(label){ctx.fillStyle='#111';ctx.font='14px Meiryo';ctx.fillText(label,s.x+dx,s.y+dy);}
+    if(label){const fs=setGraphFont(ctx,14,true);ctx.fillStyle='#111';ctx.fillText(label,s.x+Math.max(dx,fs*.55),s.y+dy);}
     return s;
   }
   if(fsMode==='overview'){
@@ -1827,7 +1838,7 @@ function drawFullScreenGraph(){
         const pp=toS(r.pred.x,r.pred.y);
         ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
         ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.fill();ctx.stroke();
-        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?('20本目予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'20本目予測',pp.x+10,pp.y-10);
+        ctx.fillStyle='#dc2626';const fs=setGraphFont(ctx,14,true);const pj=window.latestPredictionJudge; ctx.fillText(pj?('20本目予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'20本目予測',pp.x+fs*.75,pp.y-fs*.75);
       }
       drawZoomErrorLabel(ctx,toS,r,i,W,H);
     });
