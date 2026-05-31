@@ -2746,6 +2746,194 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+<!-- Vr015 simple measurement flow override -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function digits(v){ return String(v ?? '').replace(/[^\d]/g,''); }
+  function pipeDup(pipe){
+    const key=String(pipe||'').trim();
+    return (window.measurementHistory||[]).some(m=>String(m?.pipeCount||'').trim()===key);
+  }
+  function findRow(labelText){
+    return [...document.querySelectorAll('#measurementInputStage .row')].find(r=>(r.querySelector('label')?.textContent||'').includes(labelText));
+  }
+  function completeRows(){
+    const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+    if(!rows.length) return false;
+    return rows.every(tr=>{
+      const d=String(tr.querySelector('.dist')?.value||'').trim();
+      const g=String(tr.querySelector('.deg')?.value||'').trim();
+      const m=String(tr.querySelector('.min')?.value||'').trim();
+      const s=String(tr.querySelector('.sec')?.value||'').trim();
+      return d!=='' && g!=='' && m!=='' && s!=='';
+    });
+  }
+  let mode='new';
+  const oldShowKeypad=window.showNumericKeypad;
+  window.showNumericKeypad=function(source){
+    if(mode==='history') return;
+    if(typeof oldShowKeypad==='function') oldShowKeypad(source);
+  };
+  function setTableReadonly(readonly){
+    document.querySelectorAll('#measurementTable input').forEach(el=>{el.readOnly=readonly;});
+  }
+  function ensureFlowButtons(){
+    const stage=byId('measurementInputStage'); if(!stage) return;
+    let host=byId('vr015FlowHost');
+    if(!host){
+      host=document.createElement('div');
+      host.id='vr015FlowHost';
+      host.className='stage-actions';
+      host.style.justifyContent='center';
+      host.style.marginTop='8px';
+      host.innerHTML='<button type="button" id="vr015NextBtn" class="ok">次へ</button><button type="button" id="vr015GoTpKpBtn" class="ok" style="display:none">KP数・TP数入力へ進む</button>';
+      const note=stage.querySelector('.note');
+      note?.insertAdjacentElement('afterend',host);
+    }
+  }
+  function setupMainAction(){
+    const wrap=document.querySelector('#measurementInputStage > .stage-actions');
+    if(!wrap) return null;
+    wrap.style.display='none';
+    const btn=wrap.querySelector('button.ok'); if(!btn) return null;
+    btn.id='vr015ResultBtn';
+    return btn;
+  }
+  function refreshResultButton(){
+    const btn=byId('vr015ResultBtn'); if(!btn) return;
+    if(mode==='history'){
+      btn.disabled=false; btn.style.opacity='1'; btn.style.pointerEvents='';
+      btn.textContent='計算結果を表示(保存済みです）';
+      return;
+    }
+    btn.textContent='保存して計算結果を表示';
+    const ok=completeRows();
+    btn.disabled=!ok; btn.style.opacity=ok?'1':'0.5'; btn.style.pointerEvents=ok?'':'none';
+  }
+  function setHistoryMode(){
+    mode='history';
+    const pipe=byId('pipeCount'), date=byId('measureDate');
+    const tp=byId('tpCount_proxy')||byId('tpCount'), kp=byId('kpCount_proxy')||byId('kpCount');
+    const pipeRow=findRow('本数'), dateRow=findRow('測定日');
+    if(pipeRow) pipeRow.style.display='';
+    if(dateRow) dateRow.style.display='';
+    if(pipe){ pipe.disabled=true; pipe.readOnly=true; }
+    if(date){ date.disabled=true; date.readOnly=true; }
+    if(tp){ tp.disabled=true; tp.readOnly=true; }
+    if(kp){ kp.disabled=true; kp.readOnly=true; }
+    setTableReadonly(true);
+    if(byId('vr015NextBtn')) byId('vr015NextBtn').style.display='none';
+    if(byId('vr015GoTpKpBtn')) byId('vr015GoTpKpBtn').style.display='none';
+    refreshResultButton();
+  }
+  function setNewMode(){
+    mode='new';
+    const pipe=byId('pipeCount'), date=byId('measureDate');
+    const tp=byId('tpCount_proxy')||byId('tpCount'), kp=byId('kpCount_proxy')||byId('kpCount');
+    const pipeRow=findRow('本数'), dateRow=findRow('測定日');
+    if(pipeRow) pipeRow.style.display='';
+    if(dateRow) dateRow.style.display='none';
+    if(pipe){ pipe.disabled=false; pipe.readOnly=false; pipe.value=''; }
+    if(date){ date.disabled=true; date.readOnly=false; date.value=today(); }
+    if(tp){ tp.disabled=true; tp.readOnly=false; tp.value='0'; }
+    if(kp){ kp.disabled=true; kp.readOnly=false; kp.value='1'; }
+    if(byId('tpCount')) byId('tpCount').value='0';
+    if(byId('kpCount')) byId('kpCount').value='1';
+    setTableReadonly(false);
+    if(byId('vr015NextBtn')) byId('vr015NextBtn').style.display='';
+    if(byId('vr015GoTpKpBtn')) byId('vr015GoTpKpBtn').style.display='none';
+    if(byId('measurementTable')) byId('measurementTable').innerHTML='';
+    refreshResultButton();
+  }
+  function wireFlow(){
+    ensureFlowButtons();
+    const btn=setupMainAction();
+    if(btn && !btn.dataset.vr015Simple){
+      btn.dataset.vr015Simple='1';
+      btn.onclick=function(){
+        if(mode==='history'){ window.calculateAll?.(true); window.showResultStage?.(); return; }
+        if(!completeRows()) return;
+        const data=window.collectMeasurementData?.();
+        if(data && window.upsertMeasurementData?.(data,true)!==false){ window.calculateAll?.(true); window.showResultStage?.(); }
+      };
+    }
+    const next=byId('vr015NextBtn'), go=byId('vr015GoTpKpBtn');
+    const pipe=byId('pipeCount'), date=byId('measureDate');
+    const tp=byId('tpCount_proxy')||byId('tpCount'), kp=byId('kpCount_proxy')||byId('kpCount');
+    const dateRow=findRow('測定日'), pipeRow=findRow('本数');
+    if(pipe && !pipe.dataset.vr015Simple){
+      pipe.dataset.vr015Simple='1';
+      pipe.addEventListener('input',()=>{ pipe.value=digits(pipe.value); });
+    }
+    if(next && !next.dataset.vr015Simple){
+      next.dataset.vr015Simple='1';
+      next.onclick=function(){
+        const p=digits(pipe?.value);
+        if(!p || /^0+$/.test(p)){ alert('本数を入力してください。'); pipe?.focus(); return; }
+        if(pipeDup(p)){ const gh=confirm(`すでに${p}本目は入力済みです。修正する場合は履歴を開く　開きますか?`); if(gh) window.openSection?.('historyStage'); return; }
+        if(dateRow) dateRow.style.display='';
+        if(date){ date.disabled=false; if(date.showPicker){ try{ date.showPicker(); }catch(e){} } date.focus(); }
+      };
+    }
+    if(date && !date.dataset.vr015Simple){
+      date.dataset.vr015Simple='1';
+      date.addEventListener('change',()=>{ if(go) go.style.display=String(date.value||'').trim()?'':'none'; });
+    }
+    if(go && !go.dataset.vr015Simple){
+      go.dataset.vr015Simple='1';
+      go.onclick=function(){
+        const p=digits(pipe?.value), d=String(date?.value||'').trim();
+        if(!p || !d){ alert('本数と測定日を入力してください。'); return; }
+        const wk=['日','月','火','水','木','金','土']; const dd=new Date(d+'T00:00:00');
+        const ok=confirm(`本数: ${p}本\n日付: ${dd.getFullYear()}年${dd.getMonth()+1}月${dd.getDate()}日(${wk[dd.getDay()]})\n\n間違いありませんか？`);
+        if(!ok) return;
+        if(pipeRow) pipeRow.style.display='none';
+        if(dateRow) dateRow.style.display='none';
+        next.style.display='none'; go.style.display='none';
+        if(tp){ tp.disabled=false; tp.value='0'; }
+        if(kp){ kp.disabled=false; kp.value='1'; }
+        if(byId('tpCount')) byId('tpCount').value='0';
+        if(byId('kpCount')) byId('kpCount').value='1';
+        window.buildRows?.();
+        refreshResultButton();
+      };
+    }
+    function syncCounts(){
+      if(mode!=='new') return;
+      const tv=digits(tp?.value||'0'), kv=digits(kp?.value||'1');
+      if(tp) tp.value=tv;
+      if(kp) kp.value=kv===''?'':String(Math.max(1,Number(kv||1)));
+      if(byId('tpCount')) byId('tpCount').value=tp?.value||'0';
+      if(byId('kpCount')) byId('kpCount').value=kp?.value||'1';
+      if((tp?.value||'')!=='' && (kp?.value||'')!=='') window.buildRows?.();
+      refreshResultButton();
+    }
+    [tp,kp].forEach(el=>{
+      if(!el || el.dataset.vr015Simple) return;
+      el.dataset.vr015Simple='1';
+      el.type='number'; el.inputMode='numeric'; el.step='1';
+      el.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      el.addEventListener('input',syncCounts); el.addEventListener('change',syncCounts);
+    });
+    document.addEventListener('input',e=>{ if(e.target?.closest?.('#measurementTable')) refreshResultButton(); });
+    const oldClose=window.closeNumericKeypad;
+    window.closeNumericKeypad=function(blur=true){ if(typeof oldClose==='function') oldClose(blur); refreshResultButton(); };
+    const oldLoad=window.loadHistoryMeasurement;
+    if(oldLoad && !oldLoad.__vr015Simple){
+      const wrap=function(index){ oldLoad(index); setTimeout(setHistoryMode,0); }; wrap.__vr015Simple=true; window.loadHistoryMeasurement=wrap;
+    }
+    const oldNew=window.newMeasurementData;
+    if(oldNew && !oldNew.__vr015Simple){
+      const wrap=function(){ oldNew(); setTimeout(setNewMode,0); }; wrap.__vr015Simple=true; window.newMeasurementData=wrap;
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ wireFlow(); setTimeout(setNewMode,30); });
+  else { wireFlow(); setTimeout(setNewMode,30); }
+})();
+</script>
+
 
 <!-- Vr015 device lock: mobile only -->
 <script>
