@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>05 測定結果・水平左右誤差判定</title>
 <style>
 :root{
@@ -145,6 +145,18 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   #measurementTable input{width:100%!important;min-width:0;box-sizing:border-box}
   #measurementTable .dist{min-width:0}
   #measurementTable .dms{min-width:0;padding:7px 3px;text-align:center}
+  #measurementTable input.keypad-active{
+    background:#fff7b8!important;
+    outline:4px solid #f59e0b!important;
+    outline-offset:-3px!important;
+    border-color:#b45309!important;
+    box-shadow:0 0 0 3px rgba(245,158,11,.32),0 0 12px rgba(245,158,11,.55)!important;
+    color:#111827!important;
+    font-weight:800!important;
+  }
+  #measurementTable td:has(input.keypad-active){
+    background:#fde68a!important;
+  }
   canvas{height:300px!important}
   .fullscreen-graph .bar{font-size:12px;gap:8px;flex-wrap:wrap}
   .fullscreen-graph .bar button{padding:7px 10px}
@@ -201,7 +213,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .numeric-keypad{
   position:fixed;left:10px;right:10px;bottom:10px;z-index:10020;display:none;
   max-width:320px;margin:0 auto;background:#fff;border:2px solid #111827;border-radius:0;
-  box-shadow:0 14px 42px rgba(15,23,42,.28);overflow:hidden;
+  box-shadow:0 14px 42px rgba(15,23,42,.28);overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;
 }
 .numeric-keypad.visible{display:block}
 .keypad-display{display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff}
@@ -214,12 +226,26 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .keypad-angle.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
 .keypad-role.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr)}
-.keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px}
+.keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .keypad-grid button:nth-child(2),.keypad-grid button:nth-child(4),.keypad-grid button:nth-child(6),.keypad-grid button:nth-child(8),.keypad-grid button:nth-child(10),.keypad-grid button:nth-child(12),.keypad-grid button:nth-child(14),.keypad-grid button:nth-child(16),.keypad-grid button:nth-child(18){background:#f4a57b}
 .keypad-grid button.command{font-size:18px;background:#d9f1cf}
 .keypad-grid button.ok{background:#d9f1cf;color:#0f172a}
+.keypad-grid button.vr015-tap-flash{background:#fde047!important;box-shadow:inset 0 0 0 4px #f59e0b!important;transform:scale(.97)}
 .numeric-keypad .keypad-display{grid-template-columns:1fr 1fr 1fr!important}
 .numeric-keypad .keypad-cell{display:grid!important;min-height:46px!important}
+#measurementTable input.keypad-active{
+  background:#fff7b8!important;
+  outline:4px solid #f59e0b!important;
+  outline-offset:-3px!important;
+  border-color:#b45309!important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.32),0 0 12px rgba(245,158,11,.55)!important;
+  color:#111827!important;
+  font-weight:800!important;
+}
+#measurementTable input.vr015-input-flash{
+  background:#fef08a!important;
+  box-shadow:0 0 0 5px rgba(34,197,94,.45),0 0 18px rgba(34,197,94,.7)!important;
+}
 .excel-input{overflow:auto;border:1px solid #cfd7e3;border-radius:8px;background:#fff}
 .excel-input table{margin:0;table-layout:fixed;min-width:620px}
 .excel-input col.name-col{width:70px}
@@ -871,6 +897,23 @@ function vr015SpeakKey(ch){
     window.speechSynthesis.speak(utterance);
   }catch(e){}
 }
+function vr015Vibrate(pattern=18){
+  try{ navigator.vibrate?.(pattern); }catch(e){}
+}
+function vr015FlashInput(){
+  if(!activeSourceInput) return;
+  activeSourceInput.classList.remove('vr015-input-flash');
+  void activeSourceInput.offsetWidth;
+  activeSourceInput.classList.add('vr015-input-flash');
+  setTimeout(()=>activeSourceInput?.classList.remove('vr015-input-flash'),120);
+}
+function vr015FlashButton(button){
+  if(!button) return;
+  button.classList.remove('vr015-tap-flash');
+  void button.offsetWidth;
+  button.classList.add('vr015-tap-flash');
+  setTimeout(()=>button.classList.remove('vr015-tap-flash'),110);
+}
 function showNumericKeypad(source){
   if(!isNumericFocusField(source)){closeNumericKeypad(false);return}
   activeSourceInput=source;
@@ -883,6 +926,13 @@ function showNumericKeypad(source){
   box.classList.add('visible');
   box.setAttribute('aria-hidden','false');
 }
+let vr015LastKeypadTap=0;
+document.addEventListener('touchend',event=>{
+  if(!event.target?.closest?.('#numericKeypad')) return;
+  const now=Date.now();
+  if(now-vr015LastKeypadTap<350) event.preventDefault();
+  vr015LastKeypadTap=now;
+},{capture:true,passive:false});
 function closeNumericKeypad(blur=true){
   keypadCommit();
   const box=document.getElementById('numericKeypad');
@@ -902,17 +952,23 @@ function keypadSet(v){
 function keypadPress(ch){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dms') && ch==='.')return;
+  vr015Vibrate(18);
+  vr015FlashButton(window.event?.currentTarget);
   vr015SpeakKey(ch);
   let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
   keypadReplaceOnNextInput=false;
   if(v==='0' && ch!=='.')v='';
   if(ch==='.' && v.includes('.'))return;
   keypadSet(v+ch);
+  vr015FlashInput();
 }
 function keypadBackspace(){
   if(!activeSourceInput)return;
+  vr015Vibrate(12);
+  vr015FlashButton(window.event?.currentTarget);
   if(keypadReplaceOnNextInput){keypadReplaceOnNextInput=false;keypadSet('');return}
   keypadSet(String(activeSourceInput.value||'').slice(0,-1));
+  vr015FlashInput();
 }
 function keypadClear(){keypadReplaceOnNextInput=false;keypadSet('')}
 function keypadUndoValue(){
@@ -1646,6 +1702,7 @@ function drawCanvas(id,zoom){
 }
 
 let fsMode='overview', fsScale=1, fsOffX=0, fsOffY=0, fsDragging=false, fsLast=null;
+let fsTouchMode='', fsTouchLast=null, fsTouchStartDist=0, fsTouchStartScale=1, fsTouchStartOffX=0, fsTouchStartOffY=0, fsTouchCenter=null;
 
 function openGraphFullScreen(mode){
   fsMode=mode; fsScale=1; fsOffX=0; fsOffY=0;
@@ -1712,13 +1769,28 @@ window.addEventListener('resize',()=>{if(document.getElementById('graphFullScree
 
 window.addEventListener('DOMContentLoaded',()=>{
   const cvs=document.getElementById('fsCanvas');
+  const canvasPoint=(clientX,clientY)=>{
+    const rect=cvs.getBoundingClientRect();
+    const sx=cvs.width/rect.width, sy=cvs.height/rect.height;
+    return {x:(clientX-rect.left)*sx,y:(clientY-rect.top)*sy};
+  };
+  const touchDistance=(t1,t2)=>Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
+  const touchCenter=(t1,t2)=>canvasPoint((t1.clientX+t2.clientX)/2,(t1.clientY+t2.clientY)/2);
+  const zoomAt=(factor,point)=>{
+    const old=fsScale;
+    const next=Math.max(0.2,Math.min(20,old*factor));
+    const cx=cvs.width/2, cy=cvs.height/2;
+    fsOffX=point.x-cx-((point.x-cx-fsOffX)/old)*next;
+    fsOffY=point.y-cy-((point.y-cy-fsOffY)/old)*next;
+    fsScale=next;
+  };
   document.getElementById('graphFullScreen')?.addEventListener('click',e=>{if(e.target.id==='graphFullScreen')closeGraphFullScreen()});
   document.querySelector('#graphFullScreen .bar')?.addEventListener('click',e=>e.stopPropagation());
   cvs.addEventListener('click',e=>e.stopPropagation());
   cvs.addEventListener('wheel',e=>{
     e.preventDefault();
     const factor=e.deltaY<0?1.15:1/1.15;
-    fsScale=Math.max(0.2,Math.min(20,fsScale*factor));
+    zoomAt(factor,canvasPoint(e.clientX,e.clientY));
     drawFullScreenGraph();
   },{passive:false});
   cvs.addEventListener('mousedown',e=>{fsDragging=true;fsLast={x:e.clientX,y:e.clientY};});
@@ -1730,6 +1802,51 @@ window.addEventListener('DOMContentLoaded',()=>{
     drawFullScreenGraph();
   });
   window.addEventListener('mouseup',()=>{fsDragging=false;});
+  cvs.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(e.touches.length===1){
+      fsTouchMode='pan';
+      fsTouchLast=canvasPoint(e.touches[0].clientX,e.touches[0].clientY);
+    }else if(e.touches.length>=2){
+      fsTouchMode='pinch';
+      fsTouchStartDist=touchDistance(e.touches[0],e.touches[1]);
+      fsTouchStartScale=fsScale;
+      fsTouchStartOffX=fsOffX;
+      fsTouchStartOffY=fsOffY;
+      fsTouchCenter=touchCenter(e.touches[0],e.touches[1]);
+    }
+  },{passive:false});
+  cvs.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(fsTouchMode==='pan' && e.touches.length===1 && fsTouchLast){
+      const p=canvasPoint(e.touches[0].clientX,e.touches[0].clientY);
+      fsOffX+=p.x-fsTouchLast.x;
+      fsOffY+=p.y-fsTouchLast.y;
+      fsTouchLast=p;
+      drawFullScreenGraph();
+    }else if(e.touches.length>=2 && fsTouchStartDist>0){
+      fsTouchMode='pinch';
+      fsScale=fsTouchStartScale;
+      fsOffX=fsTouchStartOffX;
+      fsOffY=fsTouchStartOffY;
+      const factor=touchDistance(e.touches[0],e.touches[1])/fsTouchStartDist;
+      zoomAt(factor,fsTouchCenter||touchCenter(e.touches[0],e.touches[1]));
+      drawFullScreenGraph();
+    }
+  },{passive:false});
+  cvs.addEventListener('touchend',e=>{
+    e.preventDefault();
+    if(e.touches.length===0){
+      fsTouchMode='';
+      fsTouchLast=null;
+      fsTouchStartDist=0;
+    }else if(e.touches.length===1){
+      fsTouchMode='pan';
+      fsTouchLast=canvasPoint(e.touches[0].clientX,e.touches[0].clientY);
+    }
+  },{passive:false});
 });
 
 function collectMeasurementData(){
@@ -1981,9 +2098,12 @@ function saveMeasurement(){
   if(geom)calculateAll(false);
   const data=collectMeasurementData();
   if(!upsertMeasurementData(data,true))return;
+  downloadIntegratedProjectFile();
+  showActionMessage('保存ファイルを作成しました。次回は「測量データを開く」から読み込めます。','measurementSaveMessage');
+}
+function downloadIntegratedProjectFile(){
   const blob=new Blob([JSON.stringify(integratedProjectData(),null,2)],{type:'application/json;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=integratedProjectFileName();a.click();URL.revokeObjectURL(a.href);
-  showActionMessage('保存ファイルを作成しました。次回は「測量データを開く」から読み込めます。','measurementSaveMessage');
 }
 function loadMeasurementFile(input){
   const f=input.files[0]; if(!f)return; const r=new FileReader();
@@ -2236,6 +2356,8 @@ window.addEventListener('DOMContentLoaded',()=>{
         const data=window.collectMeasurementData?.();
         if(data && window.upsertMeasurementData?.(data,true)!==false){
           window.calculateAll?.(true);
+          window.downloadIntegratedProjectFile?.();
+          window.showActionMessage?.('保存ファイルを作成しました。','measurementSaveMessage');
           window.showResultStage?.();
         }
       });
