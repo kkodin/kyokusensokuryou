@@ -3122,5 +3122,197 @@ window.addEventListener('DOMContentLoaded',()=>{
   else setTimeout(hook,60);
 })();
 </script>
+<!-- Vr015 final simple measurement UI: no Next button, visible disabled date/TP/KP -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function digits(v){ return String(v ?? '').replace(/[^\d]/g,''); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function isDuplicatePipe(pipe){
+    const key=String(pipe||'').trim();
+    return (window.measurementHistory||[]).some(m=>String(m?.pipeCount||'').trim()===key);
+  }
+  function centerMessage(msg){
+    let box=byId('vr015FinalMessage');
+    if(!box){
+      box=document.createElement('div');
+      box.id='vr015FinalMessage';
+      box.style.cssText='position:fixed;inset:0;z-index:10100;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.35);padding:16px;';
+      box.innerHTML='<div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:16px;max-width:320px;width:100%;text-align:center"><div id="vr015FinalMessageText" style="font-weight:bold;line-height:1.6"></div><button id="vr015FinalMessageOk" type="button" class="ok" style="margin-top:12px">OK</button></div>';
+      document.body.appendChild(box);
+      byId('vr015FinalMessageOk').onclick=function(){ box.style.display='none'; };
+    }
+    byId('vr015FinalMessageText').textContent=msg;
+    box.style.display='flex';
+  }
+  function findRow(labelText){
+    return [...document.querySelectorAll('#measurementInputStage .row')].find(row=>(row.querySelector('label')?.textContent||'').includes(labelText));
+  }
+  function ensureTpKpBox(){
+    const stage=byId('measurementInputStage');
+    const table=byId('measurementTable');
+    if(!stage || !table) return null;
+    let box=byId('vr015FinalTpKp');
+    if(!box){
+      box=document.createElement('div');
+      box.id='vr015FinalTpKp';
+      box.className='excel-input';
+      box.innerHTML='<div class="count-grid"><label for="vr015TpCount">TP数</label><input class="num" id="vr015TpCount" type="number" inputmode="numeric" step="1" min="0" value="0"><label for="vr015KpCount">KP数</label><input class="num" id="vr015KpCount" type="number" inputmode="numeric" step="1" min="1" value="1"></div>';
+      table.insertAdjacentElement('beforebegin',box);
+    }
+    return box;
+  }
+  function completeTable(){
+    const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+    return rows.length>0 && rows.every(tr=>{
+      return ['dist','deg','min','sec'].every(cls=>String(tr.querySelector('.'+cls)?.value||'').trim()!=='');
+    });
+  }
+  function syncRows(){
+    const tp=byId('vr015TpCount');
+    const kp=byId('vr015KpCount');
+    if(!tp || !kp) return;
+    tp.value=digits(tp.value);
+    kp.value=digits(kp.value);
+    if(tp.value==='') tp.value='0';
+    if(kp.value==='' || Number(kp.value)<1) kp.value='1';
+    const masterTp=byId('tpCount');
+    const masterKp=byId('kpCount');
+    if(masterTp) masterTp.value=tp.value;
+    if(masterKp) masterKp.value=kp.value;
+    if(typeof window.buildRows==='function') window.buildRows();
+    refreshResultButton();
+  }
+  function refreshResultButton(){
+    const btn=byId('vr015FinalResultBtn');
+    if(!btn) return;
+    if(window.__vr015Mode==='history'){
+      btn.disabled=false;
+      btn.style.opacity='1';
+      btn.textContent='計算結果を表示(保存済みです）';
+      return;
+    }
+    btn.textContent='保存して計算結果を表示';
+    const ok=completeTable();
+    btn.disabled=!ok;
+    btn.style.opacity=ok?'1':'0.5';
+  }
+  function ensureResultButton(){
+    const stage=byId('measurementInputStage');
+    if(!stage) return null;
+    let wrap=byId('vr015FinalResultWrap');
+    if(!wrap){
+      wrap=document.createElement('div');
+      wrap.id='vr015FinalResultWrap';
+      wrap.className='stage-actions';
+      wrap.innerHTML='<button type="button" id="vr015FinalResultBtn" class="ok">保存して計算結果を表示</button>';
+      stage.appendChild(wrap);
+      byId('vr015FinalResultBtn').onclick=function(){
+        if(window.__vr015Mode==='history'){
+          window.calculateAll?.(true);
+          window.showResultStage?.();
+          return;
+        }
+        if(!completeTable()) return;
+        const data=window.collectMeasurementData?.();
+        if(data && window.upsertMeasurementData?.(data,true)!==false){
+          window.calculateAll?.(true);
+          window.showResultStage?.();
+        }
+      };
+    }
+    return wrap;
+  }
+  function removeNextButtons(){
+    ['newFlowNextBtn','newFlowConfirmBtn','newFlowConfirmArea','vr015FlowHost','vr015NextBtn','vr015GoTpKpBtn'].forEach(id=>byId(id)?.remove());
+    document.querySelectorAll('#measurementInputStage > .stage-actions').forEach(wrap=>{
+      if(wrap.id!=='vr015FinalResultWrap') wrap.remove();
+    });
+  }
+  function setEditableMode(){
+    window.__vr015Mode='new';
+    removeNextButtons();
+    ensureTpKpBox();
+    ensureResultButton();
+    const pipe=byId('pipeCount');
+    const date=byId('measureDate');
+    const dateRow=findRow('測定日');
+    const tp=byId('vr015TpCount');
+    const kp=byId('vr015KpCount');
+    if(dateRow) dateRow.style.display='';
+    if(pipe){ pipe.disabled=false; pipe.readOnly=false; if(pipe.value==='0') pipe.value=''; }
+    if(date){ date.disabled=true; date.readOnly=false; if(!date.value) date.value=today(); }
+    [tp,kp].forEach(el=>{ if(el){ el.disabled=true; el.style.opacity='0.55'; }});
+    function updateGate(){
+      if(!pipe || !date || !tp || !kp) return;
+      pipe.value=digits(pipe.value);
+      const hasPipe=pipe.value!=='' && !/^0+$/.test(pipe.value);
+      date.disabled=!hasPipe;
+      if(hasPipe && isDuplicatePipe(pipe.value)){
+        centerMessage(`すでに${pipe.value}本目は入力済みです。`);
+        tp.disabled=true; kp.disabled=true; tp.style.opacity='0.55'; kp.style.opacity='0.55';
+        byId('measurementTable').innerHTML='';
+        return;
+      }
+      const ready=hasPipe && String(date.value||'').trim()!=='';
+      tp.disabled=!ready;
+      kp.disabled=!ready;
+      tp.style.opacity=ready?'1':'0.55';
+      kp.style.opacity=ready?'1':'0.55';
+      if(ready) syncRows();
+      else byId('measurementTable').innerHTML='';
+      refreshResultButton();
+    }
+    if(pipe && !pipe.dataset.vr015FinalSimple){ pipe.dataset.vr015FinalSimple='1'; pipe.addEventListener('input',updateGate); pipe.addEventListener('change',updateGate); }
+    if(date && !date.dataset.vr015FinalSimple){ date.dataset.vr015FinalSimple='1'; date.addEventListener('input',updateGate); date.addEventListener('change',updateGate); }
+    [tp,kp].forEach(el=>{
+      if(!el || el.dataset.vr015FinalSimple) return;
+      el.dataset.vr015FinalSimple='1';
+      el.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      el.addEventListener('input',syncRows);
+      el.addEventListener('change',syncRows);
+    });
+    document.addEventListener('input',e=>{ if(e.target?.closest?.('#measurementTable')) refreshResultButton(); });
+    updateGate();
+  }
+  function setHistoryMode(){
+    window.__vr015Mode='history';
+    removeNextButtons();
+    ensureTpKpBox();
+    ensureResultButton();
+    const tp=byId('vr015TpCount');
+    const kp=byId('vr015KpCount');
+    const pipe=byId('pipeCount');
+    const date=byId('measureDate');
+    const mtp=byId('tpCount');
+    const mkp=byId('kpCount');
+    if(tp){ tp.value=mtp?.value||tp.value||'0'; tp.disabled=true; tp.style.opacity='1'; }
+    if(kp){ kp.value=mkp?.value||kp.value||'1'; kp.disabled=true; kp.style.opacity='1'; }
+    if(pipe){ pipe.disabled=true; pipe.readOnly=true; }
+    if(date){ date.disabled=true; date.readOnly=true; }
+    document.querySelectorAll('#measurementTable input').forEach(el=>{ el.readOnly=true; });
+    refreshResultButton();
+  }
+  const oldShowNumericKeypad=window.showNumericKeypad;
+  window.showNumericKeypad=function(source){
+    if(window.__vr015Mode==='history') return;
+    oldShowNumericKeypad?.(source);
+  };
+  const oldLoadHistory=window.loadHistoryMeasurement;
+  if(oldLoadHistory && !oldLoadHistory.__vr015FinalSimple){
+    const wrapped=function(index){ oldLoadHistory(index); setTimeout(setHistoryMode,0); };
+    wrapped.__vr015FinalSimple=true;
+    window.loadHistoryMeasurement=wrapped;
+  }
+  const oldNewMeasurement=window.newMeasurementData;
+  if(oldNewMeasurement && !oldNewMeasurement.__vr015FinalSimple){
+    const wrapped=function(){ oldNewMeasurement(); setTimeout(setEditableMode,0); };
+    wrapped.__vr015FinalSimple=true;
+    window.newMeasurementData=wrapped;
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(setEditableMode,80));
+  else setTimeout(setEditableMode,80);
+})();
+</script>
 </body>
 </html>
