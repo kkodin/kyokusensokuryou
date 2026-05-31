@@ -2934,6 +2934,104 @@ window.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+<!-- Vr015 new-input final override -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function digits(v){ return String(v ?? '').replace(/[^\d]/g,''); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function isDup(pipe){
+    const k=String(pipe||'').trim();
+    return (window.measurementHistory||[]).some(m=>String(m?.pipeCount||'').trim()===k);
+  }
+  function showCenter(msg){
+    let box=byId('vr015CenterWarn');
+    if(!box){
+      box=document.createElement('div');
+      box.id='vr015CenterWarn';
+      box.style.cssText='position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.35);z-index:10080;padding:16px;';
+      box.innerHTML='<div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:14px;max-width:320px;width:100%;text-align:center"><div id="vr015CenterWarnText" style="font-weight:bold;line-height:1.6"></div><div style="margin-top:10px"><button class="ok" type="button" id="vr015CenterWarnOk">OK</button></div></div>';
+      document.body.appendChild(box);
+      byId('vr015CenterWarnOk').onclick=()=>box.style.display='none';
+    }
+    byId('vr015CenterWarnText').textContent=msg;
+    box.style.display='flex';
+  }
+  function setTpKpEnabled(enabled){
+    const tp=byId('tpCount_proxy')||byId('tpCount');
+    const kp=byId('kpCount_proxy')||byId('kpCount');
+    if(tp) tp.disabled=!enabled;
+    if(kp) kp.disabled=!enabled;
+  }
+  function syncRows(){
+    const tp=byId('tpCount_proxy')||byId('tpCount');
+    const kp=byId('kpCount_proxy')||byId('kpCount');
+    if(!tp || !kp) return;
+    tp.value=digits(tp.value);
+    kp.value=digits(kp.value);
+    if(byId('tpCount')) byId('tpCount').value=tp.value||'0';
+    if(byId('kpCount')) byId('kpCount').value=kp.value||'1';
+    if((tp.value||'')==='' || (kp.value||'')===''){ if(byId('measurementTable')) byId('measurementTable').innerHTML=''; return; }
+    if(Number(kp.value)<1) kp.value='1';
+    window.buildRows?.();
+  }
+  function applyModeNew(){
+    const pipe=byId('pipeCount'), date=byId('measureDate');
+    const rowDate=[...document.querySelectorAll('#measurementInputStage .row')].find(r=>(r.querySelector('label')?.textContent||'').includes('測定日'));
+    const next=byId('vr015NextBtn');
+    const go=byId('vr015GoTpKpBtn');
+    const mainAction=document.querySelector('#measurementInputStage > .stage-actions');
+    if(mainAction) mainAction.style.display='none';
+    if(next) next.style.display='none';
+    if(go) go.style.display='none';
+    if(pipe){ pipe.disabled=false; pipe.readOnly=false; pipe.value=''; }
+    if(date){ date.disabled=true; date.value=today(); }
+    if(rowDate) rowDate.style.display='';
+    setTpKpEnabled(false);
+    const tp=byId('tpCount_proxy')||byId('tpCount');
+    const kp=byId('kpCount_proxy')||byId('kpCount');
+    if(tp) tp.value='0';
+    if(kp) kp.value='1';
+    if(byId('measurementTable')) byId('measurementTable').innerHTML='';
+    if(pipe && !pipe.dataset.vr015Final){
+      pipe.dataset.vr015Final='1';
+      pipe.addEventListener('input',()=>{
+        pipe.value=digits(pipe.value);
+        const ok=pipe.value!=='' && !/^0+$/.test(pipe.value);
+        if(date) date.disabled=!ok;
+      });
+    }
+    if(date && !date.dataset.vr015Final){
+      date.dataset.vr015Final='1';
+      date.addEventListener('change',()=>{
+        const p=digits(pipe?.value);
+        if(!p || /^0+$/.test(p)){ date.disabled=true; return; }
+        if(isDup(p)){
+          showCenter(`すでに${p}本目は入力済みです。`);
+          setTpKpEnabled(false);
+          if(byId('measurementTable')) byId('measurementTable').innerHTML='';
+          return;
+        }
+        setTpKpEnabled(true);
+        syncRows();
+      });
+    }
+    [tp,kp].forEach(el=>{
+      if(!el || el.dataset.vr015Final) return;
+      el.dataset.vr015Final='1';
+      el.type='number'; el.inputMode='numeric'; el.step='1';
+      el.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      el.addEventListener('input',syncRows);
+      el.addEventListener('change',syncRows);
+    });
+  }
+  const oldNew=window.newMeasurementData;
+  window.newMeasurementData=function(){ if(typeof oldNew==='function') oldNew(); setTimeout(applyModeNew,0); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(applyModeNew,40));
+  else setTimeout(applyModeNew,40);
+})();
+</script>
+
 
 <!-- Vr015 device lock: mobile only -->
 <script>
