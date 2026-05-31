@@ -60,7 +60,7 @@ canvas{width:100%;height:440px;border:1px solid #cbd5e1;background:#fff;border-r
   <div class="card">
     <h2>推進力予定グラフ</h2>
     <canvas id="graph"></canvas>
-    <p class="note">青線: 設計推進力予定、赤破線: 推進管耐荷力、薄橙: 曲線区間。1本ごとの予定値は下表に出力します。</p>
+    <p class="note">青線: 設計推進力予定、緑線: 実測推力、赤破線: 推進管耐荷力、薄橙: 曲線区間。実測推力は下表の入力欄に入力するとグラフへ反映します。</p>
   </div>
 
   <div class="card">
@@ -93,7 +93,7 @@ const SOURCE_NOTES=[
   ['刃口施工計画_φ1350.pdf','p.17','蛇行が推進抵抗を増大させ、予定推進力を超える可能性がある旨の施工管理上の注意。']
 ];
 const HUME_T={250:55,300:57,350:60,400:63,450:67,500:70,600:76,700:82,800:80,900:90,1000:100,1100:105,1200:115,1350:125,1500:140,1650:150,1800:160,2000:175,2200:190,2400:205,2600:220,2800:235,3000:250};
-let P=null,G=null,CALC=null,PIPE_ROWS=[],CURVE_ROWS=[];
+let P=null,G=null,CALC=null,PIPE_ROWS=[],CURVE_ROWS=[],ACTUAL_FORCES={};
 
 function fmt(x,d=3){return Number.isFinite(+x)?(+x).toFixed(d):''}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -102,6 +102,25 @@ function degToRad(d){return d*Math.PI/180}
 function radToDeg(r){return ((r*180/Math.PI)%360+360)%360}
 function safeName(s){return String(s||'現場').replace(/[\\/:*?"<>|\s]+/g,'_')}
 function getProject(){try{return JSON.parse(localStorage.getItem('curvedJackingProject')||'null')}catch(e){return null}}
+function actualStorageKey(){
+  return `jackingActualForces:${safeName(P?.site?.name||'現場')}:${safeName(P?.site?.span||'スパン')}`;
+}
+function loadActualForces(){
+  try{ACTUAL_FORCES=JSON.parse(localStorage.getItem(actualStorageKey())||'{}')||{}}catch(e){ACTUAL_FORCES={}}
+}
+function saveActualForces(){
+  try{localStorage.setItem(actualStorageKey(),JSON.stringify(ACTUAL_FORCES))}catch(e){}
+}
+function actualForceChanged(pipeNo,input){
+  const v=String(input.value||'').replace(/[^\d.]/g,'');
+  input.value=v;
+  if(v==='') delete ACTUAL_FORCES[pipeNo];
+  else ACTUAL_FORCES[pipeNo]=v;
+  const row=PIPE_ROWS.find(r=>String(r.pipeNo)===String(pipeNo));
+  if(row) row.actualForce=v===''?NaN:Number(v);
+  saveActualForces();
+  draw();
+}
 function loadProjectFile(input){
   const f=input.files[0]; if(!f)return;
   const r=new FileReader();
@@ -216,11 +235,12 @@ function calcForce(){
     const d=Math.min(i*PL,total);
     const sec=sectionAt(d);
     const res=forceAtDistance(d,base);
-    PIPE_ROWS.push({pipeNo:i,d,section:sec?.type||'',range:sec?`${sec.from}-${sec.to}`:'',force:res.force,formula:res.details.at(-1)?.formula||`F0=${fmt(base.F0,3)}`});
+    PIPE_ROWS.push({pipeNo:i,d,section:sec?.type||'',range:sec?`${sec.from}-${sec.to}`:'',force:res.force,actualForce:Number(ACTUAL_FORCES[i]),formula:res.details.at(-1)?.formula||`F0=${fmt(base.F0,3)}`});
   }
   if(PIPE_ROWS[PIPE_ROWS.length-1].d<total-1e-6){
     const sec=sectionAt(total),res=forceAtDistance(total,base);
-    PIPE_ROWS.push({pipeNo:PIPE_ROWS.length,d:total,section:sec?.type||'',range:sec?`${sec.from}-${sec.to}`:'EP',force:res.force,formula:res.details.at(-1)?.formula||''});
+    const pipeNo=PIPE_ROWS.length;
+    PIPE_ROWS.push({pipeNo,d:total,section:sec?.type||'',range:sec?`${sec.from}-${sec.to}`:'EP',force:res.force,actualForce:Number(ACTUAL_FORCES[pipeNo]),formula:res.details.at(-1)?.formula||''});
   }
   for(const c of G.curves){
     const cp=curveParams(c,base);
@@ -235,6 +255,7 @@ function run(p){
   P=p||getProject();
   if(!P){document.getElementById('summary').innerHTML='<p class="note">基線JSONを読み込んでください。</p>';return}
   G=calcGeometry(P);
+  loadActualForces();
   calcForce();
   renderSummary(); renderBasis(); renderCurves(); renderSchedule(); renderSources(); draw();
 }
@@ -270,7 +291,7 @@ function renderCurves(){
   document.getElementById('curveTable').innerHTML=`<table><tr><th>曲線</th><th>方向</th><th>R</th><th>CL</th><th>α1</th><th>k</th><th>K</th><th>n</th><th>λ</th><th>BC推力</th><th>EC推力</th><th>式</th></tr>${CURVE_ROWS.map(r=>`<tr><td>第${r.id}曲線</td><td>${r.dir==='L'?'左':'右'}</td><td class="mono">${fmt(r.R,3)}</td><td class="mono">${fmt(r.CL,3)}</td><td class="mono">${fmt(r.alpha1,6)}°</td><td class="mono">${fmt(r.curveK,6)}</td><td class="mono">${fmt(r.K,6)}</td><td class="mono">${r.n}</td><td class="mono">${fmt(r.lambda,3)}</td><td class="mono">${fmt(r.bcForce,1)}</td><td class="mono"><b>${fmt(r.ecForce,1)}</b></td><td class="left small mono">${esc(r.formula)}</td></tr>`).join('')}</table>`;
 }
 function renderSchedule(){
-  document.getElementById('scheduleTable').innerHTML=`<table><tr><th>本数</th><th>推進距離</th><th>区分</th><th>範囲</th><th>予定推力</th><th>計算式</th></tr>${PIPE_ROWS.map(r=>`<tr><td>${r.pipeNo}</td><td class="mono">${fmt(r.d,3)} m</td><td>${esc(r.section)}</td><td>${esc(r.range)}</td><td class="mono"><b>${fmt(r.force,1)} kN</b></td><td class="left small mono">${esc(r.formula)}</td></tr>`).join('')}</table>`;
+  document.getElementById('scheduleTable').innerHTML=`<table><tr><th>本数</th><th>推進距離</th><th>区分</th><th>範囲</th><th>予定推力</th><th>実測推力</th><th>計算式</th></tr>${PIPE_ROWS.map(r=>`<tr><td>${r.pipeNo}</td><td class="mono">${fmt(r.d,3)} m</td><td>${esc(r.section)}</td><td>${esc(r.range)}</td><td class="mono"><b>${fmt(r.force,1)} kN</b></td><td><input class="mono" type="number" min="0" step="0.1" value="${Number.isFinite(r.actualForce)?esc(fmt(r.actualForce,1)):''}" onchange="actualForceChanged(${r.pipeNo},this)" oninput="actualForceChanged(${r.pipeNo},this)" style="width:96px;text-align:right"> kN</td><td class="left small mono">${esc(r.formula)}</td></tr>`).join('')}</table>`;
 }
 function renderSources(){
   document.getElementById('sources').innerHTML=`<table><tr><th>資料</th><th>箇所</th><th>使用内容</th></tr>${SOURCE_NOTES.map(r=>`<tr><td class="left">${esc(r[0])}</td><td>${esc(r[1])}</td><td class="left">${esc(r[2])}</td></tr>`).join('')}</table><p class="note">PDF/Excelから読み取った根拠を画面に明示しています。係数や式を変更する場合は、ここに表示される根拠行も合わせて確認してください。</p>`;
@@ -278,7 +299,9 @@ function renderSources(){
 function draw(){
   const c=document.getElementById('graph'),ctx=c.getContext('2d'); c.width=c.clientWidth; c.height=c.clientHeight||440;
   ctx.clearRect(0,0,c.width,c.height);
-  const b=CALC.base, maxY=Math.max(b.allow||0,CALC.maxForce)*1.15||100, m={l:70,r:30,t:30,b:58}, gw=c.width-m.l-m.r, gh=c.height-m.t-m.b;
+  const b=CALC.base;
+  const actualMax=Math.max(0,...PIPE_ROWS.map(r=>Number.isFinite(r.actualForce)?r.actualForce:0));
+  const maxY=Math.max(b.allow||0,CALC.maxForce,actualMax)*1.15||100, m={l:70,r:30,t:30,b:58}, gw=c.width-m.l-m.r, gh=c.height-m.t-m.b;
   const sx=d=>m.l+d/CALC.total*gw, sy=f=>m.t+gh-f/maxY*gh;
   ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
   ctx.strokeStyle='#e5e7eb';ctx.fillStyle='#334155';ctx.font='12px Meiryo';ctx.textAlign='right';
@@ -289,6 +312,15 @@ function draw(){
   if(b.allow){ctx.strokeStyle='#b91c1c';ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(m.l,sy(b.allow));ctx.lineTo(c.width-m.r,sy(b.allow));ctx.stroke();ctx.setLineDash([])}
   ctx.strokeStyle='#0055a4';ctx.lineWidth=3;ctx.beginPath();PIPE_ROWS.forEach((r,i)=>{if(i===0)ctx.moveTo(sx(r.d),sy(r.force));else ctx.lineTo(sx(r.d),sy(r.force))});ctx.stroke();
   ctx.fillStyle='#0055a4';PIPE_ROWS.forEach(r=>{ctx.beginPath();ctx.arc(sx(r.d),sy(r.force),3,0,Math.PI*2);ctx.fill()});
+  const actualRows=PIPE_ROWS.filter(r=>Number.isFinite(r.actualForce));
+  if(actualRows.length){
+    ctx.strokeStyle='#16a34a';ctx.lineWidth=3;ctx.setLineDash([]);ctx.beginPath();
+    actualRows.forEach((r,i)=>{if(i===0)ctx.moveTo(sx(r.d),sy(r.actualForce));else ctx.lineTo(sx(r.d),sy(r.actualForce))});
+    ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#16a34a';actualRows.forEach(r=>{ctx.beginPath();ctx.arc(sx(r.d),sy(r.actualForce),4,0,Math.PI*2);ctx.fill()});
+    ctx.font='13px Meiryo';ctx.textAlign='left';ctx.fillStyle='#16a34a';ctx.fillText('緑線: 実測推力',m.l+10,m.t+18);
+  }
+  ctx.font='13px Meiryo';ctx.textAlign='left';ctx.fillStyle='#0055a4';ctx.fillText('青線: 予定推力',m.l+10,m.t+36);
   ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,m.t+gh);ctx.lineTo(c.width-m.r,m.t+gh);ctx.stroke();
 }
 function exportSpreadsheet(){
