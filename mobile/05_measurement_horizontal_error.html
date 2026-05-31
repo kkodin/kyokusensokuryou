@@ -2239,16 +2239,12 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!blur && ae?.matches?.('#measurementTable input.name,#measurementTable input.role')) return;
     if(typeof oldClose==='function') oldClose(blur);
   };
-  const oldConfirm=window.confirmMeasurementInput;
   window.confirmMeasurementInput=function(){
-    if(!confirm('保存してよろしいですか？')) return;
-    try{
-      if(window.geom) window.calculateAll(false);
-      const data=window.collectMeasurementData();
-      if(!window.upsertMeasurementData(data,true)) return;
-      localStorage.setItem('lastMeasurementData', JSON.stringify(data));
-    }catch(e){}
-    if(typeof oldConfirm==='function') oldConfirm();
+    const first=document.querySelector('#measurementTable tbody tr input.dist');
+    if(!first){ alert('TP数/KP数を入力して表を生成してください。'); return; }
+    first.focus({preventScroll:true});
+    first.select?.();
+    window.showNumericKeypad?.(first);
   };
   function patchKeypadUI(){
     const grid=document.querySelector('#numericKeypad .keypad-grid'); if(!grid) return;
@@ -2274,7 +2270,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   function patchMainButtonText(){
     const btn=document.querySelector('#measurementInputStage .stage-actions .ok');
-    if(btn) btn.textContent='保存して計算結果を見る';
+    if(btn) btn.textContent='数値入力欄を開く';
   }
   function firstDistanceFocus(){
     const first=document.querySelector('#measurementTable tbody tr input.dist');
@@ -2324,6 +2320,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   let awaitingDateConfirm=false;
   let dateConfirmed=false;
+  let awaitingPipeNext=true;
 
   function beginNewMeasurementFlow(){
     const pipe=byId('pipeCount');
@@ -2334,6 +2331,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
     awaitingDateConfirm=true;
     dateConfirmed=false;
+    awaitingPipeNext=true;
 
     pipe.value='';
     date.value=todayStr();
@@ -2351,6 +2349,8 @@ window.addEventListener('DOMContentLoaded',()=>{
 
     pipe.focus();
     pipe.select?.();
+    window.toggleDateVisibility?.(false);
+    window.toggleTpKpVisibility?.(false);
   }
 
   window.newMeasurementData=beginNewMeasurementFlow;
@@ -2381,23 +2381,28 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
 
     const dObj=new Date(date+'T00:00:00');
-    const msg=`${pipe}本 ${dObj.getFullYear()}年${dObj.getMonth()+1}月${dObj.getDate()}日(${jpWeekday(date)})で間違えないですか？`;
+    const msg=`本数: ${pipe}本\n日付: ${dObj.getFullYear()}年${dObj.getMonth()+1}月${dObj.getDate()}日(${jpWeekday(date)})\n\n間違いありませんか？`;
     if(!confirm(msg)){
       pipeEl.value='';
       dateEl.value=todayStr();
+      window.toggleDateVisibility?.(false);
+      window.toggleTpKpVisibility?.(false);
+      awaitingPipeNext=true;
       pipeEl?.focus();
       return;
     }
 
     dateConfirmed=true;
     awaitingDateConfirm=false;
+    awaitingPipeNext=false;
     byId('tpCount').value='1';
     byId('kpCount').value='0';
     clearInputTable();
     if(typeof window.setStageVisible==='function') window.setStageVisible(['countStage','measurementInputStage']);
     if(typeof window.openSection==='function') window.openSection('measurementInputStage');
-    byId('kpCount')?.focus();
-    byId('kpCount')?.select?.();
+    window.toggleTpKpVisibility?.(true);
+    byId('kpCount_proxy')?.focus();
+    byId('kpCount_proxy')?.select?.();
     if(typeof window.updateSideInfo==='function') window.updateSideInfo();
   }
 
@@ -2428,14 +2433,26 @@ window.addEventListener('DOMContentLoaded',()=>{
     dateRow.insertAdjacentElement('afterend',wrap);
     byId('newFlowNextBtn')?.addEventListener('click',()=>{
       onPipeInput();
+      const pipe=normalizePipeCount(byId('pipeCount')?.value);
+      if(!pipe){ alert('本数を入力してください。'); byId('pipeCount')?.focus(); return; }
+      if(/^0+$/.test(pipe)){ alert('本数は1以上の整数を入力してください。'); byId('pipeCount').value=''; byId('pipeCount')?.focus(); return; }
+      if(hasDuplicatePipe(pipe)){
+        const go=confirm(`すでに${pipe}本目は入力済みです。\n修正する場合は履歴を開く　開きますか?`);
+        if(go && typeof window.openSection==='function') window.openSection('historyStage');
+        return;
+      }
+      window.toggleDateVisibility?.(true);
       const date=byId('measureDate');
       if(date?.showPicker){ try{ date.showPicker(); }catch(e){} }
-      if(String(date?.value||'').trim()) tryConfirmPipeAndDate();
-      else date?.focus();
+      date?.focus();
+      awaitingPipeNext=false;
     });
     byId('newFlowCancelBtn')?.addEventListener('click',()=>{
       awaitingDateConfirm=false;
       dateConfirmed=false;
+      awaitingPipeNext=true;
+      window.toggleDateVisibility?.(false);
+      window.toggleTpKpVisibility?.(false);
       if(typeof window.openSection==='function') window.openSection('historyStage');
     });
   }
@@ -2504,6 +2521,14 @@ window.addEventListener('DOMContentLoaded',()=>{
     mergeCountIntoMeasurementInput();
     const tpProxy=byId('tpCount_proxy');
     const kpProxy=byId('kpCount_proxy');
+    const dateRow=byId('measureDate')?.closest('.row');
+    function toggleDateVisibility(show){ if(dateRow) dateRow.style.display=show?'':'none'; }
+    function toggleTpKpVisibility(show){
+      const tpWrap=byId('vr015TpKpStandalone');
+      if(tpWrap) tpWrap.style.display=show?'':'none';
+    }
+    window.toggleDateVisibility=toggleDateVisibility;
+    window.toggleTpKpVisibility=toggleTpKpVisibility;
     const syncTpKp=()=>{
       const tRaw=String(tpProxy?.value||'').replace(/[^\d]/g,'');
       const kRaw=String(kpProxy?.value||'').replace(/[^\d]/g,'');
@@ -2515,7 +2540,8 @@ window.addEventListener('DOMContentLoaded',()=>{
       if(tRaw==='' || kRaw===''){ clearInputTable(); return; }
       const tNum=Number(tRaw), kNum=Number(kRaw);
       if(!Number.isFinite(tNum) || tNum<0){ clearInputTable(); return; }
-      if(!Number.isFinite(kNum) || kNum<1){ clearInputTable(); return; }
+      const pipeN=Number(normalizePipeCount(byId('pipeCount')?.value||'0'));
+      if(!Number.isFinite(kNum) || kNum<1 || (pipeN>0 && kNum>pipeN)){ clearInputTable(); return; }
       if(typeof window.buildRows==='function') window.buildRows();
     };
     [tpProxy,kpProxy].forEach(el=>{
@@ -2531,6 +2557,8 @@ window.addEventListener('DOMContentLoaded',()=>{
       el.addEventListener('focus',()=>window.closeNumericKeypad?.(false));
     });
     syncTpKp();
+    toggleDateVisibility(false);
+    toggleTpKpVisibility(false);
     removeCountStageToc();
     createFlowButtons();
     fixBackNavigationMenu();
@@ -2549,3 +2577,14 @@ window.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 
+      if(el===kpProxy){
+        el.addEventListener('blur',()=>{
+          const pipeN=Number(normalizePipeCount(byId('pipeCount')?.value||'0'));
+          const k=Number(String(el.value||''));
+          if(pipeN>0 && Number.isFinite(k) && k>pipeN){
+            alert(`KP数は測量本数(${pipeN})以下にしてください。`);
+            el.value=String(pipeN);
+            syncTpKp();
+          }
+        });
+      }
