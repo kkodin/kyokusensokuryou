@@ -2270,7 +2270,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   function patchMainButtonText(){
     const btn=document.querySelector('#measurementInputStage .stage-actions .ok');
-    if(btn) btn.textContent='数値入力欄を開く';
+    if(btn) btn.textContent='保存して計算結果を表示';
   }
   function firstDistanceFocus(){
     const first=document.querySelector('#measurementTable tbody tr input.dist');
@@ -2555,10 +2555,87 @@ window.addEventListener('DOMContentLoaded',()=>{
       el.addEventListener('input',syncTpKp);
       el.addEventListener('change',syncTpKp);
       el.addEventListener('focus',()=>window.closeNumericKeypad?.(false));
+      if(el===kpProxy){
+        el.addEventListener('blur',()=>{
+          const pipeN=Number(normalizePipeCount(byId('pipeCount')?.value||'0'));
+          const k=Number(String(el.value||''));
+          if(pipeN>0 && Number.isFinite(k) && k>pipeN){
+            alert(`KP数は測量本数(${pipeN})以下にしてください。`);
+            el.value=String(pipeN);
+            syncTpKp();
+          }
+        });
+      }
     });
+    let historyLoadedSnapshot='';
+    let historyLoadedMode=false;
+    function currentInputSnapshot(){
+      const rows=[...document.querySelectorAll('#measurementTable tbody tr')].map(tr=>({
+        d:String(tr.querySelector('.dist')?.value||'').trim(),
+        g:String(tr.querySelector('.deg')?.value||'').trim(),
+        m:String(tr.querySelector('.min')?.value||'').trim(),
+        s:String(tr.querySelector('.sec')?.value||'').trim()
+      }));
+      return JSON.stringify({
+        pipe:String(byId('pipeCount')?.value||'').trim(),
+        date:String(byId('measureDate')?.value||'').trim(),
+        tp:String(byId('tpCount')?.value||'').trim(),
+        kp:String(byId('kpCount')?.value||'').trim(),
+        rows
+      });
+    }
+    function isCompleteForResult(){
+      const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+      if(!rows.length) return false;
+      return rows.every(tr=>{
+        const d=String(tr.querySelector('.dist')?.value||'').trim();
+        const g=String(tr.querySelector('.deg')?.value||'').trim();
+        const m=String(tr.querySelector('.min')?.value||'').trim();
+        const s=String(tr.querySelector('.sec')?.value||'').trim();
+        return d!=='' && g!=='' && m!=='' && s!=='';
+      });
+    }
+    function refreshResultButtonState(){
+      const btn=document.querySelector('#measurementInputStage .stage-actions .ok');
+      if(!btn) return;
+      const ok=isCompleteForResult();
+      btn.disabled=!ok;
+      btn.style.opacity=ok?'1':'0.5';
+      btn.style.pointerEvents=ok?'':'none';
+      const unchanged = historyLoadedMode && historyLoadedSnapshot!=='' && currentInputSnapshot()===historyLoadedSnapshot;
+      btn.textContent = unchanged ? '計算結果を表示(保存済みです）' : '保存して計算結果を表示';
+    }
+    document.addEventListener('input',e=>{
+      if(e.target?.closest?.('#measurementTable')) refreshResultButtonState();
+    });
+    document.addEventListener('change',e=>{
+      if(e.target?.closest?.('#measurementTable')) refreshResultButtonState();
+    });
+    const oldCloseKeypad=window.closeNumericKeypad;
+    window.closeNumericKeypad=function(blur=true){
+      if(typeof oldCloseKeypad==='function') oldCloseKeypad(blur);
+      refreshResultButtonState();
+    };
+    const oldLoadHistory=window.loadHistoryMeasurement;
+    window.loadHistoryMeasurement=function(index){
+      if(typeof oldLoadHistory==='function') oldLoadHistory(index);
+      setTimeout(()=>{
+        historyLoadedMode=true;
+        historyLoadedSnapshot=currentInputSnapshot();
+        refreshResultButtonState();
+      },0);
+    };
+    const oldNewFlow=window.newMeasurementData;
+    window.newMeasurementData=function(){
+      historyLoadedMode=false;
+      historyLoadedSnapshot='';
+      if(typeof oldNewFlow==='function') oldNewFlow();
+      setTimeout(refreshResultButtonState,0);
+    };
     syncTpKp();
     toggleDateVisibility(false);
     toggleTpKpVisibility(false);
+    refreshResultButtonState();
     removeCountStageToc();
     createFlowButtons();
     fixBackNavigationMenu();
@@ -2576,15 +2653,3 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 </body>
 </html>
-
-      if(el===kpProxy){
-        el.addEventListener('blur',()=>{
-          const pipeN=Number(normalizePipeCount(byId('pipeCount')?.value||'0'));
-          const k=Number(String(el.value||''));
-          if(pipeN>0 && Number.isFinite(k) && k>pipeN){
-            alert(`KP数は測量本数(${pipeN})以下にしてください。`);
-            el.value=String(pipeN);
-            syncTpKp();
-          }
-        });
-      }
