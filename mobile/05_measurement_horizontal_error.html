@@ -816,7 +816,12 @@ function activeInputIndex(){
   return editableFields().indexOf(activeSourceInput||document.activeElement);
 }
 function isTouchLayout(){return window.matchMedia('(max-width:1024px)').matches || (navigator.maxTouchPoints||0)>0}
-function isMeasurementNumericField(el){return !!el && el.matches('#measurementTable input.num,#measurementTable input.dms') && !el.disabled}
+function isMeasurementNumericField(el){
+  return !!el
+    && el.closest?.('#measurementTable')
+    && el.matches('input.dist,input.dms')
+    && !el.disabled;
+}
 function isNumericFocusField(el){return !!el && isTouchLayout() && isMeasurementNumericField(el)}
 function focusFieldLabel(el){
   const tr=el?.closest?.('tr');
@@ -2319,6 +2324,15 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.addEventListener('pointerdown',event=>{
       if(event.target?.closest?.('#vr015MeasureControls')){
         window.closeNumericKeypad?.(false);
+        const box=byId('numericKeypad');
+        if(box){ box.classList.remove('visible'); box.setAttribute('aria-hidden','true'); }
+      }
+    },true);
+    document.addEventListener('focusin',event=>{
+      if(event.target?.closest?.('#vr015MeasureControls')){
+        window.closeNumericKeypad?.(false);
+        const box=byId('numericKeypad');
+        if(box){ box.classList.remove('visible'); box.setAttribute('aria-hidden','true'); }
       }
     },true);
     document.addEventListener('input',event=>{
