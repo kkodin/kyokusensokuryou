@@ -208,7 +208,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .keypad-cell{min-height:46px;display:grid;place-items:center;border-right:2px solid #111827;border-bottom:2px solid #111827;font-size:16px;background:#fff;color:#111827;white-space:nowrap}
 .keypad-cell:nth-child(3n){border-right:0}
 .keypad-name{font-weight:700}
-.keypad-distance{background:#c7e9f2}
+.keypad-distance{background:#c7e9f2;justify-items:end;text-align:right;padding-right:18px}
 .keypad-distance.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
 .keypad-angle{background:#dff3f8}
 .keypad-angle.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
@@ -842,6 +842,35 @@ function updateKeypadDisplay(){
     el.classList.toggle('keypad-active',activeSourceInput.classList.contains(field));
   });
 }
+const vr015CellUndoStack=[];
+const vr015LastInputValue=new WeakMap();
+let vr015UndoRestoring=false;
+function vr015TrackableInput(el){
+  return !!(el && el.matches && (el.closest('#measurementTable') || el.closest('#vr015MeasureControls')) && el.matches('input'));
+}
+function vr015RememberInput(el){
+  if(vr015TrackableInput(el)) vr015LastInputValue.set(el,el.value);
+}
+function vr015PushCellUndo(el){
+  if(vr015UndoRestoring || !vr015TrackableInput(el)) return;
+  const before=vr015LastInputValue.has(el) ? vr015LastInputValue.get(el) : el.defaultValue;
+  if(before!==el.value){
+    vr015CellUndoStack.push({el,value:before});
+    if(vr015CellUndoStack.length>80) vr015CellUndoStack.shift();
+    vr015LastInputValue.set(el,el.value);
+  }
+}
+function vr015SpeakKey(ch){
+  const words={'0':'ぜろ','1':'いち','2':'に','3':'さん','4':'よん','5':'ご','6':'ろく','7':'なな','8':'はち','9':'きゅう','.':'てん'};
+  if(!words[ch] || !window.speechSynthesis) return;
+  try{
+    window.speechSynthesis.cancel();
+    const utterance=new SpeechSynthesisUtterance(words[ch]);
+    utterance.lang='ja-JP';
+    utterance.rate=1.05;
+    window.speechSynthesis.speak(utterance);
+  }catch(e){}
+}
 function showNumericKeypad(source){
   if(!isNumericFocusField(source)){closeNumericKeypad(false);return}
   activeSourceInput=source;
@@ -873,6 +902,7 @@ function keypadSet(v){
 function keypadPress(ch){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dms') && ch==='.')return;
+  vr015SpeakKey(ch);
   let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
   keypadReplaceOnNextInput=false;
   if(v==='0' && ch!=='.')v='';
@@ -886,7 +916,17 @@ function keypadBackspace(){
 }
 function keypadClear(){keypadReplaceOnNextInput=false;keypadSet('')}
 function keypadUndoValue(){
-  undoInput?.();
+  const item=vr015CellUndoStack.pop();
+  if(!item || !item.el) return;
+  vr015UndoRestoring=true;
+  item.el.value=item.value;
+  vr015LastInputValue.set(item.el,item.el.value);
+  item.el.dispatchEvent(new Event('input',{bubbles:true}));
+  item.el.dispatchEvent(new Event('change',{bubbles:true}));
+  vr015UndoRestoring=false;
+  item.el.focus({preventScroll:true});
+  item.el.select?.();
+  if(isNumericFocusField(item.el)) showNumericKeypad(item.el);
   updateKeypadDisplay();
 }
 function keypadCommit(){
@@ -2040,6 +2080,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('focusin',e=>{
     if(e.target.matches('#measurementTable input,#tpTable input,#kpTable input,input.num,input.dms')){
       focusedBeforeValue=editableSnapshot();
+      vr015RememberInput(e.target);
       if(isNumericFocusField(e.target))showNumericKeypad(e.target);
       else {closeNumericKeypad(false); setTimeout(()=>e.target.select?.(),0);}
     }
@@ -2055,6 +2096,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   });
   document.addEventListener('input',e=>{
     if(e.target.matches('input,select')){
+      vr015PushCellUndo(e.target);
       if(e.target.id==='tpCount'||e.target.id==='kpCount')return;
       if(e.target.id==='pipeDiaMm'||e.target.id==='internalPct')updateToleranceDisplay();
       if(e.target.id==='measureDate'||e.target.id==='pipeCount')updateSideInfo();
@@ -2107,8 +2149,10 @@ window.addEventListener('DOMContentLoaded',()=>{
 #vr015MeasureControls input{width:100%;border:0;padding:10px 8px;font-size:16px;box-sizing:border-box;background:#fff}
 #vr015MeasureControls input:disabled{background:#eef2f7;color:#64748b;opacity:1}
 #vr015MeasureControls .vr015-two{display:grid;grid-template-columns:1fr 1fr}
-#vr015MeasureControls .vr015-two > div{display:grid;grid-template-columns:58px 1fr;border-right:1px solid #dbe3ee}
+#vr015MeasureControls .vr015-two > div{display:grid;grid-template-columns:58px auto 1fr auto;border-right:1px solid #dbe3ee}
 #vr015MeasureControls .vr015-two > div:last-child{border-right:0}
+#vr015MeasureControls .step-btn{width:34px;min-width:34px;border:0;border-left:1px solid #dbe3ee;border-radius:0;background:#e2e8f0;color:#0f172a;font-size:20px;font-weight:700;padding:0}
+#vr015MeasureControls .step-btn:disabled{background:#eef2f7;color:#94a3b8}
 #vr015FinalResultWrap{margin-top:12px}
 #vr015FinalResultBtn{width:100%}
 #vr015FinalResultBtn:disabled{background:#94c8a8!important;color:#fff!important;opacity:1!important}
@@ -2170,8 +2214,8 @@ window.addEventListener('DOMContentLoaded',()=>{
         '<div class="vr015-row"><label for="pipeCount">本数</label><input id="vr015PipeMirror" type="number" inputmode="numeric" min="1" step="1"></div>'+ 
         '<div class="vr015-row"><label for="measureDate">測定日</label><input id="vr015DateMirror" type="date"></div>'+ 
         '<div class="vr015-two">'+
-          '<div><label for="vr015TpCount">TP数</label><input id="vr015TpCount" type="number" inputmode="numeric" min="0" step="1" value="0"></div>'+ 
-          '<div><label for="vr015KpCount">KP数</label><input id="vr015KpCount" type="number" inputmode="numeric" min="1" step="1" value="1"></div>'+ 
+          '<div><label for="vr015TpCount">TP数</label><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="-1">−</button><input id="vr015TpCount" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="1">＋</button></div>'+ 
+          '<div><label for="vr015KpCount">KP数</label><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="-1">−</button><input id="vr015KpCount" type="number" inputmode="numeric" min="1" step="1" value="1"><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="1">＋</button></div>'+ 
         '</div>';
       measureTable.insertAdjacentElement('beforebegin',controls);
     }
@@ -2227,6 +2271,17 @@ window.addEventListener('DOMContentLoaded',()=>{
     setTableEditable(window.__vr015MeasureMode!=='history');
     refreshResultButton();
   }
+  function stepCount(targetId, delta){
+    const input=byId(targetId);
+    if(!input || input.disabled) return;
+    const min=Number(input.min || 0);
+    const current=Number(digits(input.value) || min);
+    input.value=String(Math.max(min,current + delta));
+    input.dataset.vr015Entered='1';
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    input.focus();
+    setTimeout(()=>input.select?.(),0);
+  }
 
   function setTableEditable(editable){
     document.querySelectorAll('#measurementTable input').forEach(input=>{
@@ -2271,6 +2326,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     const hasTp=hasDate && tp.dataset.vr015Entered==='1' && digits(tp.value)!=='';
     tp.disabled=!hasDate;
     kp.disabled=!hasTp;
+    document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{
+      const target=byId(btn.dataset.stepTarget);
+      btn.disabled=!target || target.disabled;
+    });
     setNativeControlsFromMirrors();
     if(hasTp && !kp.disabled && digits(kp.value)!=='') buildMeasurementRows();
     else { if(table()) table().innerHTML=''; refreshResultButton(); }
@@ -2312,6 +2371,15 @@ window.addEventListener('DOMContentLoaded',()=>{
       bindOnce(input,'vr015FinalInput','input',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
       bindOnce(input,'vr015FinalChange','change',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
       bindOnce(input,'vr015FinalBlur','blur',()=>{ if(!input.disabled){ input.dataset.vr015Entered='1'; updateNewGate(false); } });
+      bindOnce(input,'vr015FinalFocus','focus',()=>setTimeout(()=>input.select?.(),0));
+      bindOnce(input,'vr015FinalClick','click',()=>setTimeout(()=>input.select?.(),0));
+    });
+    document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{
+      if(btn.dataset.vr015FinalStep) return;
+      btn.dataset.vr015FinalStep='1';
+      btn.addEventListener('click',()=>{
+        stepCount(btn.dataset.stepTarget,Number(btn.dataset.step||0));
+      });
     });
     if(table()) table().innerHTML='';
     refreshResultButton();
@@ -2350,6 +2418,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       }
     },true);
     document.addEventListener('focusin',event=>{
+      if(vr015TrackableInput(event.target)) vr015RememberInput(event.target);
       if(event.target?.closest?.('#vr015MeasureControls')){
         window.closeNumericKeypad?.(false);
         const box=byId('numericKeypad');
