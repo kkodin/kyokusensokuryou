@@ -2401,6 +2401,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(typeof window.setStageVisible==='function') window.setStageVisible(['countStage','measurementInputStage']);
     if(typeof window.openSection==='function') window.openSection('measurementInputStage');
     window.toggleTpKpVisibility?.(true);
+    const ca=byId('newFlowConfirmArea'); if(ca) ca.style.display='none';
+    const mainAction=document.querySelector('#measurementInputStage .stage-actions'); if(mainAction) mainAction.style.display='';
     byId('kpCount_proxy')?.focus();
     byId('kpCount_proxy')?.select?.();
     if(typeof window.updateSideInfo==='function') window.updateSideInfo();
@@ -2436,7 +2438,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     confirmArea.className='stage-actions';
     confirmArea.style.justifyContent='center';
     confirmArea.style.display='none';
-    confirmArea.innerHTML='<button type="button" id="newFlowConfirmBtn" class="ok">本数/日付を確認</button>';
+    confirmArea.innerHTML='<button type="button" id="newFlowConfirmBtn" class="ok">KP数・TP数入力へ進む</button>';
     wrap.insertAdjacentElement('afterend',confirmArea);
     byId('newFlowNextBtn')?.addEventListener('click',()=>{
       onPipeInput();
@@ -2538,17 +2540,21 @@ window.addEventListener('DOMContentLoaded',()=>{
       const date=byId('measureDate');
       const nextBtn=byId('newFlowNextBtn');
       const confirmArea=byId('newFlowConfirmArea');
+      const mainAction=document.querySelector('#measurementInputStage .stage-actions');
       if(historyMode){
         if(pipe){ pipe.readOnly=true; pipe.disabled=true; }
         if(date){ date.readOnly=true; date.disabled=true; }
         if(nextBtn) nextBtn.style.display='none';
         if(confirmArea) confirmArea.style.display='none';
+        if(mainAction) mainAction.style.display='';
         toggleDateVisibility(true);
         toggleTpKpVisibility(true);
       }else{
         if(pipe){ pipe.readOnly=false; pipe.disabled=false; }
         if(date){ date.readOnly=false; date.disabled=false; }
         if(nextBtn) nextBtn.style.display='';
+        if(confirmArea) confirmArea.style.display='none';
+        if(mainAction) mainAction.style.display='none';
         toggleDateVisibility(false);
         toggleTpKpVisibility(false);
       }
