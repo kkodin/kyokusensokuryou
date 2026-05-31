@@ -200,19 +200,23 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .input-accessory,.focus-editor{display:none!important}
 .numeric-keypad{
   position:fixed;left:10px;right:10px;bottom:10px;z-index:10020;display:none;
-  max-width:420px;margin:0 auto;background:#fff;border:1px solid #94a3b8;border-radius:12px;
+  max-width:320px;margin:0 auto;background:#fff;border:2px solid #111827;border-radius:0;
   box-shadow:0 14px 42px rgba(15,23,42,.28);overflow:hidden;
 }
 .numeric-keypad.visible{display:block}
-.keypad-display{display:grid;grid-template-columns:86px 1fr;border-bottom:1px solid #cbd5e1;background:#f8fafc}
-.keypad-label{display:grid;place-items:center;padding:8px;border-right:1px solid #cbd5e1;font-weight:bold;color:#0f172a;line-height:1.25}
-.keypad-label b{display:block;font-size:24px;color:#1e3a8a}
-.keypad-value{min-height:54px;padding:8px 12px;text-align:right;font-family:Consolas,monospace;font-size:38px;line-height:1.1;background:#eff6ff;color:#0f172a;overflow:hidden}
+.keypad-display{display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff}
+.keypad-cell{min-height:46px;display:grid;place-items:center;border-right:2px solid #111827;border-bottom:2px solid #111827;font-size:16px;background:#fff;color:#111827}
+.keypad-cell:nth-child(3n){border-right:0}
+.keypad-name{font-weight:700}
+.keypad-distance.keypad-active{background:#c7e9f2}
+.keypad-angle{background:#dff3f8}
+.keypad-angle.keypad-active{background:#bfe3ee}
+.keypad-role.keypad-active{background:#fff7c2}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr)}
-.keypad-grid button{min-height:48px;border-radius:0;border:1px solid #cbd5e1;background:#e0f2fe;color:#0f172a;font-size:20px;padding:8px}
-.keypad-grid button:nth-child(even){background:#fed7aa}
-.keypad-grid button.command{background:#f8fafc;font-size:15px}
-.keypad-grid button.ok{background:#15803d;color:#fff}
+.keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px}
+.keypad-grid button:nth-child(2),.keypad-grid button:nth-child(4),.keypad-grid button:nth-child(6),.keypad-grid button:nth-child(8),.keypad-grid button:nth-child(10),.keypad-grid button:nth-child(12),.keypad-grid button:nth-child(14),.keypad-grid button:nth-child(16),.keypad-grid button:nth-child(18){background:#f4a57b}
+.keypad-grid button.command{font-size:18px;background:#d9f1cf}
+.keypad-grid button.ok{background:#d9f1cf;color:#0f172a}
 .excel-input{overflow:auto;border:1px solid #cfd7e3;border-radius:8px;background:#fff}
 .excel-input table{margin:0;table-layout:fixed;min-width:620px}
 .excel-input col.name-col{width:70px}
@@ -422,7 +426,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
       <button class="primary" onclick="openSection('flowStage')">作業の流れ</button>
       <button onclick="openSection('surveyBaseStage')">初期測量基準</button>
       <button onclick="openSection('historyStage')">測量履歴</button>
-      <button onclick="openSection('countStage')">TP/KP数</button>
       <button onclick="openSection('measurementInputStage')">測定数値入力</button>
       <button onclick="openSection('summaryStage')">ひと目判定</button>
       <button onclick="openSection('resultStage')">計算結果</button>
@@ -475,20 +478,10 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     </div>
   </div>
 
-  <div class="card section-card collapsed" id="countStage">
-    <h2>新規測量データ</h2>
-    <div class="grid2">
-      <div class="row"><label>本数:</label><input class="num" id="pipeCount" value=""><span>本目</span></div>
-      <div class="row"><label>測定日:</label><input type="date" id="measureDate"></div>
-    </div>
-    <div class="excel-input">
-      <div class="count-grid">
-        <label for="tpCount">TP数</label><input class="num" id="tpCount" value="1" oninput="buildRows()">
-        <label for="kpCount">KP数</label><input class="num" id="kpCount" value="0" oninput="buildRows()">
-      </div>
-    </div>
-    <div class="note" style="margin-top:10px">ここで点数を決めると、下の測定数値入力に表を生成します。</div>
-  </div>
+  <input type="hidden" id="pipeCount" value="">
+  <input type="hidden" id="measureDate" value="">
+  <input type="hidden" id="tpCount" value="0">
+  <input type="hidden" id="kpCount" value="1">
 
   <div class="card section-card collapsed" id="measurementInputStage">
     <h2>測定数値入力</h2>
@@ -531,8 +524,12 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 </div>
 <div id="numericKeypad" class="numeric-keypad no-print" aria-hidden="true">
   <div class="keypad-display">
-    <div class="keypad-label"><b id="keypadRowName">TP1</b><span id="keypadFieldName">距離</span></div>
-    <div id="keypadValue" class="keypad-value">0</div>
+    <div id="keypadName" class="keypad-cell keypad-name">TP1</div>
+    <div id="keypadDistance" class="keypad-cell keypad-distance">10.000m</div>
+    <div id="keypadRole" class="keypad-cell keypad-role">1R</div>
+    <div id="keypadDeg" class="keypad-cell keypad-angle">356°</div>
+    <div id="keypadMin" class="keypad-cell keypad-angle">05′</div>
+    <div id="keypadSec" class="keypad-cell keypad-angle">05″</div>
   </div>
   <div class="keypad-grid">
     <button type="button" onclick="keypadPress('1')">1</button>
@@ -546,13 +543,13 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     <button type="button" onclick="keypadPress('9')">9</button>
     <button type="button" onclick="keypadPress('.')">.</button>
     <button type="button" onclick="keypadPress('0')">0</button>
-    <button type="button" onclick="keypadPress('00')">00</button>
-    <button type="button" class="command" onclick="focusRelativeInput(1)">次へ</button>
-    <button type="button" class="command" onclick="focusRelativeInput(-1)">前へ</button>
-    <button type="button" class="command" onclick="keypadClear()">クリア</button>
-    <button type="button" class="command" onclick="keypadBackspace()">⌫</button>
-    <button type="button" class="ok" onclick="closeNumericKeypad()">閉じる</button>
     <button type="button" class="command" onclick="keypadUndoValue()">元に戻す</button>
+    <button type="button" class="command" onclick="keypadBackspace()">BS</button>
+    <button type="button" class="command" onclick="focusVerticalInput(-1)">↑</button>
+    <button type="button" class="command" onclick="focusVerticalInput(1)">↓</button>
+    <button type="button" class="command" onclick="focusRelativeInput(1)">次へ</button>
+    <button type="button" class="ok" onclick="closeNumericKeypad()">閉じる</button>
+    <button type="button" class="command" onclick="focusRelativeInput(-1)">前へ</button>
   </div>
 </div>
 <div id="csvPasteModal" class="modal no-print" style="display:none">
@@ -764,13 +761,13 @@ function openSection(id){
 function newMeasurementData(){
   document.getElementById('pipeCount').value='';
   document.getElementById('measureDate').value=new Date().toISOString().slice(0,10);
-  document.getElementById('tpCount').value='1';
-  document.getElementById('kpCount').value='4';
-  buildRows();
+  document.getElementById('tpCount').value='0';
+  document.getElementById('kpCount').value='1';
+  document.getElementById('measurementTable').innerHTML='';
   results=[];tpPoints=[];kpPoints=[];
   renderSummary();renderTable();renderProcess();drawAll();updateSideInfo();
-  setStageVisible(['countStage','measurementInputStage']);
-  document.getElementById('pipeCount')?.focus();
+  setStageVisible(['measurementInputStage']);
+  document.getElementById('vr015PipeMirror')?.focus();
 }
 function updateSideInfo(){
   const site=project?.site?.name||project?.projectName||'未読込';
@@ -838,19 +835,52 @@ function focusFieldLabel(el){
   }
   return {rowName,field};
 }
+function keypadFields(){
+  return [...document.querySelectorAll('#measurementTable tbody tr')].flatMap(tr=>
+    ['.dist','.deg','.min','.sec'].map(sel=>tr.querySelector(sel)).filter(Boolean)
+  ).filter(isMeasurementNumericField);
+}
+function keypadRowValues(source){
+  const tr=source?.closest?.('tr');
+  const val=sel=>tr?.querySelector(sel)?.value || '';
+  const txt=sel=>tr?.querySelector(sel)?.textContent?.trim() || '';
+  const dms=v=>String(v||'').padStart(2,'0');
+  const dist=val('.dist');
+  return {
+    name:val('.name') || txt('.name-cell') || 'TP1',
+    role:val('.role'),
+    dist:dist ? `${dist}m` : '',
+    deg:val('.deg') ? `${val('.deg')}°` : '',
+    min:val('.min') ? `${dms(val('.min'))}′` : '',
+    sec:val('.sec') ? `${dms(val('.sec'))}″` : ''
+  };
+}
+function updateKeypadDisplay(){
+  if(!activeSourceInput)return;
+  const values=keypadRowValues(activeSourceInput);
+  const map=[
+    ['keypadName',values.name,'name'],
+    ['keypadDistance',values.dist,'dist'],
+    ['keypadRole',values.role,'role'],
+    ['keypadDeg',values.deg,'deg'],
+    ['keypadMin',values.min,'min'],
+    ['keypadSec',values.sec,'sec']
+  ];
+  map.forEach(([id,text,field])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.textContent=text || (field==='role' ? '' : '');
+    el.classList.toggle('keypad-active',activeSourceInput.classList.contains(field));
+  });
+}
 function showNumericKeypad(source){
   if(!isNumericFocusField(source)){closeNumericKeypad(false);return}
   activeSourceInput=source;
   const box=document.getElementById('numericKeypad');
   if(!box)return;
-  const label=focusFieldLabel(source);
-  document.getElementById('keypadRowName').textContent=label.rowName || '入力';
-  document.getElementById('keypadFieldName').textContent=label.field;
-  const valueBox=document.getElementById('keypadValue');
-  valueBox.textContent=source.value || '0';
-  valueBox.classList.add('selected');
   keypadReplaceOnNextInput=true;
   source.classList.add('keypad-active');
+  updateKeypadDisplay();
   setTimeout(()=>source.select?.(),0);
   box.classList.add('visible');
   box.setAttribute('aria-hidden','false');
@@ -859,18 +889,16 @@ function closeNumericKeypad(blur=true){
   keypadCommit();
   const box=document.getElementById('numericKeypad');
   if(box){box.classList.remove('visible');box.setAttribute('aria-hidden','true')}
-  document.getElementById('keypadValue')?.classList.remove('selected');
   keypadReplaceOnNextInput=false;
   activeSourceInput?.classList.remove('keypad-active');
+  document.querySelectorAll('.keypad-cell.keypad-active').forEach(el=>el.classList.remove('keypad-active'));
   if(blur)activeSourceInput?.blur?.();
   activeSourceInput=null;
 }
 function keypadSet(v){
   if(!activeSourceInput)return;
   activeSourceInput.value=v;
-  const valueBox=document.getElementById('keypadValue');
-  valueBox.textContent=v || '0';
-  valueBox.classList.toggle('selected',keypadReplaceOnNextInput);
+  updateKeypadDisplay();
   activeSourceInput.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function keypadPress(ch){
@@ -878,35 +906,52 @@ function keypadPress(ch){
   if(activeSourceInput.classList.contains('dms') && ch==='.')return;
   let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
   keypadReplaceOnNextInput=false;
-  document.getElementById('keypadValue')?.classList.remove('selected');
   if(v==='0' && ch!=='.')v='';
   if(ch==='.' && v.includes('.'))return;
   keypadSet(v+ch);
 }
 function keypadBackspace(){
   if(!activeSourceInput)return;
-  if(keypadReplaceOnNextInput){keypadReplaceOnNextInput=false;document.getElementById('keypadValue')?.classList.remove('selected');keypadSet('');return}
+  if(keypadReplaceOnNextInput){keypadReplaceOnNextInput=false;keypadSet('');return}
   keypadSet(String(activeSourceInput.value||'').slice(0,-1));
 }
-function keypadClear(){keypadReplaceOnNextInput=false;document.getElementById('keypadValue')?.classList.remove('selected');keypadSet('')}
+function keypadClear(){keypadReplaceOnNextInput=false;keypadSet('')}
+function keypadUndoValue(){
+  undoInput?.();
+  updateKeypadDisplay();
+}
 function keypadCommit(){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dist'))activeSourceInput.value=formatDistanceValue(activeSourceInput.value);
-  const valueBox=document.getElementById('keypadValue');
-  valueBox.textContent=activeSourceInput.value || '0';
-  valueBox.classList.remove('selected');
+  updateKeypadDisplay();
   keypadReplaceOnNextInput=false;
   activeSourceInput.dispatchEvent(new Event('change',{bubbles:true}));
 }
 function focusRelativeInput(step){
-  const fields=editableFields();
-  const idx=activeInputIndex();
+  const fields=activeSourceInput?.closest?.('#measurementTable') ? keypadFields() : editableFields();
+  const idx=fields.indexOf(activeSourceInput||document.activeElement);
   if(idx<0 || !fields.length)return;
   const next=fields[Math.max(0,Math.min(fields.length-1,idx+step))];
   openStationForField(next);
   next.focus({preventScroll:true});
   next.scrollIntoView({block:'center',inline:'nearest'});
   setTimeout(()=>{if(isNumericFocusField(next))showNumericKeypad(next);else{closeNumericKeypad(false);next.select?.()}},0);
+}
+function focusVerticalInput(step){
+  if(!activeSourceInput?.closest?.('#measurementTable'))return;
+  const tr=activeSourceInput.closest('tr');
+  const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+  const rowIndex=rows.indexOf(tr);
+  const fieldClass=['dist','deg','min','sec'].find(cls=>activeSourceInput.classList.contains(cls));
+  const nextRow=rows[rowIndex+step];
+  if(!nextRow || !fieldClass){try{navigator.vibrate?.(80)}catch(e){};return}
+  const next=nextRow.querySelector('.'+fieldClass);
+  if(!next){try{navigator.vibrate?.(80)}catch(e){};return}
+  keypadCommit();
+  activeSourceInput?.classList.remove('keypad-active');
+  next.focus({preventScroll:true});
+  next.scrollIntoView({block:'center',inline:'nearest'});
+  setTimeout(()=>showNumericKeypad(next),0);
 }
 function rowData(sel){
   const cards=[...document.querySelectorAll(sel+' .station-card')];
@@ -975,19 +1020,11 @@ function buildRows(){
   let h='<div class="excel-input"><table><colgroup><col class="name-col"><col class="role-col"><col class="dist-col"><col class="angle-col"><col class="angle-col"><col class="angle-col"></colgroup><thead><tr><th>名称</th><th>測点名</th><th>距離</th><th>度</th><th>分</th><th>秒</th></tr></thead><tbody>';
   for(let i=0;i<tpN;i++){
     const r=oldTp[i]||{};
-    if(i===0 && !r.dist){r.dist='15.511';r.deg='356';r.min='29';r.sec='45'}
     const name=`TP${i+1}`;
     h+=`<tr class="tp-row" data-kind="TP"><td class="name-cell">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
   }
-  const defaults=[
-    ['1F','9.691','165','11','05'],
-    ['1R','8.564','166','07','25'],
-    ['2F','8.481','166','13','25'],
-    ['2R','7.330','167','08','05']
-  ];
   for(let i=0;i<kpN;i++){
     const r=oldKp[i]||{};
-    if(!r.dist && defaults[i]){r.role=defaults[i][0];r.dist=defaults[i][1];r.deg=defaults[i][2];r.min=defaults[i][3];r.sec=defaults[i][4]}
     const name=`KP${i+1}`;
     h+=`<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
   }
@@ -1142,7 +1179,7 @@ function judgePoint(p){
   return {...r,rank,name:p.name,role:p.role,x:p.x,y:p.y};
 }
 function setStageVisible(ids){
-  ['surveyBaseStage','historyStage','countStage','measurementInputStage','summaryStage','resultStage','processStage','graphStage','debugStage'].forEach(id=>{
+  ['surveyBaseStage','historyStage','measurementInputStage','summaryStage','resultStage','processStage','graphStage','debugStage'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     const show=ids.includes(id);
@@ -1150,7 +1187,7 @@ function setStageVisible(ids){
     el.classList.toggle('collapsed',!show);
   });
 }
-function showInputStage(){setStageVisible(['surveyBaseStage','countStage','measurementInputStage']);document.getElementById('measurementInputStage')?.scrollIntoView({block:'start'})}
+function showInputStage(){setStageVisible(['surveyBaseStage','measurementInputStage']);document.getElementById('measurementInputStage')?.scrollIntoView({block:'start'})}
 function showResultStage(){setStageVisible(['summaryStage','resultStage','processStage']);document.getElementById('summaryStage')?.scrollIntoView({block:'start'})}
 function showGraphStage(){setStageVisible(['graphStage']);drawAll();document.getElementById('graphStage')?.scrollIntoView({block:'start'})}
 function confirmMeasurementInput(){calculateAll(true);showResultStage()}
@@ -1693,8 +1730,8 @@ function collectMeasurementData(){
   }
 }
 function validateMeasurementData(data){
-  if(!String(data.pipeCount||'').trim()){alert('本数を入力してください。');openSection('countStage');document.getElementById('pipeCount')?.focus();return false}
-  if(!String(data.measureDate||'').trim()){alert('測定日を入力してください。');openSection('countStage');document.getElementById('measureDate')?.focus();return false}
+  if(!String(data.pipeCount||'').trim()){alert('本数を入力してください。');openSection('measurementInputStage');document.getElementById('vr015PipeMirror')?.focus();return false}
+  if(!String(data.measureDate||'').trim()){alert('測定日を入力してください。');openSection('measurementInputStage');document.getElementById('vr015DateMirror')?.focus();return false}
   return true;
 }
 function integratedProjectData(){
@@ -2078,7 +2115,6 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 <!-- Vr015 mobile measurement final cleanup: single source of truth -->
 <style>
-#measurementInputStage #countStage,
 #measurementInputStage #newFlowNextBtn,
 #measurementInputStage #newFlowConfirmBtn,
 #measurementInputStage #newFlowConfirmArea,
@@ -2252,11 +2288,12 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
     const pipeOk=hasPipe && !duplicated;
     date.disabled=!pipeOk;
-    const hasDate=pipeOk && String(date.value||'').trim()!=='';
+    const hasDate=pipeOk && String(date.value||'').trim()!=='' && date.dataset.vr015Entered==='1';
+    const hasTp=hasDate && tp.dataset.vr015Entered==='1' && digits(tp.value)!=='';
     tp.disabled=!hasDate;
-    kp.disabled=!hasDate;
+    kp.disabled=!hasTp;
     setNativeControlsFromMirrors();
-    if(hasDate) buildMeasurementRows();
+    if(hasTp && !kp.disabled && digits(kp.value)!=='') buildMeasurementRows();
     else { if(table()) table().innerHTML=''; refreshResultButton(); }
   }
 
@@ -2280,17 +2317,22 @@ window.addEventListener('DOMContentLoaded',()=>{
     date.value=today();
     tp.value='0';
     kp.value='1';
+    date.dataset.vr015Entered='0';
+    tp.dataset.vr015Entered='0';
+    kp.dataset.vr015Entered='0';
     if(pipeMaster){ pipeMaster.value=''; pipeMaster.disabled=false; pipeMaster.readOnly=false; }
     if(dateMaster){ dateMaster.value=date.value; dateMaster.disabled=true; }
     [date,tp,kp].forEach(input=>{ input.disabled=true; input.readOnly=false; });
     bindOnce(pipe,'vr015Final','input',()=>updateNewGate(true));
     bindOnce(pipe,'vr015FinalChange','change',()=>updateNewGate(true));
-    bindOnce(date,'vr015Final','input',()=>updateNewGate(false));
-    bindOnce(date,'vr015FinalChange','change',()=>updateNewGate(false));
+    bindOnce(date,'vr015Final','input',()=>{ date.dataset.vr015Entered='1'; updateNewGate(false); });
+    bindOnce(date,'vr015FinalChange','change',()=>{ date.dataset.vr015Entered='1'; updateNewGate(false); });
+    bindOnce(date,'vr015FinalBlur','blur',()=>{ if(!date.disabled){ date.dataset.vr015Entered='1'; updateNewGate(false); } });
     [tp,kp].forEach(input=>{
       bindOnce(input,'vr015FinalKey','keydown',event=>{ if(['-','+','.','e','E',','].includes(event.key)) event.preventDefault(); });
-      bindOnce(input,'vr015FinalInput','input',buildMeasurementRows);
-      bindOnce(input,'vr015FinalChange','change',buildMeasurementRows);
+      bindOnce(input,'vr015FinalInput','input',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
+      bindOnce(input,'vr015FinalChange','change',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
+      bindOnce(input,'vr015FinalBlur','blur',()=>{ if(!input.disabled){ input.dataset.vr015Entered='1'; updateNewGate(false); } });
     });
     if(table()) table().innerHTML='';
     refreshResultButton();
