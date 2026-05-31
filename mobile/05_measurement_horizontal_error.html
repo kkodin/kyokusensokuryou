@@ -205,18 +205,21 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 }
 .numeric-keypad.visible{display:block}
 .keypad-display{display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff}
-.keypad-cell{min-height:46px;display:grid;place-items:center;border-right:2px solid #111827;border-bottom:2px solid #111827;font-size:16px;background:#fff;color:#111827}
+.keypad-cell{min-height:46px;display:grid;place-items:center;border-right:2px solid #111827;border-bottom:2px solid #111827;font-size:16px;background:#fff;color:#111827;white-space:nowrap}
 .keypad-cell:nth-child(3n){border-right:0}
 .keypad-name{font-weight:700}
-.keypad-distance.keypad-active{background:#c7e9f2}
+.keypad-distance{background:#c7e9f2}
+.keypad-distance.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
 .keypad-angle{background:#dff3f8}
-.keypad-angle.keypad-active{background:#bfe3ee}
-.keypad-role.keypad-active{background:#fff7c2}
+.keypad-angle.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
+.keypad-role.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 .keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px}
 .keypad-grid button:nth-child(2),.keypad-grid button:nth-child(4),.keypad-grid button:nth-child(6),.keypad-grid button:nth-child(8),.keypad-grid button:nth-child(10),.keypad-grid button:nth-child(12),.keypad-grid button:nth-child(14),.keypad-grid button:nth-child(16),.keypad-grid button:nth-child(18){background:#f4a57b}
 .keypad-grid button.command{font-size:18px;background:#d9f1cf}
 .keypad-grid button.ok{background:#d9f1cf;color:#0f172a}
+.numeric-keypad .keypad-display{grid-template-columns:1fr 1fr 1fr!important}
+.numeric-keypad .keypad-cell{display:grid!important;min-height:46px!important}
 .excel-input{overflow:auto;border:1px solid #cfd7e3;border-radius:8px;background:#fff}
 .excel-input table{margin:0;table-layout:fixed;min-width:620px}
 .excel-input col.name-col{width:70px}
@@ -257,9 +260,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   .excel-input col.dist-col{width:78px}
   .excel-input col.angle-col{width:44px}
   .numeric-keypad{left:8px;right:8px;max-width:360px}
-  .keypad-display{grid-template-columns:78px 1fr}
-  .keypad-label b{font-size:22px}
-  .keypad-value{font-size:34px}
 }
 
 .side-group{border-top:1px solid #d8dee6;margin-top:10px;padding-top:10px}.side-group:first-child{border-top:0;margin-top:0;padding-top:0}.side-group-title{font-weight:bold;color:#334155;font-size:12px;margin:0 0 6px}.action-message,.inline-message{display:none;margin-top:8px;border:1px solid #86efac;background:#dcfce7;color:#166534;border-radius:8px;padding:8px 10px;font-weight:bold;font-size:13px}.action-message.visible,.inline-message.visible{display:block}.stage-actions .secondary.save-local{background:#64748b}
@@ -276,28 +276,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   max-width:min(94vw,520px)!important;
   border-radius:16px!important;
 }
-.keypad-display{
-  grid-template-columns:112px 1fr!important;
-}
-.keypad-label{
-  padding:12px 10px!important;
-  font-size:17px!important;
-}
-.keypad-label b{
-  font-size:32px!important;
-}
-.keypad-value{
-  min-height:76px!important;
-  padding:12px 16px!important;
-  font-size:52px!important;
-  line-height:1!important;
-}
-.keypad-value.selected{
-  background:#bfdbfe!important;
-  outline:4px solid #60a5fa;
-  outline-offset:-4px;
-  color:#071b3a!important;
-}
 .keypad-grid button{
   min-height:66px!important;
   font-size:28px!important;
@@ -312,15 +290,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     width:96vw!important;
     max-width:96vw!important;
     top:52%!important;
-  }
-  .keypad-display{
-    grid-template-columns:96px 1fr!important;
-  }
-  .keypad-label{font-size:16px!important}
-  .keypad-label b{font-size:30px!important}
-  .keypad-value{
-    min-height:82px!important;
-    font-size:56px!important;
   }
   .keypad-grid button{
     min-height:72px!important;
@@ -849,10 +818,10 @@ function keypadRowValues(source){
   return {
     name:val('.name') || txt('.name-cell') || 'TP1',
     role:val('.role'),
-    dist:dist ? `${dist}m` : '',
-    deg:val('.deg') ? `${val('.deg')}°` : '',
-    min:val('.min') ? `${dms(val('.min'))}′` : '',
-    sec:val('.sec') ? `${dms(val('.sec'))}″` : ''
+    dist:dist ? `${dist}m` : 'm',
+    deg:`${val('.deg') || ''}°`,
+    min:`${val('.min') ? dms(val('.min')) : ''}′`,
+    sec:`${val('.sec') ? dms(val('.sec')) : ''}″`
   };
 }
 function updateKeypadDisplay(){
@@ -923,6 +892,7 @@ function keypadUndoValue(){
 function keypadCommit(){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dist'))activeSourceInput.value=formatDistanceValue(activeSourceInput.value);
+  if(activeSourceInput.classList.contains('min') || activeSourceInput.classList.contains('sec'))activeSourceInput.value=formatDms2(activeSourceInput.value);
   updateKeypadDisplay();
   keypadReplaceOnNextInput=false;
   activeSourceInput.dispatchEvent(new Event('change',{bubbles:true}));
@@ -1021,12 +991,12 @@ function buildRows(){
   for(let i=0;i<tpN;i++){
     const r=oldTp[i]||{};
     const name=`TP${i+1}`;
-    h+=`<tr class="tp-row" data-kind="TP"><td class="name-cell">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
+    h+=`<tr class="tp-row" data-kind="TP"><td class="name-cell">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(formatDms2(r.min))}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(formatDms2(r.sec))}" data-field="sec"></td></tr>`;
   }
   for(let i=0;i<kpN;i++){
     const r=oldKp[i]||{};
     const name=`KP${i+1}`;
-    h+=`<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(r.min??'')}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(r.sec??'')}" data-field="sec"></td></tr>`;
+    h+=`<tr class="kp-row" data-kind="KP"><td class="name-cell kp-name">${esc(name)}<input type="hidden" class="name" value="${esc(name)}"></td><td class="role-cell"><input class="text role" value="${esc(r.role||'')}"></td><td><input class="num dist" value="${esc(formatDistanceValue(r.dist))}" data-field="dist"></td><td class="angle-cell"><input class="dms deg" value="${esc(r.deg??'')}" data-field="deg"></td><td class="angle-cell"><input class="dms min" value="${esc(formatDms2(r.min))}" data-field="min"></td><td class="angle-cell"><input class="dms sec" value="${esc(formatDms2(r.sec))}" data-field="sec"></td></tr>`;
   }
   h+='</tbody></table></div>'; document.getElementById('measurementTable').innerHTML=h;
   applyInputModes();
@@ -1035,7 +1005,14 @@ function buildRows(){
 }
 function formatDistanceValue(v){
   const n=parseFloat(v);
+  if(!String(v ?? '').trim()) return '';
   return Number.isFinite(n)?fmt(n,3):(v||'');
+}
+function formatDms2(v){
+  const s=String(v ?? '').trim();
+  if(s==='') return '';
+  const n=parseInt(s,10);
+  return Number.isFinite(n) ? String(Math.max(0,Math.min(59,n))).padStart(2,'0') : s;
 }
 function scheduleAutoCalculate(){
   if(isBuildingRows)return;
@@ -2070,6 +2047,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('focusout',e=>{
     if(e.target.matches('#measurementTable input,#tpTable input,#kpTable input,input.num,input.dms')){
       if(e.target.classList.contains('dist'))e.target.value=formatDistanceValue(e.target.value);
+      if(e.target.classList.contains('min') || e.target.classList.contains('sec'))e.target.value=formatDms2(e.target.value);
       pushUndo(focusedBeforeValue);
       focusedBeforeValue=null;
       scheduleAutoCalculate();
@@ -2088,6 +2066,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       if(e.target.id==='pipeDiaMm'||e.target.id==='internalPct')updateToleranceDisplay();
       if(e.target.id==='measureDate'||e.target.id==='pipeCount')updateSideInfo();
       if(e.target.classList.contains('dist'))e.target.value=formatDistanceValue(e.target.value);
+      if(e.target.classList.contains('min') || e.target.classList.contains('sec'))e.target.value=formatDms2(e.target.value);
       scheduleAutoCalculate();
     }
   });
