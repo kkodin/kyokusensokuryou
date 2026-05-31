@@ -3040,5 +3040,87 @@ window.addEventListener('DOMContentLoaded',()=>{
   window.isTouchLayout=function(){ return true; };
 })();
 </script>
+<!-- Vr015 hard-fix: remove Next flow, enable TP/KP by pipe+date -->
+<style>
+#newFlowNextBtn,#newFlowConfirmBtn,#newFlowConfirmArea,#vr015FlowHost{display:none!important}
+</style>
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function digits(v){ return String(v ?? '').replace(/[^\d]/g,''); }
+  function hook(){
+    const pipe=byId('pipeCount');
+    const date=byId('measureDate');
+    const tp=byId('tpCount_proxy')||byId('tpCount');
+    const kp=byId('kpCount_proxy')||byId('kpCount');
+    if(!pipe || !date || !tp || !kp) return;
+
+    // Always show date + TP/KP area. Disable TP/KP until pipe/date are both valid.
+    const dateRow=[...document.querySelectorAll('#measurementInputStage .row')].find(r=>(r.querySelector('label')?.textContent||'').includes('測定日'));
+    if(dateRow) dateRow.style.display='';
+    const tpWrap=byId('vr015TpKpStandalone');
+    if(tpWrap) tpWrap.style.display='';
+
+    const sync=()=>{
+      pipe.value=digits(pipe.value);
+      const hasPipe=pipe.value!=='' && !/^0+$/.test(pipe.value);
+      const hasDate=String(date.value||'').trim()!=='';
+      date.disabled=!hasPipe;
+
+      const enable = hasPipe && hasDate;
+      tp.disabled=!enable;
+      kp.disabled=!enable;
+      tp.style.opacity=enable?'1':'0.6';
+      kp.style.opacity=enable?'1':'0.6';
+
+      if(!enable){
+        if(byId('measurementTable')) byId('measurementTable').innerHTML='';
+        return;
+      }
+      tp.value=digits(tp.value);
+      kp.value=digits(kp.value);
+      if(tp.value==='') tp.value='0';
+      if(kp.value==='') kp.value='1';
+      if(Number(kp.value)<1) kp.value='1';
+      if(byId('tpCount')) byId('tpCount').value=tp.value;
+      if(byId('kpCount')) byId('kpCount').value=kp.value;
+      if(typeof window.buildRows==='function') window.buildRows();
+    };
+
+    if(!pipe.dataset.vr015Hard){
+      pipe.dataset.vr015Hard='1';
+      pipe.addEventListener('input',sync);
+      pipe.addEventListener('change',sync);
+      pipe.readOnly=false; pipe.disabled=false;
+      pipe.value=digits(pipe.value);
+    }
+    if(!date.dataset.vr015Hard){
+      date.dataset.vr015Hard='1';
+      date.addEventListener('input',sync);
+      date.addEventListener('change',sync);
+      date.readOnly=false;
+      if(!date.value) date.value=new Date().toISOString().slice(0,10);
+    }
+    if(!tp.dataset.vr015Hard){
+      tp.dataset.vr015Hard='1';
+      tp.type='number'; tp.inputMode='numeric'; tp.step='1'; tp.min='0';
+      tp.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      tp.addEventListener('input',sync); tp.addEventListener('change',sync);
+    }
+    if(!kp.dataset.vr015Hard){
+      kp.dataset.vr015Hard='1';
+      kp.type='number'; kp.inputMode='numeric'; kp.step='1'; kp.min='1';
+      kp.addEventListener('keydown',e=>{ if(['-','+','.','e','E',','].includes(e.key)) e.preventDefault(); });
+      kp.addEventListener('input',sync); kp.addEventListener('change',sync);
+    }
+
+    const mainAction=document.querySelector('#measurementInputStage > .stage-actions');
+    if(mainAction) mainAction.style.display='none';
+    sync();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(hook,60));
+  else setTimeout(hook,60);
+})();
+</script>
 </body>
 </html>
