@@ -210,18 +210,19 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .keypad-name{font-weight:700}
 .keypad-distance{background:#c7e9f2;justify-items:end;text-align:right;padding-right:18px}
 .keypad-cell.keypad-active{
-  background:#fef08a!important;
-  outline:5px solid #f59e0b!important;
+  background:inherit!important;
+  outline:5px solid #dc2626!important;
   outline-offset:-5px!important;
-  box-shadow:inset 0 0 0 2px #92400e,0 0 18px rgba(245,158,11,.9)!important;
+  box-shadow:inset 0 0 0 1px #dc2626!important;
   color:#111827!important;
   font-weight:900!important;
-  transform:scale(1.015);
+  transform:none!important;
+  z-index:2;
 }
-.keypad-distance.keypad-active{background:#fef08a!important}
+.keypad-distance.keypad-active{background:#c7e9f2!important}
 .keypad-angle{background:#dff3f8}
-.keypad-angle.keypad-active{background:#fef08a!important}
-.keypad-role.keypad-active{background:#fef08a!important}
+.keypad-angle.keypad-active{background:#dff3f8!important}
+.keypad-role.keypad-active{background:#fff!important}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 .keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .keypad-grid button:nth-child(2),.keypad-grid button:nth-child(4),.keypad-grid button:nth-child(6),.keypad-grid button:nth-child(8),.keypad-grid button:nth-child(10),.keypad-grid button:nth-child(12),.keypad-grid button:nth-child(14),.keypad-grid button:nth-child(16),.keypad-grid button:nth-child(18){background:#f4a57b}
@@ -874,16 +875,29 @@ function vr015PushCellUndo(el){
     vr015LastInputValue.set(el,el.value);
   }
 }
-function vr015SpeakKey(ch){
+let vr015KeySpeechPending=false;
+function vr015SpeakKey(ch,onStarted){
   const words={'0':'ぜろ','1':'いち','2':'に','3':'さん','4':'よん','5':'ご','6':'ろく','7':'なな','8':'はち','9':'きゅう','.':'てん'};
-  if(!words[ch] || !window.speechSynthesis) return;
+  if(!words[ch] || !window.speechSynthesis){
+    onStarted?.();
+    return;
+  }
   try{
     window.speechSynthesis.cancel();
     const utterance=new SpeechSynthesisUtterance(words[ch]);
     utterance.lang='ja-JP';
     utterance.rate=1.05;
+    let done=false;
+    const finish=()=>{
+      if(done) return;
+      done=true;
+      onStarted?.();
+    };
+    utterance.onstart=finish;
+    utterance.onerror=finish;
+    setTimeout(finish,450);
     window.speechSynthesis.speak(utterance);
-  }catch(e){}
+  }catch(e){ onStarted?.(); }
 }
 function vr015Vibrate(pattern=18){
   try{ navigator.vibrate?.(pattern); }catch(e){}
@@ -942,15 +956,20 @@ function keypadSet(v){
 function keypadPress(ch){
   if(!activeSourceInput)return;
   if(activeSourceInput.classList.contains('dms') && ch==='.')return;
+  if(vr015KeySpeechPending) return;
   vr015Vibrate(18);
   vr015FlashButton(window.event?.currentTarget);
-  vr015SpeakKey(ch);
-  let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
-  keypadReplaceOnNextInput=false;
-  if(v==='0' && ch!=='.')v='';
-  if(ch==='.' && v.includes('.'))return;
-  keypadSet(v+ch);
-  vr015FlashInput();
+  vr015KeySpeechPending=true;
+  vr015SpeakKey(ch,()=>{
+    vr015KeySpeechPending=false;
+    if(!activeSourceInput)return;
+    let v=keypadReplaceOnNextInput?'':String(activeSourceInput.value||'');
+    keypadReplaceOnNextInput=false;
+    if(v==='0' && ch!=='.')v='';
+    if(ch==='.' && v.includes('.'))return;
+    keypadSet(v+ch);
+    vr015FlashInput();
+  });
 }
 function keypadBackspace(){
   if(!activeSourceInput)return;
