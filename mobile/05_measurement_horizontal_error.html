@@ -145,18 +145,6 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   #measurementTable input{width:100%!important;min-width:0;box-sizing:border-box}
   #measurementTable .dist{min-width:0}
   #measurementTable .dms{min-width:0;padding:7px 3px;text-align:center}
-  #measurementTable input.keypad-active{
-    background:#fff7b8!important;
-    outline:4px solid #f59e0b!important;
-    outline-offset:-3px!important;
-    border-color:#b45309!important;
-    box-shadow:0 0 0 3px rgba(245,158,11,.32),0 0 12px rgba(245,158,11,.55)!important;
-    color:#111827!important;
-    font-weight:800!important;
-  }
-  #measurementTable td:has(input.keypad-active){
-    background:#fde68a!important;
-  }
   canvas{height:300px!important}
   .fullscreen-graph .bar{font-size:12px;gap:8px;flex-wrap:wrap}
   .fullscreen-graph .bar button{padding:7px 10px}
@@ -221,30 +209,30 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .keypad-cell:nth-child(3n){border-right:0}
 .keypad-name{font-weight:700}
 .keypad-distance{background:#c7e9f2;justify-items:end;text-align:right;padding-right:18px}
-.keypad-distance.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
+.keypad-cell.keypad-active{
+  background:#fef08a!important;
+  outline:5px solid #f59e0b!important;
+  outline-offset:-5px!important;
+  box-shadow:inset 0 0 0 2px #92400e,0 0 18px rgba(245,158,11,.9)!important;
+  color:#111827!important;
+  font-weight:900!important;
+  transform:scale(1.015);
+}
+.keypad-distance.keypad-active{background:#fef08a!important}
 .keypad-angle{background:#dff3f8}
-.keypad-angle.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
-.keypad-role.keypad-active{outline:3px solid #60a5fa;outline-offset:-3px}
+.keypad-angle.keypad-active{background:#fef08a!important}
+.keypad-role.keypad-active{background:#fef08a!important}
 .keypad-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 .keypad-grid button{min-height:48px;border-radius:0;border:0;border-right:1px solid #fff;border-bottom:1px solid #fff;background:#d9f1cf;color:#0f172a;font-size:20px;padding:8px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .keypad-grid button:nth-child(2),.keypad-grid button:nth-child(4),.keypad-grid button:nth-child(6),.keypad-grid button:nth-child(8),.keypad-grid button:nth-child(10),.keypad-grid button:nth-child(12),.keypad-grid button:nth-child(14),.keypad-grid button:nth-child(16),.keypad-grid button:nth-child(18){background:#f4a57b}
 .keypad-grid button.command{font-size:18px;background:#d9f1cf}
 .keypad-grid button.ok{background:#d9f1cf;color:#0f172a}
-.keypad-grid button.vr015-tap-flash{background:#fde047!important;box-shadow:inset 0 0 0 4px #f59e0b!important;transform:scale(.97)}
+.keypad-grid button.vr015-tap-flash{background:#0f172a!important;color:#fff!important;box-shadow:inset 0 0 0 4px #facc15!important;transform:scale(.96)}
 .numeric-keypad .keypad-display{grid-template-columns:1fr 1fr 1fr!important}
 .numeric-keypad .keypad-cell{display:grid!important;min-height:46px!important}
-#measurementTable input.keypad-active{
-  background:#fff7b8!important;
-  outline:4px solid #f59e0b!important;
-  outline-offset:-3px!important;
-  border-color:#b45309!important;
-  box-shadow:0 0 0 3px rgba(245,158,11,.32),0 0 12px rgba(245,158,11,.55)!important;
-  color:#111827!important;
-  font-weight:800!important;
-}
-#measurementTable input.vr015-input-flash{
-  background:#fef08a!important;
-  box-shadow:0 0 0 5px rgba(34,197,94,.45),0 0 18px rgba(34,197,94,.7)!important;
+.keypad-cell.vr015-input-flash{
+  background:#bbf7d0!important;
+  box-shadow:inset 0 0 0 5px #22c55e,0 0 20px rgba(34,197,94,.85)!important;
 }
 .excel-input{overflow:auto;border:1px solid #cfd7e3;border-radius:8px;background:#fff}
 .excel-input table{margin:0;table-layout:fixed;min-width:620px}
@@ -901,18 +889,19 @@ function vr015Vibrate(pattern=18){
   try{ navigator.vibrate?.(pattern); }catch(e){}
 }
 function vr015FlashInput(){
-  if(!activeSourceInput) return;
-  activeSourceInput.classList.remove('vr015-input-flash');
-  void activeSourceInput.offsetWidth;
-  activeSourceInput.classList.add('vr015-input-flash');
-  setTimeout(()=>activeSourceInput?.classList.remove('vr015-input-flash'),120);
+  const cell=document.querySelector('.keypad-cell.keypad-active');
+  if(!cell) return;
+  cell.classList.remove('vr015-input-flash');
+  void cell.offsetWidth;
+  cell.classList.add('vr015-input-flash');
+  setTimeout(()=>cell.classList.remove('vr015-input-flash'),140);
 }
 function vr015FlashButton(button){
   if(!button) return;
   button.classList.remove('vr015-tap-flash');
   void button.offsetWidth;
   button.classList.add('vr015-tap-flash');
-  setTimeout(()=>button.classList.remove('vr015-tap-flash'),110);
+  setTimeout(()=>button.classList.remove('vr015-tap-flash'),160);
 }
 function showNumericKeypad(source){
   if(!isNumericFocusField(source)){closeNumericKeypad(false);return}
@@ -934,6 +923,7 @@ document.addEventListener('touchend',event=>{
   vr015LastKeypadTap=now;
 },{capture:true,passive:false});
 function closeNumericKeypad(blur=true){
+  vr015FlashButton(window.event?.currentTarget);
   keypadCommit();
   const box=document.getElementById('numericKeypad');
   if(box){box.classList.remove('visible');box.setAttribute('aria-hidden','true')}
@@ -972,6 +962,7 @@ function keypadBackspace(){
 }
 function keypadClear(){keypadReplaceOnNextInput=false;keypadSet('')}
 function keypadUndoValue(){
+  vr015FlashButton(window.event?.currentTarget);
   const item=vr015CellUndoStack.pop();
   if(!item || !item.el) return;
   vr015UndoRestoring=true;
@@ -994,6 +985,7 @@ function keypadCommit(){
   activeSourceInput.dispatchEvent(new Event('change',{bubbles:true}));
 }
 function focusRelativeInput(step){
+  vr015FlashButton(window.event?.currentTarget);
   const fields=activeSourceInput?.closest?.('#measurementTable') ? keypadFields() : editableFields();
   const idx=fields.indexOf(activeSourceInput||document.activeElement);
   if(idx<0 || !fields.length)return;
@@ -1004,6 +996,7 @@ function focusRelativeInput(step){
   setTimeout(()=>{if(isNumericFocusField(next))showNumericKeypad(next);else{closeNumericKeypad(false);next.select?.()}},0);
 }
 function focusVerticalInput(step){
+  vr015FlashButton(window.event?.currentTarget);
   if(!activeSourceInput?.closest?.('#measurementTable'))return;
   const tr=activeSourceInput.closest('tr');
   const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
