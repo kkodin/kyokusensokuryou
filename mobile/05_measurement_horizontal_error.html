@@ -2271,6 +2271,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   function patchMainButtonText(){
     const btn=document.querySelector('#measurementInputStage .stage-actions .ok');
     if(btn) btn.textContent='保存して計算結果を表示';
+    const mainAction=document.querySelector('#measurementInputStage > .stage-actions');
+    if(mainAction) mainAction.style.display='none';
   }
   function firstDistanceFocus(){
     const first=document.querySelector('#measurementTable tbody tr input.dist');
@@ -2346,6 +2348,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(typeof window.updateSideInfo==='function') window.updateSideInfo();
     if(typeof window.setStageVisible==='function') window.setStageVisible(['measurementInputStage']);
     if(typeof window.openSection==='function') window.openSection('measurementInputStage');
+    window.__setEntryMode?.(false);
 
     pipe.focus();
     pipe.select?.();
@@ -2432,7 +2435,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     wrap.className='stage-actions';
     wrap.style.marginTop='8px';
     wrap.innerHTML='<button type="button" id="newFlowNextBtn" class="ok">次へ</button>';
-    dateRow.insertAdjacentElement('afterend',wrap);
+    dateRow.insertAdjacentElement('beforebegin',wrap);
     const confirmArea=document.createElement('div');
     confirmArea.id='newFlowConfirmArea';
     confirmArea.className='stage-actions';
@@ -2540,13 +2543,13 @@ window.addEventListener('DOMContentLoaded',()=>{
       const date=byId('measureDate');
       const nextBtn=byId('newFlowNextBtn');
       const confirmArea=byId('newFlowConfirmArea');
-      const mainAction=document.querySelector('#measurementInputStage .stage-actions');
+      const mainAction=document.querySelector('#measurementInputStage > .stage-actions');
       if(historyMode){
         if(pipe){ pipe.readOnly=true; pipe.disabled=true; }
         if(date){ date.readOnly=true; date.disabled=true; }
         if(nextBtn) nextBtn.style.display='none';
         if(confirmArea) confirmArea.style.display='none';
-        if(mainAction) mainAction.style.display='';
+        if(mainAction) mainAction.style.display='none';
         toggleDateVisibility(true);
         toggleTpKpVisibility(true);
       }else{
@@ -2668,6 +2671,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     syncTpKp();
     toggleDateVisibility(false);
     toggleTpKpVisibility(false);
+    window.__setEntryMode?.(false);
     refreshResultButtonState();
     removeCountStageToc();
     createFlowButtons();
