@@ -2410,6 +2410,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     byId('kpCount_proxy')?.select?.();
     if(typeof window.updateSideInfo==='function') window.updateSideInfo();
   }
+  window.tryConfirmPipeAndDate=tryConfirmPipeAndDate;
 
   const oldBuildRows=window.buildRows;
   window.buildRows=function(){
@@ -2677,6 +2678,71 @@ window.addEventListener('DOMContentLoaded',()=>{
     createFlowButtons();
     fixBackNavigationMenu();
   });
+})();
+</script>
+
+<!-- Vr015 emergency ui force patch -->
+<script>
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function ensureFlowUi(){
+    const stage=byId('measurementInputStage');
+    if(!stage) return;
+    const mainAction=stage.querySelector(':scope > .stage-actions');
+    if(mainAction) mainAction.style.display='none';
+
+    const dateRow=byId('measureDate')?.closest('.row');
+    if(dateRow) dateRow.style.display='';
+
+    let nextBtn=byId('newFlowNextBtn');
+    if(!nextBtn){
+      const wrap=document.createElement('div');
+      wrap.className='stage-actions';
+      wrap.style.marginTop='8px';
+      wrap.innerHTML='<button type="button" id="newFlowNextBtn" class="ok">次へ</button>';
+      if(dateRow) dateRow.insertAdjacentElement('beforebegin',wrap);
+      nextBtn=byId('newFlowNextBtn');
+    }
+
+    let confirmArea=byId('newFlowConfirmArea');
+    if(!confirmArea){
+      confirmArea=document.createElement('div');
+      confirmArea.id='newFlowConfirmArea';
+      confirmArea.className='stage-actions';
+      confirmArea.style.justifyContent='center';
+      confirmArea.innerHTML='<button type="button" id="newFlowConfirmBtn" class="ok">KP数・TP数入力へ進む</button>';
+      nextBtn.parentElement?.insertAdjacentElement('afterend',confirmArea);
+    }
+    confirmArea.style.display='none';
+    const confirmBtn=byId('newFlowConfirmBtn');
+    if(confirmBtn) confirmBtn.textContent='KP数・TP数入力へ進む';
+
+    if(nextBtn && !nextBtn.dataset.vr015ForceWired){
+      nextBtn.dataset.vr015ForceWired='1';
+      nextBtn.addEventListener('click',()=>{
+        const pipe=String(byId('pipeCount')?.value||'').replace(/[^\d]/g,'');
+        if(!pipe || /^0+$/.test(pipe)){ alert('本数を入力してください。'); byId('pipeCount')?.focus(); return; }
+        if(typeof window.toggleDateVisibility==='function') window.toggleDateVisibility(true);
+        const d=byId('measureDate');
+        if(d?.showPicker){ try{ d.showPicker(); }catch(e){} }
+        d?.focus();
+      });
+    }
+
+    const d=byId('measureDate');
+    if(d && !d.dataset.vr015ForceWired){
+      d.dataset.vr015ForceWired='1';
+      d.addEventListener('change',()=>{ confirmArea.style.display=String(d.value||'').trim()?'':'none'; });
+    }
+    if(confirmBtn && !confirmBtn.dataset.vr015ForceWired){
+      confirmBtn.dataset.vr015ForceWired='1';
+      confirmBtn.addEventListener('click',()=>{
+        if(typeof window.tryConfirmPipeAndDate==='function') window.tryConfirmPipeAndDate();
+      });
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ensureFlowUi);
+  else ensureFlowUi();
 })();
 </script>
 
