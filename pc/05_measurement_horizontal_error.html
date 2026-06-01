@@ -1328,8 +1328,8 @@ function currentPipeNumber(){
 }
 function kpPipeLabel(name,pipe=currentPipeNumber()){
   const m=String(name||'').match(/^KP(\d+)$/i);
-  if(!m || !pipe)return String(name||'');
-  return `${pipe-(Number(m[1])-1)}本目`;
+  if(!m || !pipe || Number(m[1])!==1)return String(name||'');
+  return `${pipe}本目`;
 }
 function predictionPipeLabel(){
   const pipe=currentPipeNumber();
@@ -1359,6 +1359,24 @@ function minDistToPolyline(x,y,line){
   let best=Infinity;
   for(let i=1;i<line.length;i++)best=Math.min(best,distPointSegment(x,y,line[i-1],line[i]));
   return best;
+}
+const movableLabelOffsets={};
+let movableLabelBoxes=[], activeMovableLabel=null, suppressGraphOpenClick=false;
+function graphLabelKey(canvasId,key){return `${canvasId}:${key}`}
+function clearMovableLabels(canvasId){movableLabelBoxes=movableLabelBoxes.filter(b=>b.canvasId!==canvasId)}
+function movableLabelOffset(key){return movableLabelOffsets[key]||(movableLabelOffsets[key]={x:0,y:0})}
+function drawMovableLabel(ctx,canvasId,key,text,x,y,W,H,color='#111827'){
+  if(!text)return null;
+  const off=movableLabelOffset(graphLabelKey(canvasId,key));
+  let lx=x+off.x, ly=y+off.y;
+  const fs=parseInt(ctx.font,10)||12, tw=ctx.measureText(text).width+fs*.9, th=fs*1.55;
+  lx=Math.min(Math.max(lx,4),Math.max(4,W-tw-4));
+  ly=Math.min(Math.max(ly,4),Math.max(4,H-th-4));
+  ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(lx,ly,tw,th);
+  ctx.strokeStyle='rgba(15,23,42,.22)';ctx.lineWidth=1;ctx.strokeRect(lx,ly,tw,th);
+  ctx.fillStyle=color;ctx.fillText(text,lx+fs*.45,ly+th*.64);
+  movableLabelBoxes.push({canvasId,key:graphLabelKey(canvasId,key),x:lx,y:ly,w:tw,h:th});
+  return {x:lx,y:ly,w:tw,h:th};
 }
 
 function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
@@ -1391,8 +1409,7 @@ function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
       if(!best||score>best.score)best={...r,score};
     });
     used.push(best);
-    ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(best.x,best.y,best.w,best.h);
-    ctx.fillStyle='#111827';ctx.fillText(text,best.x+5,best.y+11);
+    drawMovableLabel(ctx,ctx.canvas?.id||'canvas',`point:${text}`,text,best.x,best.y,W,H,'#111827');
   });
 }
 
@@ -1571,6 +1588,7 @@ function drawHistoryPoints(ctx,toS,W,H){
 
 function drawCanvas(id,zoom){
   const cv=document.getElementById(id), ctx=cv.getContext('2d'), W=cv.width,H=cv.height;
+  clearMovableLabels(id);
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
 
   const vp = zoom ? viewportZoom(W,H,46) : viewportFromPoints(sampleDesignPoints(),W,H,38,true);
@@ -1584,7 +1602,7 @@ function drawCanvas(id,zoom){
     if(s.x<0||s.x>W||s.y<0||s.y>H)return s;
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,4.5,0,7);ctx.fill();
     if(label){
-      ctx.fillStyle='#111';ctx.font='11px Meiryo';ctx.textAlign='left';ctx.fillText(label,s.x+dx,s.y+dy);
+      ctx.fillStyle='#111';ctx.font='11px Meiryo';ctx.textAlign='left';drawMovableLabel(ctx,id,`kp:${p.name}`,label,s.x+dx,s.y+dy,W,H,'#111827');
     }
     return s;
   }
@@ -1635,7 +1653,7 @@ function drawCanvas(id,zoom){
         const pp=vp.toS(r.pred.x,r.pred.y);
         if(pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H){
           ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
-          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8);
+          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,id,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
         }
       }
       drawZoomErrorLabel(ctx,vp.toS,r,i,W,H);
@@ -1666,6 +1684,7 @@ function resizeFsCanvas(){
 }
 function drawFullScreenGraph(){
   const cvs=document.getElementById('fsCanvas'), ctx=cvs.getContext('2d'), W=cvs.width,H=cvs.height;
+  clearMovableLabels('fsCanvas');
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
 
   let baseVp = fsMode==='zoom' ? viewportZoom(W,H,80) : viewportFromPoints(sampleDesignPoints(),W,H,80,true);
@@ -1684,7 +1703,7 @@ function drawFullScreenGraph(){
   function dot(p,color,label,dx=8,dy=-8){
     const s=toS(p.x,p.y);
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.fill();
-    if(label){ctx.fillStyle='#111';ctx.font='14px Meiryo';ctx.fillText(label,s.x+dx,s.y+dy);}
+    if(label){ctx.fillStyle='#111';ctx.font='14px Meiryo';drawMovableLabel(ctx,'fsCanvas',`kp:${p.name}`,label,s.x+dx,s.y+dy,W,H,'#111827');}
     return s;
   }
   if(fsMode==='overview'){
@@ -1700,7 +1719,7 @@ function drawFullScreenGraph(){
         const pp=toS(r.pred.x,r.pred.y);
         ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
         ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.fill();ctx.stroke();
-        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+10,pp.y-10);
+        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,'fsCanvas','prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+10,pp.y-10,W,H,'#dc2626');
       }
       drawZoomErrorLabel(ctx,toS,r,i,W,H);
     });
@@ -1814,6 +1833,37 @@ function selectedHistoryPoints(){
     calc.results.forEach((r,j)=>{if(historyChecks[`m${i}_kp${j}`])pts.push({...r,history:m,histIndex:i,kpIndex:j})});
   });
   return pts;
+}
+function installMovableGraphLabels(){
+  ['overviewCanvas','zoomCanvas','fsCanvas'].forEach(id=>{
+    const cv=document.getElementById(id);
+    if(!cv || cv.dataset.movableLabels)return;
+    cv.dataset.movableLabels='1';
+    const pos=event=>{
+      const r=cv.getBoundingClientRect();
+      return {x:(event.clientX-r.left)*cv.width/r.width,y:(event.clientY-r.top)*cv.height/r.height};
+    };
+    cv.addEventListener('pointerdown',event=>{
+      const p=pos(event);
+      const hit=[...movableLabelBoxes].reverse().find(b=>b.canvasId===id&&p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h);
+      if(!hit)return;
+      event.preventDefault();event.stopPropagation();
+      suppressGraphOpenClick=true;
+      const off=movableLabelOffset(hit.key);
+      activeMovableLabel={canvasId:id,key:hit.key,start:p,orig:{x:off.x,y:off.y}};
+      cv.setPointerCapture?.(event.pointerId);
+    },true);
+    cv.addEventListener('pointermove',event=>{
+      if(!activeMovableLabel || activeMovableLabel.canvasId!==id)return;
+      const p=pos(event), off=movableLabelOffset(activeMovableLabel.key);
+      off.x=activeMovableLabel.orig.x+p.x-activeMovableLabel.start.x;
+      off.y=activeMovableLabel.orig.y+p.y-activeMovableLabel.start.y;
+      if(id==='fsCanvas')drawFullScreenGraph();else drawAll();
+    },true);
+    cv.addEventListener('pointerup',()=>{activeMovableLabel=null;setTimeout(()=>{suppressGraphOpenClick=false},80)},true);
+    cv.addEventListener('pointercancel',()=>{activeMovableLabel=null;setTimeout(()=>{suppressGraphOpenClick=false},80)},true);
+    cv.addEventListener('click',event=>{if(suppressGraphOpenClick){event.preventDefault();event.stopImmediatePropagation();}},true);
+  });
 }
 function safeFileName(s){return String(s||'').replace(/[\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,'')||'未設定'}
 function csvCell(v){const s=String(v??'');return /[",\r\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
@@ -2131,6 +2181,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   },{passive:true});
   loadProjectFromStorage();
   if(!geom){geom=sampleGeometry();renderDebug();calculateAll(false)}
+  installMovableGraphLabels();
   updateSideInfo();
   renderHistoryList();
 });
