@@ -1322,6 +1322,45 @@ function drawDesign(ctx,toS){
   ctx.stroke();
 }
 
+function currentPipeNumber(){
+  const n=Number(String(document.getElementById('pipeCount')?.value||'').trim());
+  return Number.isFinite(n)&&n>0?Math.floor(n):null;
+}
+function kpPipeLabel(name,pipe=currentPipeNumber()){
+  const m=String(name||'').match(/^KP(\d+)$/i);
+  if(!m || !pipe)return String(name||'');
+  return `${pipe-(Number(m[1])-1)}本目`;
+}
+function predictionPipeLabel(){
+  const pipe=currentPipeNumber();
+  return pipe?`${pipe+1}本目予測`:'次回予測';
+}
+function designScreenPolyline(toS){
+  const line=[];
+  if(!geom)return line;
+  const bp=geom.points.find(p=>p.name==='BP'), ep=geom.points.find(p=>p.name==='EP');
+  if(bp)line.push(toS(bp.x,bp.y));
+  (geom.curves||[]).forEach(c=>{
+    line.push(toS(c.bc.x,c.bc.y));
+    let sa=Math.atan2(c.bc.y-c.ro.y,c.bc.x-c.ro.x), ea=Math.atan2(c.ec.y-c.ro.y,c.ec.x-c.ro.x), diff=ea-sa;
+    if(c.dir==='R'){if(diff<0)diff+=Math.PI*2}else{if(diff>0)diff-=Math.PI*2}
+    for(let i=1;i<=24;i++){const a=sa+diff*i/24;line.push(toS(c.ro.x+c.R*Math.cos(a),c.ro.y+c.R*Math.sin(a)))}
+  });
+  if(ep)line.push(toS(ep.x,ep.y));
+  return line;
+}
+function distPointSegment(px,py,a,b){
+  const vx=b.x-a.x,vy=b.y-a.y,l2=vx*vx+vy*vy||1;
+  const t=Math.max(0,Math.min(1,((px-a.x)*vx+(py-a.y)*vy)/l2));
+  const x=a.x+vx*t,y=a.y+vy*t;
+  return Math.hypot(px-x,py-y);
+}
+function minDistToPolyline(x,y,line){
+  let best=Infinity;
+  for(let i=1;i<line.length;i++)best=Math.min(best,distPointSegment(x,y,line[i-1],line[i]));
+  return best;
+}
+
 function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
   if(!geom)return;
   const pts=[];
@@ -1337,12 +1376,23 @@ function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
   });
   if(ep)pts.push(ep);
   ctx.font='12px Meiryo';ctx.textAlign='left';ctx.textBaseline='middle';
+  const line=designScreenPolyline(toS), used=[];
   pts.forEach((p,i)=>{
     const s=toS(p.x,p.y);
     if(visibleOnly && (s.x<0||s.x>W||s.y<0||s.y>H))return;
     ctx.fillStyle='#111827';ctx.beginPath();ctx.arc(s.x,s.y,3.2,0,Math.PI*2);ctx.fill();
-    const dx=(i%2===0)?6:-26, dy=(i%3-1)*9;
-    ctx.fillText(p.name,s.x+dx,s.y+dy);
+    const text=p.name, tw=ctx.measureText(text).width+10, th=17;
+    const tries=[[8,-16],[8,12],[-tw-8,-16],[-tw-8,12],[8,-32],[-tw-8,-32]];
+    let best=null;
+    tries.forEach(t=>{
+      const r={x:Math.min(Math.max(s.x+t[0],4),W-tw-4),y:Math.min(Math.max(s.y+t[1],4),H-th-4),w:tw,h:th};
+      const overlap=used.some(u=>r.x<u.x+u.w&&r.x+r.w>u.x&&r.y<u.y+u.h&&r.y+r.h>u.y);
+      const score=minDistToPolyline(r.x+r.w/2,r.y+r.h/2,line)-(overlap?1000:0);
+      if(!best||score>best.score)best={...r,score};
+    });
+    used.push(best);
+    ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(best.x,best.y,best.w,best.h);
+    ctx.fillStyle='#111827';ctx.fillText(text,best.x+5,best.y+11);
   });
 }
 
@@ -1487,7 +1537,7 @@ function drawKpActualLine(ctx,toS,pts,W,H){
 function historyLabelLines(p){
   const lines=[];
   if(document.getElementById('histLabelDate')?.checked)lines.push(p.history.measureDate||'');
-  if(document.getElementById('histLabelPipe')?.checked)lines.push(`${p.history.pipeCount||'-'}本目 ${p.name}`);
+  if(document.getElementById('histLabelPipe')?.checked)lines.push(`${kpPipeLabel(p.name,Number(p.history.pipeCount))} ${p.name}`);
   if(document.getElementById('histLabelError')?.checked)lines.push(p.short||`${fmt(p.errorMm,0)}mm`);
   if(document.getElementById('histLabelCoord')?.checked)lines.push(`X=${fmt(p.x,3)} Y=${fmt(p.y,3)}`);
   return lines.filter(Boolean);
@@ -1576,7 +1626,7 @@ function drawCanvas(id,zoom){
     // 拡大図はKP1〜KP最終と予測箇所が見える範囲だけ。
     drawPointNameLabels(ctx,vp.toS,true,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',r.name);
+      const sp=dot(r,'#7c3aed',kpPipeLabel(r.name));
       const sf=vp.toS(r.foot.x,r.foot.y);
       if(sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H&&sf.x>=0&&sf.x<=W&&sf.y>=0&&sf.y<=H){
         ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
@@ -1585,7 +1635,7 @@ function drawCanvas(id,zoom){
         const pp=vp.toS(r.pred.x,r.pred.y);
         if(pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H){
           ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
-          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?('次回予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'次回予測',pp.x+8,pp.y-8);
+          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8);
         }
       }
       drawZoomErrorLabel(ctx,vp.toS,r,i,W,H);
@@ -1643,14 +1693,14 @@ function drawFullScreenGraph(){
   }else{
     drawPointNameLabels(ctx,toS,false,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',r.name);
+      const sp=dot(r,'#7c3aed',kpPipeLabel(r.name));
       const sf=toS(r.foot.x,r.foot.y);
       ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
       if(r.pred){
         const pp=toS(r.pred.x,r.pred.y);
         ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
         ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.fill();ctx.stroke();
-        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?('20本目予測 '+(pj.short||fmt(pj.errorMm,0)+'mm')):'20本目予測',pp.x+10,pp.y-10);
+        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; ctx.fillText(pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+10,pp.y-10);
       }
       drawZoomErrorLabel(ctx,toS,r,i,W,H);
     });
