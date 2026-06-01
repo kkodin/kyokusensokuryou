@@ -1698,7 +1698,7 @@ function collectMeasurementData(){
 function validateMeasurementData(data){
   if(!String(data.pipeCount||'').trim()){alert('本数を入力してください。');openSection('countStage');document.getElementById('pipeCount')?.focus();return false}
   if(!String(data.measureDate||'').trim()){alert('測定日を入力してください。');openSection('countStage');document.getElementById('measureDate')?.focus();return false}
-  return false;
+  return true;
 }
 function integratedProjectData(){
   const out=JSON.parse(JSON.stringify(project||{}));
@@ -2086,11 +2086,138 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
+<!-- Vr015 pc measurement edit/save flow -->
+<style>
+#vr015PcFinalActions{margin-top:14px}
+#vr015PcFinalActions.vr015-saved{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#vr015PcEditBtn{width:100%;background:#d97706}
+#vr015PcResultBtn{width:100%}
+#measurementTable input:read-only,#countStage input:read-only{background:#eef2f7;color:#334155}
+</style>
+<script>
+(function(){
+  'use strict';
+  const byId=id=>document.getElementById(id);
+
+  function setEditable(editable){
+    ['pipeCount','measureDate','tpCount','kpCount'].forEach(id=>{
+      const el=byId(id);
+      if(el){ el.readOnly=!editable; el.disabled=false; }
+    });
+    document.querySelectorAll('#measurementTable input').forEach(el=>{
+      el.readOnly=!editable;
+      el.disabled=false;
+    });
+  }
+
+  function isComplete(){
+    const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+    return rows.length>0 && rows.every(row=>['dist','deg','min','sec'].every(cls=>String(row.querySelector('.'+cls)?.value||'').trim()!==''));
+  }
+
+  function syncButtons(){
+    const wrap=byId('vr015PcFinalActions');
+    const editBtn=byId('vr015PcEditBtn');
+    const resultBtn=byId('vr015PcResultBtn');
+    if(!wrap || !editBtn || !resultBtn) return;
+    const saved=window.__vr015PcMeasureMode==='saved';
+    wrap.classList.toggle('vr015-saved',saved);
+    editBtn.style.display=saved?'':'none';
+    resultBtn.textContent=saved?'計算結果を表示(保存済み)':'計算結果を表示(未保存)';
+    resultBtn.disabled=!saved && !isComplete();
+  }
+
+  function setSavedMode(){
+    window.__vr015PcMeasureMode='saved';
+    setEditable(false);
+    syncButtons();
+  }
+
+  function setEditMode(){
+    window.__vr015PcMeasureMode='edit';
+    setEditable(true);
+    syncButtons();
+    byId('measurementInputStage')?.scrollIntoView({block:'start'});
+  }
+
+  function saveAndShow(){
+    if(window.__vr015PcMeasureMode==='saved'){
+      window.calculateAll?.(true);
+      window.showResultStage?.();
+      return;
+    }
+    if(!isComplete()) return;
+    window.calculateAll?.(false);
+    const data=window.collectMeasurementData?.();
+    if(data && window.upsertMeasurementData?.(data,true)!==false){
+      window.calculateAll?.(true);
+      window.showActionMessage?.('測量結果を保存しました。','measurementSaveMessage');
+      setSavedMode();
+      window.showResultStage?.();
+    }
+  }
+
+  function ensureControls(){
+    const stage=byId('measurementInputStage');
+    if(!stage) return;
+    stage.querySelectorAll(':scope > .stage-actions').forEach(el=>el.remove());
+    let wrap=byId('vr015PcFinalActions');
+    if(!wrap){
+      wrap=document.createElement('div');
+      wrap.id='vr015PcFinalActions';
+      wrap.className='stage-actions';
+      wrap.innerHTML='<button type="button" class="warn" id="vr015PcEditBtn">測定数値修正</button><button type="button" class="ok" id="vr015PcResultBtn">計算結果を表示(未保存)</button>';
+      const msg=byId('measurementSaveMessage');
+      if(msg) stage.insertBefore(wrap,msg);
+      else stage.appendChild(wrap);
+      byId('vr015PcEditBtn').addEventListener('click',setEditMode);
+      byId('vr015PcResultBtn').addEventListener('click',saveAndShow);
+    }
+    syncButtons();
+  }
+
+  function install(){
+    ensureControls();
+    const oldBuildRows=window.buildRows;
+    window.buildRows=function(){
+      const ret=oldBuildRows?.apply(this,arguments);
+      setEditable(window.__vr015PcMeasureMode!=='saved');
+      syncButtons();
+      return ret;
+    };
+    const oldLoadHistory=window.loadHistoryMeasurement;
+    window.loadHistoryMeasurement=function(index){
+      oldLoadHistory?.apply(this,arguments);
+      setTimeout(setSavedMode,0);
+    };
+    const oldNewMeasurement=window.newMeasurementData;
+    window.newMeasurementData=function(){
+      oldNewMeasurement?.apply(this,arguments);
+      window.__vr015PcMeasureMode='edit';
+      setTimeout(()=>{ensureControls();setEditMode();},0);
+    };
+    document.addEventListener('input',event=>{
+      if(event.target?.matches?.('#measurementTable input,#countStage input')){
+        if(window.__vr015PcMeasureMode==='saved') return;
+        window.__vr015PcMeasureMode='edit';
+        syncButtons();
+      }
+    },true);
+    window.__vr015PcMeasureMode='edit';
+    setEditable(true);
+    syncButtons();
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install);
+  else install();
+})();
+</script>
+
 
 <!-- Vr015 device lock: pc only -->
 <script>
 (function(){
-  window.__DEVICE_MODE__='mobile';
+  window.__DEVICE_MODE__='pc';
   window.isTouchLayout=function(){ return false; };
 })();
 </script>

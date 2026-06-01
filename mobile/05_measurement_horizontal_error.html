@@ -2354,6 +2354,8 @@ window.addEventListener('DOMContentLoaded',()=>{
 #vr015MeasureControls .step-btn{width:34px;min-width:34px;border:0;border-left:1px solid #dbe3ee;border-radius:0;background:#e2e8f0;color:#0f172a;font-size:20px;font-weight:700;padding:0}
 #vr015MeasureControls .step-btn:disabled{background:#eef2f7;color:#94a3b8}
 #vr015FinalResultWrap{margin-top:12px}
+#vr015FinalResultWrap.vr015-saved{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#vr015EditMeasurementBtn{width:100%;background:#d97706}
 #vr015FinalResultBtn{width:100%}
 #vr015FinalResultBtn:disabled{background:#94c8a8!important;color:#fff!important;opacity:1!important}
 .vr015-center-modal{position:fixed;inset:0;z-index:10100;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.35);padding:16px}
@@ -2424,8 +2426,18 @@ window.addEventListener('DOMContentLoaded',()=>{
       wrap=document.createElement('div');
       wrap.id='vr015FinalResultWrap';
       wrap.className='stage-actions';
-      wrap.innerHTML='<button type="button" class="ok" id="vr015FinalResultBtn">保存して計算結果を表示</button>';
+      wrap.innerHTML='<button type="button" class="warn" id="vr015EditMeasurementBtn" style="display:none">測定数値修正</button><button type="button" class="ok" id="vr015FinalResultBtn">保存して計算結果を表示</button>';
       stage.appendChild(wrap);
+      byId('vr015EditMeasurementBtn').addEventListener('click',()=>{
+        window.__vr015MeasureMode='edit';
+        [byId('vr015PipeMirror'),byId('vr015DateMirror'),byId('vr015TpCount'),byId('vr015KpCount')].forEach(input=>{
+          if(input){ input.disabled=false; input.readOnly=false; input.dataset.vr015Entered='1'; }
+        });
+        document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{ btn.disabled=false; });
+        setTableEditable(true);
+        refreshResultButton();
+        byId('measurementTable')?.scrollIntoView({block:'start'});
+      });
       byId('vr015FinalResultBtn').addEventListener('click',()=>{
         if(window.__vr015MeasureMode==='history'){
           window.calculateAll?.(true);
@@ -2438,6 +2450,7 @@ window.addEventListener('DOMContentLoaded',()=>{
           window.calculateAll?.(true);
           window.downloadIntegratedProjectFile?.();
           window.showActionMessage?.('保存ファイルを作成しました。','measurementSaveMessage');
+          setupHistoryMode();
           window.showResultStage?.();
         }
       });
@@ -2500,12 +2513,18 @@ window.addEventListener('DOMContentLoaded',()=>{
   function refreshResultButton(){
     const btn=byId('vr015FinalResultBtn');
     if(!btn) return;
+    const editBtn=byId('vr015EditMeasurementBtn');
+    const wrap=byId('vr015FinalResultWrap');
     if(window.__vr015MeasureMode==='history'){
+      if(editBtn) editBtn.style.display='';
+      wrap?.classList.add('vr015-saved');
       btn.textContent='計算結果を表示(保存済み)';
       btn.disabled=false;
       return;
     }
-    btn.textContent='保存して計算結果を表示';
+    if(editBtn) editBtn.style.display='none';
+    wrap?.classList.remove('vr015-saved');
+    btn.textContent=window.__vr015MeasureMode==='edit'?'計算結果を表示(未保存)':'保存して計算結果を表示';
     btn.disabled=!isMeasurementComplete();
   }
 
@@ -2516,6 +2535,14 @@ window.addEventListener('DOMContentLoaded',()=>{
     const kp=byId('vr015KpCount');
     if(!pipe || !date || !tp || !kp) return;
     pipe.value=digits(pipe.value);
+    if(window.__vr015MeasureMode==='edit'){
+      [pipe,date,tp,kp].forEach(input=>{ input.disabled=false; input.readOnly=false; input.dataset.vr015Entered='1'; });
+      document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{ btn.disabled=false; });
+      setNativeControlsFromMirrors();
+      if(digits(kp.value)!=='') buildMeasurementRows();
+      else refreshResultButton();
+      return;
+    }
     const hasPipe=pipe.value!=='' && Number(pipe.value)>0;
     let duplicated=false;
     if(hasPipe && duplicatePipe(pipe.value)){
