@@ -159,6 +159,23 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 }
 .fullscreen-graph canvas{flex:1; width:100%; height:calc(100vh - 42px); border:0; border-radius:0; cursor:grab;}
 .fullscreen-graph canvas:active{cursor:grabbing;}
+#graphStage{position:relative}
+.graph-measure-table{position:absolute;right:18px;top:74px;z-index:20;width:min(620px,calc(100% - 36px));max-width:calc(100% - 36px);background:rgba(255,255,255,.96);border:1px solid #94a3b8;border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.18);overflow:hidden;color:#0f172a}
+.graph-measure-table .graph-table-title{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#0f172a;color:#fff;padding:8px 10px;font-weight:bold;cursor:move;user-select:none}
+.graph-measure-table .graph-table-title span:last-child{font-size:12px;font-weight:normal;opacity:.8}
+.graph-measure-table .graph-table-body{max-height:280px;overflow:auto}
+.graph-measure-table table{margin:0;font-size:12px;white-space:nowrap}
+.graph-measure-table th,.graph-measure-table td{padding:5px 7px;border-color:#dbe3ee}
+.graph-measure-table th{background:#334155;color:#fff;position:sticky;top:0}
+.graph-measure-table .pred-row td{background:#fff7ed;color:#9a3412;font-weight:bold}
+.fullscreen-graph .graph-measure-table{position:absolute;right:18px;top:58px;width:min(680px,calc(100vw - 36px));max-height:55vh}
+@media(max-width:700px){
+  .graph-measure-table{left:8px;right:auto;top:54px;width:calc(100% - 16px);max-width:calc(100% - 16px)}
+  .graph-measure-table .graph-table-body{max-height:210px}
+  .graph-measure-table table{font-size:11px}
+  .graph-measure-table th,.graph-measure-table td{padding:4px 5px}
+  .fullscreen-graph .graph-measure-table{left:8px;right:auto;top:88px;width:calc(100vw - 16px)}
+}
 .modal{
   position:fixed; inset:0; z-index:10000; background:rgba(15,23,42,.55);
   align-items:center; justify-content:center; padding:14px;
@@ -527,6 +544,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
       <div><h3>全体</h3><canvas id="overviewCanvas" width="760" height="420" onclick="openGraphFullScreen('overview')"></canvas></div>
       <div><h3>拡大</h3><canvas id="zoomCanvas" width="760" height="420" onclick="openGraphFullScreen('zoom')"></canvas></div>
     </div>
+    <div id="graphMeasureTable" class="graph-measure-table no-print" style="display:none"></div>
     <div class="note no-print">グラフをクリックすると全画面表示します。全画面ではホイールで拡大縮小、ドラッグで移動、ESCで閉じます。</div>
     <div class="stage-actions"><button class="secondary" type="button" onclick="showResultStage()">計算結果へ戻る</button></div>
   </div>
@@ -578,6 +596,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 <div id="graphFullScreen" class="fullscreen-graph">
   <div class="bar"><span id="fsTitle">グラフ全画面</span><span style="font-weight:normal">ホイール：拡大縮小 / ドラッグ：移動 / ESC：閉じる</span><button class="secondary" onclick="closeGraphFullScreen()" style="margin-left:auto">閉じる</button></div>
   <canvas id="fsCanvas" width="1400" height="900"></canvas>
+  <div id="fsMeasureTable" class="graph-measure-table no-print" style="display:none"></div>
 </div>
 
 <script>
@@ -1102,7 +1121,7 @@ function judgeStraight(p,sec){
   const wx=p.x-ax,wy=p.y-ay,proj=wx*ux+wy*uy,inside=proj>=0&&proj<=len;
   const clamped=Math.max(0,Math.min(len,proj)), foot={x:ax+ux*clamped,y:ay+uy*clamped};
   const ex=p.x-foot.x,ey=p.y-foot.y,signed=ux*ey-uy*ex,mm=Math.abs(signed)*1000;
-  return {type:'直線',sectionName:`${sec.from}〜${sec.to}`,foot,errorMm:mm,side:signed>0?'左':'右',priority:inside?1:9,remaining:Math.max(0,sec.accEnd-(sec.accStart+clamped))};
+  return {type:'直線',sectionName:`${sec.from}〜${sec.to}`,foot,errorMm:mm,side:signed>0?'右':'左',priority:inside?1:9,remaining:Math.max(0,sec.accEnd-(sec.accStart+clamped))};
 }
 function judgeCurve(p,c){
   const dx=p.x-c.ro.x, dy=p.y-c.ro.y;
@@ -1310,16 +1329,28 @@ function drawGrid(ctx,W,H,vp,zoom=false){
 function drawDesign(ctx,toS){
   if(!geom)return;
   const bp=geom.points.find(p=>p.name==='BP'), ep=geom.points.find(p=>p.name==='EP');
-  ctx.strokeStyle='#0055a4';ctx.lineWidth=3;ctx.beginPath();
-  let s=toS(bp.x,bp.y);ctx.moveTo(s.x,s.y);
+  const drawLine=(a,b,color,width=3,dash=[])=>{
+    if(!a||!b)return;
+    const p1=toS(a.x,a.y), p2=toS(b.x,b.y);
+    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);
+    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();ctx.restore();
+  };
+  let cursor=bp;
   (geom.curves||[]).forEach(c=>{
-    let b=toS(c.bc.x,c.bc.y);ctx.lineTo(b.x,b.y);
+    drawLine(cursor,c.bc,'#2563eb',3,[]);
+    ctx.save();ctx.strokeStyle='#16a34a';ctx.lineWidth=3;ctx.beginPath();
     let sa=Math.atan2(c.bc.y-c.ro.y,c.bc.x-c.ro.x), ea=Math.atan2(c.ec.y-c.ro.y,c.ec.x-c.ro.x), diff=ea-sa;
     if(c.dir==='R'){if(diff<0)diff+=Math.PI*2}else{if(diff>0)diff-=Math.PI*2}
-    for(let i=1;i<=80;i++){let a=sa+diff*i/80;let p=toS(c.ro.x+c.R*Math.cos(a),c.ro.y+c.R*Math.sin(a));ctx.lineTo(p.x,p.y)}
+    for(let i=0;i<=80;i++){
+      const a=sa+diff*i/80, p=toS(c.ro.x+c.R*Math.cos(a),c.ro.y+c.R*Math.sin(a));
+      if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);
+    }
+    ctx.stroke();ctx.restore();
+    drawLine(c.ip,c.bc,'#94a3b8',1,[5,6]);
+    drawLine(c.ip,c.ec,'#94a3b8',1,[5,6]);
+    cursor=c.ec;
   });
-  if(ep){let e=toS(ep.x,ep.y);ctx.lineTo(e.x,e.y)}
-  ctx.stroke();
+  drawLine(cursor,ep,'#2563eb',3,[]);
 }
 
 function currentPipeNumber(){
@@ -1527,30 +1558,94 @@ function stationOnAlignment(p){
   return cands[0]?.sta ?? NaN;
 }
 
+
+function graphMeasurementTitle(){
+  const pipe=currentPipeNumber();
+  return pipe?pipe+'本目測量結果':'測量結果';
+}
+function graphMeasureRowHtml(label,actual,judge,cls=''){
+  const plan=judge?.foot||{};
+  const err=judge?(judge.short||((judge.side||'')+' '+fmt(judge.errorMm,0))):'-';
+  return '<tr class="'+cls+'"><td><b>'+esc(label)+'</b></td><td class="mono">'+fmt(plan.x,3)+'</td><td class="mono">'+fmt(plan.y,3)+'</td><td class="mono">'+fmt(actual?.x,3)+'</td><td class="mono">'+fmt(actual?.y,3)+'</td><td><b>'+esc(err)+'</b></td></tr>';
+}
+function renderGraphMeasureTable(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(!results.length){el.style.display='none';return}
+  const rows=[];
+  const pred=window.latestPrediction, pj=window.latestPredictionJudge;
+  if(pred&&pj)rows.push(graphMeasureRowHtml('予測',pred,pj,'pred-row'));
+  results.forEach(r=>rows.push(graphMeasureRowHtml(r.name,r,r,'')));
+  el.innerHTML='<div class="graph-table-title" data-drag-table-handle><span>'+esc(graphMeasurementTitle())+'</span><span>ドラッグで移動</span></div>'+
+    '<div class="graph-table-body"><table><thead><tr><th>点名</th><th>計画X</th><th>計画Y</th><th>実測X</th><th>実測Y</th><th>誤差</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+  el.style.display='block';
+  ensureGraphTablePosition(el);
+}
+function renderGraphMeasureTables(){
+  renderGraphMeasureTable('graphMeasureTable');
+  renderGraphMeasureTable('fsMeasureTable');
+}
+function ensureGraphTablePosition(el){
+  if(el.dataset.positioned)return;
+  el.dataset.positioned='1';
+}
+function initGraphTableDrag(){
+  let drag=null;
+  document.addEventListener('pointerdown',e=>{
+    const handle=e.target.closest('[data-drag-table-handle]');
+    if(!handle)return;
+    const box=handle.closest('.graph-measure-table');
+    if(!box)return;
+    const r=box.getBoundingClientRect();
+    const parent=box.offsetParent?.getBoundingClientRect?.()||{left:0,top:0};
+    drag={box,parent,startX:e.clientX,startY:e.clientY,left:r.left-parent.left,top:r.top-parent.top};
+    box.style.left=drag.left+'px';
+    box.style.top=drag.top+'px';
+    box.style.right='auto';
+    box.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  document.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    const maxLeft=Math.max(0,(drag.box.offsetParent?.clientWidth||window.innerWidth)-drag.box.offsetWidth);
+    const maxTop=Math.max(0,(drag.box.offsetParent?.clientHeight||window.innerHeight)-drag.box.offsetHeight);
+    const left=Math.min(Math.max(0,drag.left+e.clientX-drag.startX),maxLeft);
+    const top=Math.min(Math.max(0,drag.top+e.clientY-drag.startY),maxTop);
+    drag.box.style.left=left+'px';
+    drag.box.style.top=top+'px';
+  });
+  document.addEventListener('pointerup',()=>{drag=null});
+}
+window.addEventListener('DOMContentLoaded',initGraphTableDrag);
+
 function drawAll(){
   updatePredictions();
+  renderGraphMeasureTables();
   drawCanvas('overviewCanvas',false);
   drawCanvas('zoomCanvas',true);
 }
 function drawKpActualLine(ctx,toS,pts,W,H){
   const arr=(pts||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).map(p=>({p,s:toS(p.x,p.y)}));
-  if(arr.length<2)return;
+  if(!arr.length)return;
   ctx.save();
-  ctx.strokeStyle='#7c3aed';
-  ctx.lineWidth=3;
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  arr.forEach((o,i)=>{if(i===0)ctx.moveTo(o.s.x,o.s.y);else ctx.lineTo(o.s.x,o.s.y)});
-  ctx.stroke();
-  arr.forEach(o=>{
+  if(arr.length>=2){
+    ctx.strokeStyle='#7c3aed';ctx.lineWidth=2.5;ctx.setLineDash([]);
+    ctx.beginPath();arr.forEach((o,i)=>{if(i===0)ctx.moveTo(o.s.x,o.s.y);else ctx.lineTo(o.s.x,o.s.y)});ctx.stroke();
+  }
+  ctx.font='12px Meiryo';ctx.textAlign='left';ctx.textBaseline='middle';
+  arr.forEach((o,i)=>{
     if(o.s.x<0||o.s.x>W||o.s.y<0||o.s.y>H)return;
-    ctx.fillStyle='#fff';
-    ctx.strokeStyle='#7c3aed';
-    ctx.lineWidth=2;
+    ctx.fillStyle='#fff';ctx.strokeStyle='#7c3aed';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(o.s.x,o.s.y,5.5,0,Math.PI*2);ctx.fill();ctx.stroke();
+    const label=o.p.name||('KP'+(i+1));
+    const lx=Math.min(Math.max(o.s.x+8,4),W-42), ly=Math.min(Math.max(o.s.y-10,10),H-10);
+    ctx.fillStyle='rgba(255,255,255,.82)';ctx.fillRect(lx-2,ly-9,ctx.measureText(label).width+6,16);
+    ctx.fillStyle='#4c1d95';ctx.fillText(label,lx,ly);
   });
   ctx.restore();
 }
+
 function historyLabelLines(p){
   const lines=[];
   if(document.getElementById('histLabelDate')?.checked)lines.push(p.history.measureDate||'');
@@ -1644,7 +1739,7 @@ function drawCanvas(id,zoom){
     // 拡大図はKP1〜KP最終と予測箇所が見える範囲だけ。
     drawPointNameLabels(ctx,vp.toS,true,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',kpPipeLabel(r.name));
+      const sp=dot(r,'#7c3aed',r.name);
       const sf=vp.toS(r.foot.x,r.foot.y);
       if(sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H&&sf.x>=0&&sf.x<=W&&sf.y>=0&&sf.y<=H){
         ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
@@ -1656,7 +1751,6 @@ function drawCanvas(id,zoom){
           ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,id,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
         }
       }
-      drawZoomErrorLabel(ctx,vp.toS,r,i,W,H);
     });
     drawNextPointInfo(ctx,vp.toS,W,H);
   }
@@ -1671,6 +1765,7 @@ function openGraphFullScreen(mode){
   document.getElementById('fsTitle').textContent = mode==='zoom' ? '拡大グラフ 全画面' : '全体グラフ 全画面';
   box.style.display='flex';
   resizeFsCanvas();
+  renderGraphMeasureTables();
   drawFullScreenGraph();
 }
 function closeGraphFullScreen(){
@@ -1710,9 +1805,9 @@ function drawFullScreenGraph(){
     tpPoints.forEach(p=>dot(p,'#7c3aed',''));
     results.forEach(r=>dot(r,'#7c3aed',''));
   }else{
-    drawPointNameLabels(ctx,toS,false,W,H);
+    drawPointNameLabels(ctx,toS,true,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',kpPipeLabel(r.name));
+      const sp=dot(r,'#7c3aed',r.name);
       const sf=toS(r.foot.x,r.foot.y);
       ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
       if(r.pred){
@@ -1721,7 +1816,6 @@ function drawFullScreenGraph(){
         ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.fill();ctx.stroke();
         ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,'fsCanvas','prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+10,pp.y-10,W,H,'#dc2626');
       }
-      drawZoomErrorLabel(ctx,toS,r,i,W,H);
     });
     drawNextPointInfo(ctx,toS,W,H);
   }
