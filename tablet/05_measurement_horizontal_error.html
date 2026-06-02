@@ -1739,7 +1739,7 @@ function drawCanvas(id,zoom){
     // 拡大図はKP1〜KP最終と予測箇所が見える範囲だけ。
     drawPointNameLabels(ctx,vp.toS,true,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',r.name);
+      const sp=dot(r,'#7c3aed','');
       const sf=vp.toS(r.foot.x,r.foot.y);
       if(sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H&&sf.x>=0&&sf.x<=W&&sf.y>=0&&sf.y<=H){
         ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
@@ -1807,7 +1807,7 @@ function drawFullScreenGraph(){
   }else{
     drawPointNameLabels(ctx,toS,true,W,H);
     results.forEach((r,i)=>{
-      const sp=dot(r,'#7c3aed',r.name);
+      const sp=dot(r,'#7c3aed','');
       const sf=toS(r.foot.x,r.foot.y);
       ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
       if(r.pred){
