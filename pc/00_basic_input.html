@@ -866,4 +866,130 @@ function openPage(file){
   setActions();
 })();
 </script>
+
+<!-- Vr015 PC no jump accordion correction -->
+<script>
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function q(sel,root=document){return root.querySelector(sel)}
+  function qa(sel,root=document){return [...root.querySelectorAll(sel)]}
+  const stageOrder=['site','soil','pipe','alignment','final'];
+  function card(stage){return q('.wizard-card[data-stage="'+stage+'"]') || byId(stage+'StageCard')}
+
+  function setNoBackActions(){
+    const site=byId('siteStageCard');
+    const soil=byId('soilStageCard');
+    const pipe=byId('pipeStageCard');
+    const align=byId('alignmentStageCard');
+    if(site){
+      const actions=q('.wizard-actions',site);
+      if(actions)actions.innerHTML='<button class="ok" type="button" onclick="completeSiteStage()">保存して、土質条件へ</button>';
+    }
+    if(soil){
+      const actions=q('.wizard-actions',soil);
+      if(actions)actions.innerHTML='<button class="ok" type="button" onclick="completeSoilStage()">保存して、推進管仕様へ</button>';
+    }
+    if(pipe){
+      const actions=q('.wizard-actions',pipe);
+      if(actions)actions.innerHTML='<button class="ok" type="button" onclick="completePipeStage()">保存して、測量基準へ</button>';
+    }
+    if(align){
+      const actions=q('.wizard-actions',align);
+      if(actions)actions.innerHTML='<button class="ok" type="button" onclick="completeAlignmentStage()">保存して、作業メニューへ</button>';
+    }
+  }
+
+  function showStatus(msg){
+    if(typeof window.showSaveStatus==='function')window.showSaveStatus(msg);
+    const s=byId('saveStatus');
+    if(s)s.textContent=msg;
+  }
+
+  function saveLocal(){
+    if(typeof window.saveDraftNow==='function')return window.saveDraftNow();
+    if(typeof window.collectBase==='function'){
+      const p=window.collectBase();
+      p.savedAt=new Date().toISOString();
+      localStorage.setItem('curvedJackingProject',JSON.stringify(p));
+      return p;
+    }
+    return null;
+  }
+
+  function validateSite(){
+    const required=[['siteName','現場名'],['spanName','スパン名'],['inputDate','入力日']];
+    for(const [id,label] of required){
+      const el=byId(id);
+      if(!String(el?.value||'').trim()){
+        alert(label+'を入力してください。');
+        el?.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function openStage(stage){
+    document.body.classList.add('base-ready','base-form-visible','basic-wizard-active');
+    document.body.classList.remove('show-frame');
+    stageOrder.forEach(s=>{
+      const c=card(s);
+      if(!c)return;
+      c.classList.toggle('vr015-open',s===stage);
+      c.classList.remove('wizard-step-hidden');
+    });
+    setNoBackActions();
+  }
+
+  window.showWizardStage=function(stage){
+    openStage(stage);
+  };
+
+  window.completeSiteStage=function(){
+    if(!validateSite())return;
+    saveLocal();
+    card('site')?.classList.add('vr015-complete');
+    showStatus('現場情報を新規データとして保存しました。続けて土質条件を入力してください。');
+    openStage('soil');
+  };
+
+  window.completeSoilStage=function(){
+    saveLocal();
+    card('soil')?.classList.add('vr015-complete');
+    showStatus('土質条件を保存しました。');
+    openStage('pipe');
+  };
+
+  window.completePipeStage=function(){
+    saveLocal();
+    card('pipe')?.classList.add('vr015-complete');
+    showStatus('推進管仕様を保存しました。');
+    openStage('alignment');
+  };
+
+  window.completeAlignmentStage=function(){
+    saveLocal();
+    card('alignment')?.classList.add('vr015-complete');
+    showStatus('測量基準・平面線形を保存しました。');
+    document.body.classList.remove('basic-wizard-active');
+    stageOrder.forEach(s=>card(s)?.classList.remove('vr015-open'));
+    if(typeof window.showWorkMenu==='function')window.showWorkMenu(false);
+  };
+
+  window.startNewBase=function(){
+    document.body.classList.add('base-ready','base-form-visible','basic-wizard-active');
+    document.body.classList.remove('show-frame');
+    if(typeof window.set==='function'){
+      window.set('siteName','');
+      window.set('spanName','');
+      window.set('inputDate',typeof window.today==='function'?window.today():'');
+    }
+    saveLocal();
+    openStage('site');
+    setNoBackActions();
+  };
+
+  setNoBackActions();
+})();
+</script>
 </body></html>
