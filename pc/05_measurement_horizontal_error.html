@@ -546,7 +546,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
     </div>
     <div id="graphMeasureTable" class="graph-measure-table no-print" style="display:none"></div>
     <div class="note no-print">グラフをクリックすると全画面表示します。全画面ではホイールで拡大縮小、ドラッグで移動、ESCで閉じます。</div>
-    <div class="stage-actions"><button class="secondary" type="button" onclick="showResultStage()">計算結果へ戻る</button></div>
+    <div class="stage-actions"><button class="secondary" type="button" onclick="showResultStage()">計算結果へ戻る</button><button class="ok" type="button" onclick="printGraphView('zoom')">拡大図を印刷</button></div>
   </div>
 
   <div class="card section-card collapsed stage-hidden" id="debugStage">
@@ -594,7 +594,7 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
   </div>
 </div>
 <div id="graphFullScreen" class="fullscreen-graph">
-  <div class="bar"><span id="fsTitle">グラフ全画面</span><span style="font-weight:normal">ホイール：拡大縮小 / ドラッグ：移動 / ESC：閉じる</span><button class="secondary" onclick="closeGraphFullScreen()" style="margin-left:auto">閉じる</button></div>
+  <div class="bar"><span id="fsTitle">グラフ全画面</span><span style="font-weight:normal">ホイール：拡大縮小 / ドラッグ：移動 / ESC：閉じる</span><button class="ok" onclick="printGraphView('current')" style="margin-left:auto">印刷</button><button class="secondary" onclick="closeGraphFullScreen()">閉じる</button></div>
   <canvas id="fsCanvas" width="1400" height="900"></canvas>
   <div id="fsMeasureTable" class="graph-measure-table no-print" style="display:none"></div>
 </div>
@@ -1819,6 +1819,62 @@ function drawFullScreenGraph(){
     });
     drawNextPointInfo(ctx,toS,W,H);
   }
+}
+function printGraphView(mode='zoom'){
+  if(!results.length)calculateAll(false);
+  updatePredictions();
+  const fsOpen=document.getElementById('graphFullScreen')?.style.display==='flex';
+  let sourceId='zoomCanvas';
+  let title='拡大グラフ';
+  if(mode==='overview'){
+    sourceId='overviewCanvas';
+    title='全体グラフ';
+    drawCanvas(sourceId,false);
+  }else if(mode==='current'&&fsOpen){
+    sourceId='fsCanvas';
+    title=document.getElementById('fsTitle')?.textContent||'グラフ';
+    drawFullScreenGraph();
+  }else{
+    sourceId='zoomCanvas';
+    title='拡大グラフ';
+    drawCanvas(sourceId,true);
+  }
+  renderGraphMeasureTables();
+  const canvas=document.getElementById(sourceId);
+  if(!canvas)return;
+  const image=canvas.toDataURL('image/png');
+  const tableEl=document.getElementById(sourceId==='fsCanvas'?'fsMeasureTable':'graphMeasureTable');
+  const tableHtml=(tableEl&&tableEl.style.display!=='none')?tableEl.innerHTML:'';
+  const h=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const w=window.open('','_blank');
+  if(!w){alert('印刷画面を開けませんでした。ブラウザのポップアップ許可を確認してください。');return}
+  w.document.write(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${h(title)} 印刷</title>
+<style>
+@page{size:A4 landscape;margin:8mm}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:#0f172a;font-family:Meiryo,"Yu Gothic",sans-serif}
+.toolbar{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#0f172a;color:#fff;font-size:13px}
+.toolbar button{border:0;border-radius:6px;padding:7px 12px;font-weight:bold;cursor:pointer}
+.sheet{position:relative;width:100vw;height:calc(100vh - 44px);padding:0;background:#fff;overflow:hidden}
+.graph-img{display:block;width:100%;height:100%;object-fit:contain}
+.print-measure-table{position:absolute;left:12mm;bottom:10mm;max-width:62%;background:rgba(255,255,255,.96);border:1px solid #94a3b8;border-radius:6px;box-shadow:0 8px 20px rgba(15,23,42,.16);overflow:hidden}
+.print-measure-table .graph-table-title{background:#0f172a;color:#fff;padding:6px 8px;font-weight:bold;display:flex;justify-content:space-between;gap:12px}
+.print-measure-table .graph-table-title span:last-child{display:none}
+.print-measure-table table{border-collapse:collapse;width:100%;font-size:10.5px;background:#fff}
+.print-measure-table th,.print-measure-table td{border:1px solid #cfd7e3;padding:4px 6px;text-align:center;white-space:nowrap}
+.print-measure-table th{background:#334155;color:#fff}
+.print-measure-table .pred-row td{background:#fff7ed;color:#9a3412;font-weight:bold}
+@media print{
+  .toolbar{display:none}
+  .sheet{width:100%;height:194mm;padding:0;page-break-inside:avoid}
+  .graph-img{width:100%;height:100%;object-fit:contain}
+}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">印刷</button><button onclick="window.close()">閉じる</button><span>縦横の縮尺を同じ比率で印刷します。</span></div>
+<div class="sheet"><img class="graph-img" src="${image}" alt="${h(title)}">${tableHtml?`<div class="print-measure-table">${tableHtml}</div>`:''}</div>
+<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\/script>
+</body></html>`);
+  w.document.close();
 }
 window.addEventListener('resize',()=>{if(document.getElementById('graphFullScreen')?.style.display==='flex'){resizeFsCanvas();drawFullScreenGraph();}});
 window.addEventListener('keydown',e=>{if(e.key==='Escape' && document.getElementById('graphFullScreen')?.style.display==='flex')closeGraphFullScreen();});

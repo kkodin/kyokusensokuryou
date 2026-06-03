@@ -160,21 +160,24 @@ summary{cursor:pointer;font-weight:bold;color:#0055a4}
 .fullscreen-graph canvas{flex:1; width:100%; height:calc(100vh - 42px); border:0; border-radius:0; cursor:grab;}
 .fullscreen-graph canvas:active{cursor:grabbing;}
 #graphStage{position:relative}
-.graph-measure-table{position:absolute;right:18px;top:74px;z-index:20;width:min(620px,calc(100% - 36px));max-width:calc(100% - 36px);background:rgba(255,255,255,.96);border:1px solid #94a3b8;border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.18);overflow:hidden;color:#0f172a}
-.graph-measure-table .graph-table-title{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#0f172a;color:#fff;padding:8px 10px;font-weight:bold;cursor:move;user-select:none}
-.graph-measure-table .graph-table-title span:last-child{font-size:12px;font-weight:normal;opacity:.8}
+.graph-measure-table{position:absolute;right:18px;top:74px;z-index:20;width:max-content;min-width:0;max-width:calc(100% - 36px);background:rgba(255,255,255,.96);border:1px solid #94a3b8;border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.18);overflow:hidden;color:#0f172a}
+.graph-measure-table.collapsed{width:max-content;min-width:180px}
+.graph-measure-table .graph-table-title{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#0f172a;color:#fff;padding:7px 8px;font-weight:bold;cursor:move;user-select:none}
+.graph-measure-table .graph-table-actions{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:normal;opacity:.95;white-space:nowrap}
+.graph-measure-table .graph-table-toggle{border:1px solid rgba(255,255,255,.4);background:#334155;color:#fff;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:bold;cursor:pointer}
 .graph-measure-table .graph-table-body{max-height:280px;overflow:auto}
-.graph-measure-table table{margin:0;font-size:12px;white-space:nowrap}
+.graph-measure-table.collapsed .graph-table-body{display:none}
+.graph-measure-table table{display:table;margin:0;font-size:12px;white-space:nowrap;width:auto;min-width:0;table-layout:auto}
 .graph-measure-table th,.graph-measure-table td{padding:5px 7px;border-color:#dbe3ee}
 .graph-measure-table th{background:#334155;color:#fff;position:sticky;top:0}
 .graph-measure-table .pred-row td{background:#fff7ed;color:#9a3412;font-weight:bold}
-.fullscreen-graph .graph-measure-table{position:absolute;right:18px;top:58px;width:min(680px,calc(100vw - 36px));max-height:55vh}
+.fullscreen-graph .graph-measure-table{position:absolute;right:18px;top:58px;width:max-content;max-width:calc(100vw - 36px);max-height:55vh}
 @media(max-width:700px){
-  .graph-measure-table{left:8px;right:auto;top:54px;width:calc(100% - 16px);max-width:calc(100% - 16px)}
+  .graph-measure-table{left:8px;right:auto;top:54px;width:max-content;max-width:calc(100% - 16px)}
   .graph-measure-table .graph-table-body{max-height:210px}
   .graph-measure-table table{font-size:11px}
   .graph-measure-table th,.graph-measure-table td{padding:4px 5px}
-  .fullscreen-graph .graph-measure-table{left:8px;right:auto;top:88px;width:calc(100vw - 16px)}
+  .fullscreen-graph .graph-measure-table{left:8px;right:auto;top:88px;width:max-content;max-width:calc(100vw - 16px)}
 }
 .modal{
   position:fixed; inset:0; z-index:10000; background:rgba(15,23,42,.55);
@@ -614,6 +617,7 @@ function updateToleranceDisplay(){const dia=nval('pipeDiaMm',1350), pct=nval('in
 function rankText(mm){updateToleranceDisplay();const ok=nval('tolOk',80), warn=nval('tolWarn',100); return mm<=ok?'OK':(mm<=warn?'注意':'NG')}
 function rankClass(rank){return rank==='OK'?'ok':(rank==='注意'?'warn':'ng')}
 let project={}, geom=null, tpPoints=[], kpPoints=[], results=[], autoCalcTimer=null, isBuildingRows=false, undoStack=[], redoStack=[], focusedBeforeValue=null, activeSourceInput=null, syncingFocusEditor=false, measurementHistory=[], historyChecks={};
+const graphMeasureTableCollapsed={};
 
 function sampleGeometry(){
   const R=40, IA=degToRad(dmsToDeg(56,31,20)), TL=R*Math.tan(IA/2), CL=R*IA, SL=R*(1/Math.cos(IA/2)-1);
@@ -1576,7 +1580,9 @@ function renderGraphMeasureTable(id){
   const pred=window.latestPrediction, pj=window.latestPredictionJudge;
   if(pred&&pj)rows.push(graphMeasureRowHtml('予測',pred,pj,'pred-row'));
   results.forEach(r=>rows.push(graphMeasureRowHtml(r.name,r,r,'')));
-  el.innerHTML='<div class="graph-table-title" data-drag-table-handle><span>'+esc(graphMeasurementTitle())+'</span><span>ドラッグで移動</span></div>'+
+  const collapsed=!!graphMeasureTableCollapsed[id];
+  el.classList.toggle('collapsed',collapsed);
+  el.innerHTML='<div class="graph-table-title" data-drag-table-handle><span>'+esc(graphMeasurementTitle())+'</span><span class="graph-table-actions"><span>ドラッグで移動</span><button type="button" class="graph-table-toggle" data-graph-table-toggle="'+esc(id)+'">'+(collapsed?'元に戻す':'折りたたむ')+'</button></span></div>'+
     '<div class="graph-table-body"><table><thead><tr><th>点名</th><th>計画X</th><th>計画Y</th><th>実測X</th><th>実測Y</th><th>誤差</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
   el.style.display='block';
   ensureGraphTablePosition(el);
@@ -1591,7 +1597,17 @@ function ensureGraphTablePosition(el){
 }
 function initGraphTableDrag(){
   let drag=null;
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-graph-table-toggle]');
+    if(!btn)return;
+    const id=btn.dataset.graphTableToggle;
+    graphMeasureTableCollapsed[id]=!graphMeasureTableCollapsed[id];
+    renderGraphMeasureTable(id);
+    e.preventDefault();
+    e.stopPropagation();
+  },true);
   document.addEventListener('pointerdown',e=>{
+    if(e.target.closest('[data-graph-table-toggle]'))return;
     const handle=e.target.closest('[data-drag-table-handle]');
     if(!handle)return;
     const box=handle.closest('.graph-measure-table');
@@ -2276,6 +2292,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   loadProjectFromStorage();
   if(!geom){geom=sampleGeometry();renderDebug();calculateAll(false)}
   installMovableGraphLabels();
+  initGraphTableDrag();
   updateSideInfo();
   renderHistoryList();
 });
