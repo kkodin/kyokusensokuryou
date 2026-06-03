@@ -1184,6 +1184,7 @@ function calculateAll(showAlert=true){
   if(!geom){geom=sampleGeometry(); document.getElementById('info').innerHTML='確認用サンプル基線で計算中です。必要に応じて基線JSONを読み込んでください。'; renderDebug();}
   calculateTraverse();
   results=kpPoints.map(judgePoint);
+  updatePredictions();
   renderSummary();
   renderTable();
   renderProcess();
@@ -1194,23 +1195,21 @@ function calculateAll(showAlert=true){
 function renderSummary(){
   const box=document.getElementById('summaryCards');
   if(!results.length){box.innerHTML='<p class="note">KPがありません。</p>';return}
-  let cards=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(r.short||((r.side||'')+' '+fmt(r.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div><div class="note coord-note"><div>測定 X=${fmt(r.x,3)} / Y=${fmt(r.y,3)}</div><div>計画 X=${fmt(r.foot?.x,3)} / Y=${fmt(r.foot?.y,3)}</div></div></div>`).join('');
   const pj=window.latestPredictionJudge;
-  if(pj){
-    cards += `<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(pj.short||((pj.side||'')+' '+fmt(pj.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note coord-note"><div>予測 X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div><div>計画 X=${fmt(pj.foot?.x,3)} / Y=${fmt(pj.foot?.y,3)}</div></div></div>`;
-  }
+  let cards=pj?`<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(pj.short||((pj.side||'')+' '+fmt(pj.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note coord-note"><div>予測 X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div><div>計画 X=${fmt(pj.foot?.x,3)} / Y=${fmt(pj.foot?.y,3)}</div></div></div>`:'';
+  cards+=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(r.short||((r.side||'')+' '+fmt(r.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div><div class="note coord-note"><div>測定 X=${fmt(r.x,3)} / Y=${fmt(r.y,3)}</div><div>計画 X=${fmt(r.foot?.x,3)} / Y=${fmt(r.foot?.y,3)}</div></div></div>`).join('');
   box.innerHTML=cards;
 }
 function renderTable(){
   let h=`<p class="note mono">${esc(inputSnapshotText())}</p>`;
   h+='<table><tr><th>KP</th><th>役割</th><th>X</th><th>Y</th><th>位置</th><th>RO-測点距離</th><th>Rとの差</th><th>計画X</th><th>計画Y</th><th>左右誤差</th><th>判定</th></tr>';
-  results.forEach(r=>{
-    h+=`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.role||'')}</td><td class="mono">${fmt(r.x,3)}</td><td class="mono">${fmt(r.y,3)}</td><td>${esc(r.sectionName)}</td><td class="mono">${r.roDist?fmt(r.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(r.radialMm)?fmt(r.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(r.foot.x,3)}</td><td class="mono">${fmt(r.foot.y,3)}</td><td><b>${esc(r.short||fmt(r.errorMm,1)+' mm')}</b></td><td><span class="pill ${rankClass(r.rank)}">${r.rank}</span></td></tr>`;
-  });
   const pj=window.latestPredictionJudge;
   if(pj){
     h+=`<tr style="background:#fff7ed"><td><b>次回予測</b></td><td>予測</td><td class="mono">${fmt(pj.x,3)}</td><td class="mono">${fmt(pj.y,3)}</td><td>${esc(pj.sectionName)}</td><td class="mono">${pj.roDist?fmt(pj.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(pj.foot.x,3)}</td><td class="mono">${fmt(pj.foot.y,3)}</td><td><b>${esc(pj.short||fmt(pj.errorMm,1)+' mm')}</b></td><td><span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></td></tr>`;
   }
+  results.forEach(r=>{
+    h+=`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.role||'')}</td><td class="mono">${fmt(r.x,3)}</td><td class="mono">${fmt(r.y,3)}</td><td>${esc(r.sectionName)}</td><td class="mono">${r.roDist?fmt(r.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(r.radialMm)?fmt(r.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(r.foot.x,3)}</td><td class="mono">${fmt(r.foot.y,3)}</td><td><b>${esc(r.short||fmt(r.errorMm,1)+' mm')}</b></td><td><span class="pill ${rankClass(r.rank)}">${r.rank}</span></td></tr>`;
+  });
   h+='</table>';
   document.getElementById('resultTable').innerHTML=h;
 }
@@ -1499,12 +1498,17 @@ function updatePredictions(){
     pred={name:'次回予測',role:'予測',kind:'PRED',x:kp1.x+len*Math.cos(az),y:kp1.y+len*Math.sin(az),az:az,bend:0,method:'先頭管方向'};
   }
 
+  results.forEach(r=>{delete r.pred});
   if(pred){
     const pj=judgePoint(pred);
     pred.judge=pj;
-    if(results[0])results[0].pred=pred;
+    const kp1Result=results.find(r=>r.name==='KP1')||results.find(r=>!isPredictionPoint(r));
+    if(kp1Result)kp1Result.pred=pred;
     window.latestPrediction=pred;
     window.latestPredictionJudge=pj;
+  }else{
+    window.latestPrediction=null;
+    window.latestPredictionJudge=null;
   }
 }
 
@@ -1641,8 +1645,11 @@ function drawAll(){
   drawCanvas('overviewCanvas',false);
   drawCanvas('zoomCanvas',true);
 }
+function isPredictionPoint(p){
+  return p?.kind==='PRED' || /予測|莠域/.test(String(p?.name||p?.role||''));
+}
 function drawKpActualLine(ctx,toS,pts,W,H){
-  const arr=(pts||[]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).map(p=>({p,s:toS(p.x,p.y)}));
+  const arr=(pts||[]).filter(p=>!isPredictionPoint(p)&&Number.isFinite(p.x)&&Number.isFinite(p.y)).map(p=>({p,s:toS(p.x,p.y)}));
   if(!arr.length)return;
   ctx.save();
   if(arr.length>=2){
@@ -1660,6 +1667,37 @@ function drawKpActualLine(ctx,toS,pts,W,H){
     ctx.fillStyle='#4c1d95';ctx.fillText(label,lx,ly);
   });
   ctx.restore();
+}
+
+function drawPredictionGuide(ctx,toS,W,H,canvasId,fontPx){
+  const pred=window.latestPrediction;
+  const kp1=results.find(p=>!isPredictionPoint(p)&&p.name==='KP1')||results.find(p=>!isPredictionPoint(p));
+  if(!pred||!kp1)return;
+  const sp=toS(kp1.x,kp1.y), pp=toS(pred.x,pred.y);
+  const in1=sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H;
+  const in2=pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H;
+  if(in1&&in2){
+    ctx.save();
+    ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([7,5]);
+    ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
+    ctx.restore();
+  }
+  if(in2){
+    ctx.save();
+    ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(pp.x,pp.y,canvasId==='fsCanvas'?6:5,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#dc2626';
+    if(typeof setGraphFont==='function'){
+      const fs=setGraphFont(ctx,fontPx||12,true);
+      const pj=window.latestPredictionJudge;
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+fs*.7,pp.y-fs*.7,W,H,'#dc2626');
+    }else{
+      ctx.font=(fontPx||12)+'px Meiryo';
+      const pj=window.latestPredictionJudge;
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
+    }
+    ctx.restore();
+  }
 }
 
 function historyLabelLines(p){
@@ -1754,20 +1792,14 @@ function drawCanvas(id,zoom){
   }else{
     // 拡大図はKP1〜KP最終と予測箇所が見える範囲だけ。
     drawPointNameLabels(ctx,vp.toS,true,W,H);
-    results.forEach((r,i)=>{
+    results.filter(r=>!isPredictionPoint(r)).forEach((r,i)=>{
       const sp=dot(r,'#7c3aed','');
       const sf=vp.toS(r.foot.x,r.foot.y);
       if(sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H&&sf.x>=0&&sf.x<=W&&sf.y>=0&&sf.y<=H){
         ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
       }
-      if(r.pred){
-        const pp=vp.toS(r.pred.x,r.pred.y);
-        if(pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H){
-          ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
-          ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#dc2626';ctx.font='12px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,id,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
-        }
-      }
     });
+    drawPredictionGuide(ctx,vp.toS,W,H,id,12);
     drawNextPointInfo(ctx,vp.toS,W,H);
   }
 }
@@ -1822,17 +1854,12 @@ function drawFullScreenGraph(){
     results.forEach(r=>dot(r,'#7c3aed',''));
   }else{
     drawPointNameLabels(ctx,toS,true,W,H);
-    results.forEach((r,i)=>{
+    results.filter(r=>!isPredictionPoint(r)).forEach((r,i)=>{
       const sp=dot(r,'#7c3aed','');
       const sf=toS(r.foot.x,r.foot.y);
       ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
-      if(r.pred){
-        const pp=toS(r.pred.x,r.pred.y);
-        ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(pp.x,pp.y);ctx.stroke();
-        ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.fill();ctx.stroke();
-        ctx.fillStyle='#dc2626';ctx.font='14px Meiryo';const pj=window.latestPredictionJudge; drawMovableLabel(ctx,'fsCanvas','prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+10,pp.y-10,W,H,'#dc2626');
-      }
     });
+    drawPredictionGuide(ctx,toS,W,H,'fsCanvas',14);
     drawNextPointInfo(ctx,toS,W,H);
   }
 }
