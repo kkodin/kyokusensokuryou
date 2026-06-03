@@ -432,4 +432,224 @@ function openPage(file){
     };
   }
 })();
-</script></body></html>
+</script>
+<!-- Vr015 PC flow cleanup -->
+<script>
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function q(sel,root=document){return root.querySelector(sel)}
+  function qa(sel,root=document){return [...root.querySelectorAll(sel)]}
+
+  function setText(el,text){if(el)el.textContent=text}
+  function setHtml(el,html){if(el)el.innerHTML=html}
+
+  function ensurePcFlowStyle(){
+    if(byId('vr015PcFlowStyle'))return;
+    const style=document.createElement('style');
+    style.id='vr015PcFlowStyle';
+    style.textContent=[
+      'body.base-ready #baseForm{min-width:0}',
+      'body.base-ready #baseForm > .card{max-width:none}',
+      '.vr015-data-actions{display:grid;gap:8px;margin:0 0 12px}',
+      '.vr015-data-actions button{width:100%;text-align:left}',
+      '.vr015-save-note{font-size:12px;line-height:1.55;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;margin-top:8px}',
+      '.wizard-actions button.ok{min-width:190px}',
+      '.choice-card .note b{color:#0f172a}',
+      '#finalStageCard{display:block}',
+      'body.basic-wizard-active #finalStageCard{display:none!important}',
+      '.vr015-hidden-native-save{display:none!important}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function relabelStartMenu(){
+    const start=byId('startMenu');
+    if(!start)return;
+    setText(start.querySelector('h2'),'基線データの選択');
+    const note=start.querySelector('p.note');
+    if(note)note.textContent='最後に使った現場統合データを使うか、保存済みJSONを読み込むか、新規入力を始めるかを選んでください。';
+    const cards=qa('.choice-card',start);
+    const current=cards[0], load=cards[1], fresh=cards[2];
+    if(current){
+      setText(current.querySelector('h3'),'この現場データで作業を続ける');
+      const p=current.querySelector('p.note');
+      if(p)p.textContent='ブラウザに保存されている現場名・スパン名・基線・測量履歴で作業を続けます。';
+      setText(current.querySelector('button'),'この現場データで作業を続ける');
+    }
+    if(load){
+      setText(load.querySelector('h3'),'現場統合データを読み込む');
+      const p=load.querySelector('p.note');
+      if(p)p.textContent='基本情報・基線・測量履歴を含むJSONファイルを読み込んで作業します。';
+      setText(load.querySelector('button'),'現場統合データを読み込む');
+    }
+    if(fresh){
+      setText(fresh.querySelector('h3'),'新規入力を始める');
+      const p=fresh.querySelector('p.note');
+      if(p)p.textContent='新しい現場データを作成します。測量履歴は空の状態から始まります。';
+      setText(fresh.querySelector('button'),'新規入力を始める');
+    }
+  }
+
+  function relabelCurrentBase(){
+    const previous=window.renderCurrentBase;
+    window.renderCurrentBase=function(){
+      if(typeof previous==='function')previous.apply(this,arguments);
+      const box=byId('currentBaseInfo');
+      if(!box)return;
+      if(box.classList.contains('empty')){
+        box.innerHTML='<b>ブラウザに保存されている現場統合データはありません</b><span class="note">現場統合データを読み込むか、新規入力を始めてください。</span>';
+      }else{
+        const p=window.getProject?.();
+        if(!p)return;
+        const m=Array.isArray(p.measurements)?p.measurements.length:0;
+        const saved=p.savedAt?new Date(p.savedAt).toLocaleString():'-';
+        box.innerHTML='<b>現在の現場統合データ</b>'+
+          '<div>現場名: '+(p.site?.name||'-')+'</div>'+
+          '<div>スパン名: '+(p.site?.span||'-')+'</div>'+
+          '<div>入力日: '+(p.site?.date||'-')+'</div>'+
+          '<div>測量履歴: '+m+'件</div>'+
+          '<div>保存日時: '+saved+'</div>';
+      }
+    };
+    window.renderCurrentBase();
+  }
+
+  function ensureWorkMenuDataActions(){
+    const menu=byId('workMenu');
+    if(!menu || byId('vr015DataActions'))return;
+    const box=document.createElement('div');
+    box.id='vr015DataActions';
+    box.className='vr015-data-actions';
+    box.innerHTML='<button type="button" class="ok" onclick="saveProject()">現場統合データを保存</button>'+
+      '<button type="button" class="secondary" onclick="chooseBaseFile()">現場統合データを読み込む</button>'+
+      '<div class="vr015-save-note">保存JSONには、基本情報・基線データ・測量履歴が含まれます。ブラウザ内にも自動保存されています。</div>';
+    const grid=menu.querySelector('.work-grid');
+    menu.insertBefore(box,grid||menu.firstChild);
+  }
+
+  function relabelWorkMenu(){
+    const menu=byId('workMenu');
+    if(!menu)return;
+    setText(menu.querySelector('h2'),'作業メニュー');
+    const note=menu.querySelector('.menu-note');
+    if(note)note.textContent='左で作業を選ぶと、右側にページを表示します。';
+    const labels=[
+      '1. 基本データを確認・修正',
+      '2. 基線の計算結果',
+      '3. ビジュアルグラフ表示',
+      '4. 測量結果入力',
+      '5. 目地開き判定',
+      '6. 推力計算'
+    ];
+    qa('.work-grid button',menu).forEach((btn,i)=>{if(labels[i])btn.textContent=labels[i]});
+    ensureWorkMenuDataActions();
+  }
+
+  function relabelWizardCards(){
+    const titles={
+      site:'現場情報',
+      soil:'土質条件',
+      pipe:'推進管仕様',
+      alignment:'測量基準・平面線形'
+    };
+    for(const [stage,title] of Object.entries(titles)){
+      const card=q('.wizard-card[data-stage="'+stage+'"]');
+      setText(card?.querySelector('h2'),title);
+    }
+    const site=byId('siteStageCard');
+    const soil=byId('soilStageCard');
+    const pipe=byId('pipeStageCard');
+    const align=byId('alignmentStageCard');
+    if(site){
+      const actions=site.querySelector('.wizard-actions');
+      if(actions)actions.innerHTML='<button class="ok" type="button" onclick="completeSiteStage()">次へ：土質条件へ</button>';
+      const status=byId('saveStatus');
+      if(status)status.textContent='入力内容はブラウザ内に自動保存されます。';
+    }
+    if(soil){
+      const actions=soil.querySelector('.wizard-actions');
+      if(actions)actions.innerHTML='<button class="secondary" type="button" onclick="showWizardStage(\'site\')">戻る：現場情報へ</button><button class="ok" type="button" onclick="completeSoilStage()">次へ：推進管仕様へ</button>';
+    }
+    if(pipe){
+      const actions=pipe.querySelector('.wizard-actions');
+      if(actions)actions.innerHTML='<button class="secondary" type="button" onclick="showWizardStage(\'soil\')">戻る：土質条件へ</button><button class="ok" type="button" onclick="completePipeStage()">次へ：測量基準へ</button>';
+    }
+    if(align){
+      const actions=align.querySelector('.wizard-actions');
+      if(actions)actions.innerHTML='<button class="secondary" type="button" onclick="showWizardStage(\'pipe\')">戻る：推進管仕様へ</button><button class="ok" type="button" onclick="completeAlignmentStage()">入力を完了して作業メニューへ</button>';
+    }
+  }
+
+  function simplifyFinalActions(){
+    const final=byId('finalStageCard') || q('#baseForm > .card.toolbar');
+    if(!final)return;
+    final.id='finalStageCard';
+    final.dataset.stage='final';
+    final.classList.add('wizard-card');
+    final.innerHTML='<button class="ok" type="button" onclick="saveProject()">現場統合データを保存</button>'+
+      '<button class="secondary" type="button" onclick="showWorkMenu(false)">作業メニューへ戻る</button>'+
+      '<div class="vr015-save-note">保存JSONには基本情報・基線データ・測量履歴が含まれます。通常の移動時はブラウザ内に自動保存されます。</div>';
+  }
+
+  function overrideSaveFlow(){
+    window.saveProject=function(){
+      const p=window.saveCurrentBase?.(true);
+      if(p)window.showSaveStatus?.('現場統合データを保存しました。測量履歴がある場合はJSONに含まれます。');
+      return p;
+    };
+    window.saveWithPrompt=function(){
+      if(!window.validateRequired?.())return null;
+      const p=window.saveDraftNow?.();
+      window.showSaveStatus?.('ブラウザ内に自動保存しました: '+new Date().toLocaleTimeString());
+      return p;
+    };
+    window.completeSiteStage=function(){
+      if(!window.validateSiteStage?.())return;
+      window.saveWithPrompt();
+      window.showWizardStage('soil');
+    };
+    window.completeSoilStage=function(){
+      window.saveWithPrompt();
+      window.showWizardStage('pipe');
+    };
+    window.completePipeStage=function(){
+      window.saveWithPrompt();
+      window.showWizardStage('alignment');
+    };
+    window.completeAlignmentStage=function(){
+      window.saveWithPrompt();
+      document.body.classList.remove('basic-wizard-active');
+      qa('.wizard-card').forEach(c=>c.classList.remove('wizard-step-hidden'));
+      window.showWorkMenu?.(false);
+    };
+  }
+
+  function overrideLoadLabels(){
+    const previousLoad=window.loadProjectFile;
+    if(typeof previousLoad==='function'){
+      window.loadProjectFile=function(input,cb){
+        return previousLoad.call(this,input,function(obj){
+          if(typeof cb==='function')cb(obj);
+          relabelStartMenu();
+          relabelWorkMenu();
+          window.renderCurrentBase?.();
+        });
+      };
+    }
+  }
+
+  function relabelPage(){
+    ensurePcFlowStyle();
+    relabelStartMenu();
+    relabelCurrentBase();
+    relabelWorkMenu();
+    relabelWizardCards();
+    simplifyFinalActions();
+  }
+
+  overrideSaveFlow();
+  overrideLoadLabels();
+  relabelPage();
+})();
+</script>
+</body></html>
