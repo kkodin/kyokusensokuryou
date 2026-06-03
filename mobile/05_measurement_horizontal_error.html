@@ -2245,8 +2245,8 @@ function makeMeasurementCsv(data){
   add(['計算結果']);
   add(['KP','役割','X','Y','位置','RO-測点距離(m)','Rとの差(mm)','計画X','計画Y','左右誤差','判定']);
   const pj=window.latestPredictionJudge;
-  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
-  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
+  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
+  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
   return '\ufeff'+rows.join('\r\n');
 }
 function measurementCsvFileName(data){
@@ -2284,10 +2284,10 @@ function makeMeasurementExcelText(data){
   (data.kpRows||[]).forEach(r=>add([r.name,r.role,r.dist,r.deg,r.min,r.sec]));
   add([]);
   add(['SECTION','RESULT']);
-  add(['name','role','x','y','position','roDist_m','diff_mm','planX','planY','display','judge']);
+  add(['name','role','x','y','position','roDist_m','diff_mm','side','planX','planY','display','judge']);
   const pj=window.latestPredictionJudge;
-  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
-  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
+  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
+  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
   return rows.join('\r\n');
 }
 function parseCsvText(text){
