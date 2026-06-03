@@ -19,6 +19,11 @@ body.touch-nav canvas#cv{touch-action:none}
 .touch-print-controls.show{display:flex}
 .touch-print-controls button{flex:1;min-height:42px}
 .touch-print-controls .note{color:#e2e8f0;font-weight:bold}
+.print-scale-panel{display:none;position:fixed;left:12px;bottom:12px;z-index:46;background:rgba(255,255,255,.96);border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;box-shadow:0 -8px 24px rgba(15,23,42,.18);min-width:340px;max-width:calc(100vw - 24px)}
+.print-scale-panel.show{display:grid;grid-template-columns:auto 110px 1fr auto;gap:8px;align-items:center}
+.print-scale-panel label{font-weight:bold;white-space:nowrap}
+.print-scale-panel select,.print-scale-panel input[type="range"]{width:100%;border:1px solid #b8c0cc;border-radius:6px;padding:6px;background:#fff}
+.print-scale-panel .scale-readout{font-weight:bold;color:#be123c;white-space:nowrap}
 @media print{#bar,#editPanel,#printModal,.modal,.previewTop{display:none!important}html,body{margin:0!important;padding:0!important;overflow:hidden!important;background:#fff}#cv{display:none!important}#previewPane{display:block!important;position:static!important;background:#fff!important;padding:0!important;margin:0!important;overflow:hidden!important}.previewGrid{display:block!important;margin:0!important;padding:0!important;gap:0!important}.pageCard{box-shadow:none!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;overflow:hidden!important;page-break-after:always;break-after:page}.pageCard:last-child{page-break-after:auto;break-after:auto}.pageCard h4{display:none!important}.pageCard canvas{border:0!important;display:block!important;margin:auto!important;padding:0!important;max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important}#previewPane.single-preview .pageCard{page-break-after:auto!important;break-after:auto!important}@page{size:A4 landscape;margin:0}}
 
 /* Vr005: ビジュアル表示の操作は左ハンバーガーメニューへ集約 */
@@ -298,6 +303,7 @@ body:not(.edit-mode-active) .section-edit-menu button:not(#btnEdit){display:none
     <h3>ラベル編集</h3>
     <button id="btnEdit" class="secondary" type="button" onclick="menuAction(()=>toggleEditMode())">編集</button><button class="secondary" type="button" onclick="menuAction(()=>closeEditMode())">戻る</button>
     <div class="mini-grid"><button class="secondary" type="button" onclick="menuAction(()=>selectAllLabels())">全選択</button><button class="secondary" type="button" onclick="menuAction(()=>{clearSelection();syncPanel();draw();})">解除</button></div>
+    <button class="ok" type="button" onclick="menuAction(()=>saveVisualLabelState(true))">ラベル位置を保存</button>
     <button class="secondary" type="button" onclick="menuAction(()=>resetObjects())">リセット</button>
   </div>
   <div class="visual-menu-section section-main section-output">
@@ -321,7 +327,7 @@ body:not(.edit-mode-active) .section-edit-menu button:not(#btnEdit){display:none
   <div class="panelRow"><label>枠線色</label><input id="strokeColorCtl" type="color" value="#334155" oninput="applySelectedStyle()" onchange="applySelectedStyle()"></div>
   <div class="panelRow"><label>回転</label><input id="rotateCtl" type="range" min="-180" max="180" step="1" value="0" oninput="applySelectedStyle()"></div>
   <div class="panelRow"><label>引出し線</label><select id="leaderCtl" onchange="applySelectedStyle()"><option value="show">表示</option><option value="hide">非表示</option></select></div>
-  <div class="btns"><button class="secondary" onclick="resetSelected()">選択物リセット</button></div>
+  <div class="btns"><button class="secondary" onclick="resetSelected()">選択物リセット</button><button class="ok" onclick="saveVisualLabelState(true)">保存</button></div>
   <div class="hint">座標・寸法・諸元をクリックして選択し、ドラッグで移動できます。タブレット・スマホではタップで選択追加、選択済みをタップで解除できます。PCではCTRL+クリックでも複数選択できます。ダブルクリックで文字を自由編集できます。</div>
 </div>
 <div id="printModal" class="modal"><div class="modalBox">
@@ -329,7 +335,9 @@ body:not(.edit-mode-active) .section-edit-menu button:not(#btnEdit){display:none
   <div class="row"><label>用紙サイズ</label><select id="paperSize"><option value="A4">A4</option><option value="A3">A3</option></select></div>
   <div class="row"><label>向き</label><select id="paperOri"><option value="landscape">横</option><option value="portrait">縦</option></select></div>
   <div class="row"><label>分割数</label><input id="paperCount" type="number" min="1" max="20" value="4"></div>
-  <p class="note">決定後、用紙枠がマウスに追従します。ホイールで図面を拡大縮小、中ボタンドラッグで図面移動、左クリックで範囲を確定します。ESCで範囲指定を終了します。</p>
+  <div class="row"><label>縮尺</label><select id="printScaleSelect" onchange="setPrintScaleFromSelect()"></select></div>
+  <div class="row"><label>縮尺スライダー</label><input id="printScaleRange" type="range" min="0" max="0" value="0" oninput="setPrintScaleFromRange()"></div>
+  <p class="note">決定後、用紙枠が表示されます。中ボタンドラッグで枠を移動、縮尺は画面下のスライダーまたは1/1形式の選択で変更、左クリックで範囲を確定します。ESCで範囲指定を終了します。</p>
   <div class="btns"><button class="secondary" onclick="closePrintConfig()">キャンセル</button><button class="warn" onclick="startPrintSelect()">範囲指定開始</button></div>
 </div></div>
 
@@ -341,11 +349,42 @@ body:not(.edit-mode-active) .section-edit-menu button:not(#btnEdit){display:none
   <div class="btns"><button class="secondary" onclick="closeSinglePrintConfig()">キャンセル</button><button class="warn" style="background:#0f766e" onclick="startSingleAreaSelect()">範囲選択開始</button></div>
 </div></div>
 <div id="previewPane"><div class="previewTop"><button class="secondary" onclick="closePreview()">ビジュアル表示へ戻る</button><button class="ok" onclick="window.print()">印刷</button><span class="note" id="previewInfo"></span></div><div id="previewGrid" class="previewGrid"></div></div><div id="printTouchControls" class="touch-print-controls"><span class="note" id="printTouchHint">枠を移動して確定</span><button class="ok" onclick="confirmPrintTouch()">この範囲を確定</button><button class="secondary" onclick="finishPrintTouch()">終了</button></div>
+<div id="printScalePanel" class="print-scale-panel"><label>分割印刷 縮尺</label><select id="printScaleSelectLive" onchange="setPrintScaleFromSelect(true)"></select><input id="printScaleRangeLive" type="range" min="0" max="0" value="0" oninput="setPrintScaleFromRange(true)"><span id="printScaleReadout" class="scale-readout">1/100</span></div>
 <script>
 const HUME_T={250:55,300:57,350:60,400:63,450:67,500:70,600:76,700:82,800:80,900:90,1000:100,1100:105,1200:115,1350:125,1500:140,1650:150,1800:160,2000:175,2200:190,2400:205,2600:220,2800:235,3000:250};
 function n(id,def=0){const el=document.getElementById(id); const v=el?parseFloat(String(el.value).replace(',','')):NaN; return Number.isFinite(v)?v:def;}function v(id,def=''){const el=document.getElementById(id);return el?el.value:def}function set(id,val){const el=document.getElementById(id); if(el) el.value=val}function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}function dmsToDeg(d,m,s){return (+d||0)+(+m||0)/60+(+s||0)/3600}function degToDmsText(deg){const sign=deg<0?'-':'';let a=Math.abs(deg);let d=Math.floor(a);let mf=(a-d)*60;let m=Math.floor(mf);let sec=(mf-m)*60;return `${sign}${d}°${m}′${sec.toFixed(0)}″`}function fmt(x,d=3){return (Number.isFinite(+x)?+x:0).toFixed(d)}function safeName(s){return (s||'現場').replace(/[\\/:*?"<>|\s]+/g,'_')}
 function loadProjectFile(input,cb){const f=input.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{try{const obj=JSON.parse(r.result); localStorage.setItem('curvedJackingProject',JSON.stringify(obj)); cb&&cb(obj)}catch(e){alert('JSON読込に失敗しました: '+e.message)}}; r.readAsText(f,'utf-8')}
 let touchNavMode=false,touchState=null,editPanelDrag=null;
+const PRINT_SCALE_DENOMS=[1,5,10,20,30,40,50,60,80,100,150,200,300,400,500,1000];
+let labelDirty=false,printFrameDrag=false,printScaleDenom=100;
+function cloneObj(obj){return JSON.parse(JSON.stringify(obj||{}))}
+function markLabelDirty(){labelDirty=true;showStatus('ラベル編集が未保存です。')}
+function projectFileName(p){const site=safeName(p?.site?.name||'現場');const span=safeName(p?.site?.span||'スパン');return `${site}_${span}_基線ビジュアル.json`}
+function downloadJSON(obj,fn){const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn||'project.json';a.click();URL.revokeObjectURL(a.href)}
+function saveVisualLabelState(download=true){
+  if(!project){alert('保存する基線データがありません。');return false}
+  project.visual=project.visual||{};
+  project.visual.labelState=cloneObj(labelState);
+  project.visual.savedAt=new Date().toISOString();
+  localStorage.setItem('curvedJackingProject',JSON.stringify(project));
+  labelDirty=false;
+  showStatus('ラベル編集を保存しました。');
+  if(download)downloadJSON(project,projectFileName(project));
+  return true;
+}
+function confirmSaveLabelEdits(){if(!labelDirty)return true;if(confirm('ラベル編集が未保存です。保存してから閉じますか？'))saveVisualLabelState(true);return true}
+function setupPrintScaleControls(){
+  const opts=PRINT_SCALE_DENOMS.map(v=>`<option value="${v}">1/${v}</option>`).join('');
+  ['printScaleSelect','printScaleSelectLive'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.options.length)el.innerHTML=opts;});
+  ['printScaleRange','printScaleRangeLive'].forEach(id=>{const el=document.getElementById(id);if(el){el.min=0;el.max=PRINT_SCALE_DENOMS.length-1;}});
+  syncPrintScaleControls();
+}
+function printPageMm(){const paper=printCfg?.paper||document.getElementById('paperSize')?.value||'A4';const ori=printCfg?.ori||document.getElementById('paperOri')?.value||'landscape';return pageCssSize(paper,ori)}
+function syncPrintScaleControls(){const idx=Math.max(0,PRINT_SCALE_DENOMS.indexOf(+printScaleDenom));['printScaleSelect','printScaleSelectLive'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=String(printScaleDenom);});['printScaleRange','printScaleRangeLive'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=idx;});const read=document.getElementById('printScaleReadout');if(read)read.textContent=`1/${printScaleDenom}`}
+function setPrintScaleFromSelect(live=false){const id=live?'printScaleSelectLive':'printScaleSelect';printScaleDenom=+document.getElementById(id)?.value||100;syncPrintScaleControls();updatePrintBoxFromScale(true)}
+function setPrintScaleFromRange(live=false){const id=live?'printScaleRangeLive':'printScaleRange';const i=+document.getElementById(id)?.value||0;printScaleDenom=PRINT_SCALE_DENOMS[Math.max(0,Math.min(PRINT_SCALE_DENOMS.length-1,i))]||100;syncPrintScaleControls();updatePrintBoxFromScale(true)}
+function updatePrintBoxFromScale(redraw=false){if(!printCfg)return;const mm=printPageMm();printCfg.boxW=Math.max(20,(mm.w*printScaleDenom/1000)*scale);printCfg.boxH=Math.max(20,(mm.h*printScaleDenom/1000)*scale);if(redraw&&printMode)draw()}
+function showPrintScalePanel(show){const panel=document.getElementById('printScalePanel');if(panel)panel.classList.toggle('show',!!show)}
 function isTouchDevice(){return (navigator.maxTouchPoints||0)>0 || matchMedia('(max-width:900px)').matches}
 function setTouchHint(msg){const el=document.getElementById('touchHint');if(el)el.textContent=msg||''}
 function openVisualMenu(){document.body.classList.add('visual-menu-open')}
@@ -440,6 +479,7 @@ function attachTouchHandlers(){
       const dx=t.clientX-labelTouch.lastX,dy=t.clientY-labelTouch.lastY;
       if(Math.abs(t.clientX-labelTouch.x)+Math.abs(t.clientY-labelTouch.y)>4)labelTouch.moved=true;
       selectedList().forEach(id=>{labelState[id].dx+=dx;labelState[id].dy+=dy;});
+      markLabelDirty();
       labelTouch.lastX=t.clientX;labelTouch.lastY=t.clientY;
       draw();
       return;
@@ -511,8 +551,8 @@ function clearSelection(){selectedIds.clear();selectedId=null}
 function selectSingle(id){selectedIds.clear(); if(id){selectedIds.add(id); selectedId=id}else selectedId=null}
 function toggleSelection(id){if(!id)return; if(selectedIds.has(id)){selectedIds.delete(id); if(selectedId===id)selectedId=selectedIds.size?[...selectedIds][selectedIds.size-1]:null}else{selectedIds.add(id); selectedId=id}}
 function selectedList(){return [...selectedIds].filter(id=>labelState[id])}
-function resetObjects(){if(confirm('座標・諸元・寸法ラベルの移動、色、回転、文字サイズを初期化しますか？')){labelState={};clearSelection();syncPanel();draw()}}
-function resetSelected(){const ids=selectedList(); if(!ids.length)return; ids.forEach(id=>delete labelState[id]); clearSelection(); syncPanel(); draw()}
+function resetObjects(){if(confirm('座標・諸元・寸法ラベルの移動、色、回転、文字サイズを初期化しますか？')){labelState={};clearSelection();markLabelDirty();syncPanel();draw()}}
+function resetSelected(){const ids=selectedList(); if(!ids.length)return; ids.forEach(id=>delete labelState[id]); markLabelDirty();clearSelection(); syncPanel(); draw()}
 function setEditMode(on){
   editMode=!!on;
   if(editMode&&touchNavMode)toggleTouchNav(false);
@@ -524,9 +564,9 @@ function setEditMode(on){
   clearSelection();syncPanel();draw();
 }
 function toggleEditMode(){setEditMode(!editMode)}
-function closeEditMode(){setEditMode(false)}
+function closeEditMode(){if(editMode)confirmSaveLabelEdits();setEditMode(false)}
 function syncPanel(){const box=document.getElementById('selectedName');const ids=selectedList();if(!ids.length){box.textContent='対象をタップまたはクリックしてください';return}const s=labelState[selectedId]||labelState[ids[0]];box.textContent=ids.length===1?ids[0]:`${ids.length}個選択中: ${ids.join(', ')}`;document.getElementById('fontSizeCtl').value=s.font;document.getElementById('textColorCtl').value=s.text||'#111827';document.getElementById('fillColorCtl').value=(s.fill&&s.fill!=='transparent')?s.fill:'#ffffff';document.getElementById('transparentCtl').value=(s.fill==='transparent')?'on':'off';document.getElementById('frameCtl').value=s.frame?'show':'hide';document.getElementById('strokeColorCtl').value=s.stroke||'#334155';document.getElementById('rotateCtl').value=s.rot;document.getElementById('leaderCtl').value=s.leader?'show':'hide'}
-function applySelectedStyle(){const ids=selectedList(); if(!ids.length)return; ids.forEach(id=>{const s=ensureState(id,labelState[id]?.type||'point');s.font=+document.getElementById('fontSizeCtl').value||12;s.text=document.getElementById('textColorCtl').value||'#111827';s.fill=document.getElementById('transparentCtl').value==='on'?'transparent':document.getElementById('fillColorCtl').value;s.frame=document.getElementById('frameCtl').value==='show';s.stroke=document.getElementById('strokeColorCtl').value||'#334155';s.rot=+document.getElementById('rotateCtl').value||0;s.leader=document.getElementById('leaderCtl').value==='show';});draw()}
+function applySelectedStyle(){const ids=selectedList(); if(!ids.length)return; ids.forEach(id=>{const s=ensureState(id,labelState[id]?.type||'point');s.font=+document.getElementById('fontSizeCtl').value||12;s.text=document.getElementById('textColorCtl').value||'#111827';s.fill=document.getElementById('transparentCtl').value==='on'?'transparent':document.getElementById('fillColorCtl').value;s.frame=document.getElementById('frameCtl').value==='show';s.stroke=document.getElementById('strokeColorCtl').value||'#334155';s.rot=+document.getElementById('rotateCtl').value||0;s.leader=document.getElementById('leaderCtl').value==='show';});markLabelDirty();draw()}
 function defaultProject(){return {version:'visual-fallback',site:{name:'サンプル',span:'確認用',date:''},pipe:{inner:1.35,outer:1.60,thickness:0.125,length:2.43,cushion:10,allowOpen:60},alignment:{baseAz:0,finalL:2.150,curves:[{L:39.471,dir:'L',R:40,deg:56,min:32,sec:14}]}}}
 function validateProject(p){return p&&p.alignment&&Array.isArray(p.alignment.curves)&&p.alignment.curves.length>=0}
 function loadVisualProject(p){
@@ -539,6 +579,8 @@ function loadVisualProject(p){
   }
   try{
     geom=calcGeometry(project);
+    labelState=cloneObj(project?.visual?.labelState||{});
+    labelDirty=false;
     resetView(false);
     draw();
   }catch(err){
@@ -606,8 +648,8 @@ if(printMode){drawPrintFrame(target)} if(singlePrintMode){drawSinglePrintRect(ta
 function draw(){if(!ctx)return;try{drawScene(ctx,cv.width,cv.height,scale,offX,offY,false)}catch(e){console.error(e);showStatus('描画中にエラーが発生しました: '+e.message)}}
 function hitTest(x,y){for(let i=rendered.length-1;i>=0;i--){const r=rendered[i];if(r.circle){const rr=Math.max(r.w,r.h)/2;if(Math.hypot(x-r.x,y-r.y)<=rr)return r}else if(x>=r.x-r.w/2&&x<=r.x+r.w/2&&y>=r.y-r.h/2&&y<=r.y+r.h/2)return r}return null}
 function paperPixels(){const size=document.getElementById('paperSize').value,ori=document.getElementById('paperOri').value;let w=size==='A3'?1587:1123,h=size==='A3'?1123:794;if(ori==='portrait')[w,h]=[h,w];return {w,h}}
-function openPrintConfig(){document.getElementById('printModal').classList.add('show')}function closePrintConfig(){document.getElementById('printModal').classList.remove('show')}function startPrintSelect(){const px=paperPixels();printCfg={paper:document.getElementById('paperSize').value,ori:document.getElementById('paperOri').value,count:Math.max(1,Math.min(20,+document.getElementById('paperCount').value||1)),w:px.w,h:px.h,current:1,boxW:0,boxH:0};const maxW=Math.min(cv.width*.72,760),maxH=Math.min(cv.height*.68,540),asp=px.w/px.h;if(maxW/maxH>asp){printCfg.boxH=maxH;printCfg.boxW=maxH*asp}else{printCfg.boxW=maxW;printCfg.boxH=maxW/asp}printFrames=[],singlePrintMode=false,singlePrintCfg={},singleDrag=false,singleStart={x:0,y:0},singleRect=null;printMode=true;cv.classList.add('print-select');closePrintConfig();showPrintTouchControls(isTouchDevice());setTouchHint('枠を1本指で移動し、「この範囲を確定」を押してください。');draw()}
-function cancelPrintSelect(){printMode=false;printFrames=[],singlePrintMode=false,singlePrintCfg={},singleDrag=false,singleStart={x:0,y:0},singleRect=null;cv.classList.remove('print-select');showPrintTouchControls(false);setTouchHint('');draw()}function drawPrintFrame(target){const x=mouse.x,y=mouse.y,w=printCfg.boxW,h=printCfg.boxH;target.save();target.strokeStyle='#e11d48';target.lineWidth=3;target.setLineDash([8,5]);target.strokeRect(x-w/2,y-h/2,w,h);target.setLineDash([]);target.fillStyle='rgba(225,29,72,.08)';target.fillRect(x-w/2,y-h/2,w,h);target.fillStyle='#e11d48';target.font='bold 28px Meiryo';target.textAlign='center';target.textBaseline='middle';target.fillText(`${printCfg.current}/${printCfg.count}`,x,y);target.font='13px Meiryo';target.fillText('左クリックでこの範囲を確定 / ESCで終了',x,y+h/2+22);target.restore()}
+function openPrintConfig(){setupPrintScaleControls();document.getElementById('printModal').classList.add('show')}function closePrintConfig(){document.getElementById('printModal').classList.remove('show')}function startPrintSelect(){const px=paperPixels();printCfg={paper:document.getElementById('paperSize').value,ori:document.getElementById('paperOri').value,count:Math.max(1,Math.min(20,+document.getElementById('paperCount').value||1)),w:px.w,h:px.h,current:1,boxW:0,boxH:0};updatePrintBoxFromScale(false);printFrames=[],singlePrintMode=false,singlePrintCfg={},singleDrag=false,singleStart={x:0,y:0},singleRect=null;printMode=true;printFrameDrag=false;cv.classList.add('print-select');closePrintConfig();showPrintTouchControls(isTouchDevice());showPrintScalePanel(true);syncPrintScaleControls();mouse={x:cv.width/2,y:cv.height/2};setTouchHint('中ボタンドラッグで枠を移動し、縮尺を選んでから範囲を確定してください。');draw()}
+function cancelPrintSelect(){printMode=false;printFrameDrag=false;printFrames=[],singlePrintMode=false,singlePrintCfg={},singleDrag=false,singleStart={x:0,y:0},singleRect=null;cv.classList.remove('print-select');showPrintTouchControls(false);showPrintScalePanel(false);setTouchHint('');draw()}function drawPrintFrame(target){const x=mouse.x,y=mouse.y,w=printCfg.boxW,h=printCfg.boxH;target.save();target.strokeStyle='#e11d48';target.lineWidth=3;target.setLineDash([8,5]);target.strokeRect(x-w/2,y-h/2,w,h);target.setLineDash([]);target.fillStyle='rgba(225,29,72,.08)';target.fillRect(x-w/2,y-h/2,w,h);target.fillStyle='#e11d48';target.font='bold 28px Meiryo';target.textAlign='center';target.textBaseline='middle';target.fillText(`${printCfg.current}/${printCfg.count}`,x,y);target.font='13px Meiryo';target.fillText(`縮尺 1/${printScaleDenom} / 中ボタンドラッグで枠移動 / 左クリックで確定`,x,y+h/2+22);target.restore()}
 function drawSinglePrintRect(target){
   if(!singlePrintMode||!singleRect)return;
   const r=normalizeRect(singleRect);
@@ -662,7 +704,7 @@ function printSingleAreaDirect(r){
   setTimeout(()=>window.print(),120);
 }
 function showSinglePrintPreview(r){printSingleAreaDirect(r)}
-function addPrintFrame(){printFrames.push({x:mouse.x,y:mouse.y,w:printCfg.boxW,h:printCfg.boxH,scale,offX,offY});if(printFrames.length>=printCfg.count){printMode=false;cv.classList.remove('print-select');showPrintTouchControls(false);setTouchHint('');draw();showPrintPreview()}else{printCfg.current=printFrames.length+1;setTouchHint(printCfg.current+'/'+printCfg.count+'枚目の枠を移動して確定してください。');draw()}}
+function addPrintFrame(){printFrames.push({x:mouse.x,y:mouse.y,w:printCfg.boxW,h:printCfg.boxH,scale,offX,offY,denom:printScaleDenom});if(printFrames.length>=printCfg.count){printMode=false;cv.classList.remove('print-select');showPrintTouchControls(false);showPrintScalePanel(false);setTouchHint('');draw();showPrintPreview()}else{printCfg.current=printFrames.length+1;setTouchHint(printCfg.current+'/'+printCfg.count+'枚目の枠を中ボタンドラッグで移動して確定してください。');draw()}}
 function showPrintPreview(){const pane=document.getElementById('previewPane'),grid=document.getElementById('previewGrid');clearPreviewPrintLayout();pane.classList.add('split-preview');setPreviewPrintLayout(printCfg.paper||'A4',printCfg.ori||'landscape',false);grid.innerHTML='';document.getElementById('previewInfo').textContent=`${printFrames.length}枚の印刷プレビュー（指定時と同じ見た目で切り出し）`;printFrames.forEach((fr,i)=>{const card=document.createElement('div');card.className='pageCard';const h=document.createElement('h4');h.textContent=`${i+1}/${printFrames.length}`;const c=document.createElement('canvas');c.width=printCfg.w;c.height=printCfg.h;card.appendChild(h);card.appendChild(c);grid.appendChild(card);const cx=c.getContext('2d');const screen=document.createElement('canvas');screen.width=cv.width;screen.height=cv.height;const sx=screen.getContext('2d');const oldPrint=printMode;printMode=false;drawScene(sx,screen.width,screen.height,fr.scale,fr.offX,fr.offY,true);printMode=oldPrint;const left=fr.x-fr.w/2,top=fr.y-fr.h/2;cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);cx.drawImage(screen,left,top,fr.w,fr.h,0,0,c.width,c.height)});pane.classList.add('show')}
 function closePreview(){const pane=document.getElementById('previewPane');pane.classList.remove('show');clearPreviewPrintLayout();draw()}
 function ensurePrintPreview(){
@@ -695,7 +737,7 @@ function startInlineEdit(hit){
   if(!hit)return; const st=labelState[hit.id]||ensureState(hit.id,hit.type||'point',{}); selectSingle(hit.id); syncPanel();
   const ed=document.getElementById('inlineEditor'); const text=(typeof st.customText==='string')?st.customText:(hit.lines||[hit.id]).join('\n');
   ed.value=text; ed.style.display='block'; ed.style.left=Math.max(8,hit.x-hit.w/2-6)+'px'; ed.style.top=Math.max(48,hit.y-hit.h/2-6)+'px'; ed.style.width=Math.max(130,hit.w+24)+'px'; ed.style.height=Math.max(70,hit.h+24)+'px'; ed.style.font=(hit.font||12)+'px Meiryo'; ed.style.transform=`rotate(${hit.rot||0}deg)`; ed.focus(); ed.select();
-  const finish=()=>{st.customText=ed.value; ed.style.display='none'; ed.onblur=null; ed.onkeydown=null; draw();};
+  const finish=()=>{st.customText=ed.value; ed.style.display='none'; ed.onblur=null; ed.onkeydown=null; markLabelDirty(); draw();};
   ed.onblur=finish; ed.onkeydown=(ev)=>{if(ev.key==='Escape'){ed.style.display='none'; ed.onblur=null; ed.onkeydown=null; draw();} if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)){finish();}};
 }
 function curveSamplePoints(c,steps=64){const arr=[];let sa=Math.atan2(c.bc.y-c.ro.y,c.bc.x-c.ro.x),ea=Math.atan2(c.ec.y-c.ro.y,c.ec.x-c.ro.x),diff=ea-sa;if(c.dir==='R'){if(diff<0)diff+=Math.PI*2}else{if(diff>0)diff-=Math.PI*2}for(let i=0;i<=steps;i++){let a=sa+diff*i/steps;arr.push({x:c.ro.x+c.R*Math.cos(a),y:c.ro.y+c.R*Math.sin(a)});}return arr}
@@ -793,6 +835,7 @@ function exportDXF(){
 }
 
 
+window.addEventListener('beforeunload',e=>{if(labelDirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('beforeprint',ensurePrintPreview);window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(printMode)cancelPrintSelect(); if(singlePrintMode)cancelSingleAreaSelect();}});
 function attachSwipeClose(){
   let start=null;
@@ -800,7 +843,7 @@ function attachSwipeClose(){
   bind(document.getElementById('visualMenu'),closeVisualMenu);
   bind(document.getElementById('editPanel'),closeEditMode);
 }
-document.addEventListener('DOMContentLoaded',()=>{cv=document.getElementById('cv');ctx=cv.getContext('2d');resize();cv.addEventListener('wheel',e=>{e.preventDefault();const k=e.deltaY<0?1.12:.89;const before={x:(e.clientY-offY)/(-scale)+midX,y:(e.clientX-offX)/scale+midY};scale*=k;offX=e.clientX-(before.y-midY)*scale;offY=e.clientY+(before.x-midX)*scale;draw()},{passive:false});cv.addEventListener('mousemove',e=>{mouse={x:e.clientX,y:e.clientY};if(singlePrintMode&&singleDrag){singleRect={x1:singleStart.x,y1:singleStart.y,x2:e.clientX,y2:e.clientY};draw();return}if(dragObject){const ids=selectedList(); if(ids.length){const dx=e.clientX-last.x,dy=e.clientY-last.y;ids.forEach(id=>{labelState[id].dx+=dx; labelState[id].dy+=dy});last={x:e.clientX,y:e.clientY};draw();return}}if(isPanning){offX+=e.clientX-last.x;offY+=e.clientY-last.y;last={x:e.clientX,y:e.clientY};draw();return}if(printMode)draw()});cv.addEventListener('mousedown',e=>{mouse={x:e.clientX,y:e.clientY};if(singlePrintMode){if(e.button===0){singleDrag=true;singleStart={x:e.clientX,y:e.clientY};singleRect={x1:e.clientX,y1:e.clientY,x2:e.clientX,y2:e.clientY};draw();return} if(e.button===1){isPanning=true;last={x:e.clientX,y:e.clientY};e.preventDefault();return}}if(printMode){if(e.button===1){isPanning=true;last={x:e.clientX,y:e.clientY};e.preventDefault()}return}if(editMode&&e.button===0){const hit=hitTest(e.clientX,e.clientY);if(hit){if(e.ctrlKey||e.metaKey){toggleSelection(hit.id); syncPanel(); draw(); return}else{if(!isSelected(hit.id)) selectSingle(hit.id); else selectedId=hit.id; syncPanel(); dragObject=true; last={x:e.clientX,y:e.clientY}; draw(); return}}else{if(!(e.ctrlKey||e.metaKey)){clearSelection();syncPanel();draw();return}}}if(e.button===0||e.button===1){isPanning=true;last={x:e.clientX,y:e.clientY};e.preventDefault()}});cv.addEventListener('mouseup',()=>{if(singlePrintMode&&singleDrag){singleDrag=false;finishSingleAreaSelect();return}isPanning=false;dragObject=false});cv.addEventListener('mouseleave',()=>{isPanning=false;dragObject=false});cv.addEventListener('dblclick',e=>{if(!editMode||printMode)return;const hit=hitTest(e.clientX,e.clientY);if(!hit)return;startInlineEdit(hit)});cv.addEventListener('click',e=>{if(printMode&&e.button===0)addPrintFrame()});loadVisualProject(getProject());attachTouchHandlers();attachEditPanelDrag();attachSwipeClose();openVisualMenu();document.getElementById('visualMenu')?.addEventListener('click',e=>e.stopPropagation())});
+document.addEventListener('DOMContentLoaded',()=>{cv=document.getElementById('cv');ctx=cv.getContext('2d');resize();setupPrintScaleControls();cv.addEventListener('wheel',e=>{e.preventDefault();if(printMode){return}const k=e.deltaY<0?1.12:.89;const before={x:(e.clientY-offY)/(-scale)+midX,y:(e.clientX-offX)/scale+midY};scale*=k;offX=e.clientX-(before.y-midY)*scale;offY=e.clientY+(before.x-midX)*scale;draw()},{passive:false});cv.addEventListener('mousemove',e=>{if(printMode&&printFrameDrag){mouse={x:mouse.x+e.clientX-last.x,y:mouse.y+e.clientY-last.y};last={x:e.clientX,y:e.clientY};draw();return}mouse={x:e.clientX,y:e.clientY};if(singlePrintMode&&singleDrag){singleRect={x1:singleStart.x,y1:singleStart.y,x2:e.clientX,y2:e.clientY};draw();return}if(dragObject){const ids=selectedList(); if(ids.length){const dx=e.clientX-last.x,dy=e.clientY-last.y;ids.forEach(id=>{labelState[id].dx+=dx; labelState[id].dy+=dy});markLabelDirty();last={x:e.clientX,y:e.clientY};draw();return}}if(isPanning){offX+=e.clientX-last.x;offY+=e.clientY-last.y;last={x:e.clientX,y:e.clientY};draw();return}if(printMode)draw()});cv.addEventListener('mousedown',e=>{if(printMode&&e.button===1){printFrameDrag=true;last={x:e.clientX,y:e.clientY};e.preventDefault();return}mouse={x:e.clientX,y:e.clientY};if(singlePrintMode){if(e.button===0){singleDrag=true;singleStart={x:e.clientX,y:e.clientY};singleRect={x1:e.clientX,y1:e.clientY,x2:e.clientX,y2:e.clientY};draw();return} if(e.button===1){isPanning=true;last={x:e.clientX,y:e.clientY};e.preventDefault();return}}if(printMode){return}if(editMode&&e.button===0){const hit=hitTest(e.clientX,e.clientY);if(hit){if(e.ctrlKey||e.metaKey){toggleSelection(hit.id); syncPanel(); draw(); return}else{if(!isSelected(hit.id)) selectSingle(hit.id); else selectedId=hit.id; syncPanel(); dragObject=true; last={x:e.clientX,y:e.clientY}; draw(); return}}else{if(!(e.ctrlKey||e.metaKey)){clearSelection();syncPanel();draw();return}}}if(e.button===0||e.button===1){isPanning=true;last={x:e.clientX,y:e.clientY};e.preventDefault()}});cv.addEventListener('mouseup',()=>{if(singlePrintMode&&singleDrag){singleDrag=false;finishSingleAreaSelect();return}printFrameDrag=false;isPanning=false;dragObject=false});cv.addEventListener('mouseleave',()=>{printFrameDrag=false;isPanning=false;dragObject=false});cv.addEventListener('dblclick',e=>{if(!editMode||printMode)return;const hit=hitTest(e.clientX,e.clientY);if(!hit)return;startInlineEdit(hit)});cv.addEventListener('click',e=>{if(printMode&&e.button===0)addPrintFrame()});loadVisualProject(getProject());attachTouchHandlers();attachEditPanelDrag();attachSwipeClose();openVisualMenu();document.getElementById('visualMenu')?.addEventListener('click',e=>e.stopPropagation())});
 </script>
 <script>
 function openPage(file){
