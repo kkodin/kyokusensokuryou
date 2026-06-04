@@ -735,7 +735,9 @@ function normalizeGeometry(g){
 function applyProject(obj){
   project=obj||{};
   measurementHistory=Array.isArray(project.measurements)?project.measurements:[];
+  window.measurementHistory=measurementHistory;
   geom=normalizeGeometry(project.alignment?project:(project.geometry||project.geom||project));
+  if(!geom || !Array.isArray(geom.curves)) geom=sampleGeometry();
   if(project.pipe){
     const dia=project.pipe.size || (project.pipe.inner?project.pipe.inner*1000:0);
     if(dia)document.getElementById('pipeDiaMm').value=fmt(dia,0);
@@ -751,16 +753,73 @@ function applyProject(obj){
 function loadProjectFile(input){
   const f=input.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=()=>{try{applyProject(JSON.parse(r.result));}catch(e){alert('JSONを読み込めませんでした。')}};
-  r.readAsText(f);
+  r.onload=()=>{try{applyProject(JSON.parse(String(r.result||'').replace(/^\ufeff/,'')));}catch(e){console.error(e);alert('JSONを読み込めませんでした。ファイル形式を確認してください。')}};
+  r.readAsText(f,'utf-8');
 }
-function loadProjectFromStorage(){
+function readStoredJson(key){
   try{
-    const g=JSON.parse(localStorage.getItem('curvedJackingProject')||localStorage.getItem('curvedJackingGeometry')||'null');
-    if(!g){alert('ブラウザ保存済み基線がありません。');return}
-    applyProject(g);
-  }catch(e){alert('ブラウザ保存済み基線を読み込めませんでした。')}
+    const raw=localStorage.getItem(key);
+    if(!raw || raw==='null' || raw==='undefined')return null;
+    return JSON.parse(raw);
+  }catch(e){
+    console.warn('保存データを解析できません:',key,e);
+    return null;
+  }
 }
+function hasBaseShape(obj){
+  return !!(obj && (obj.alignment || obj.geometry || obj.geom || Array.isArray(obj.curves) || obj.site || obj.pipe || obj.survey));
+}
+function mergeStoredProjectAndGeometry(projectData, geometryData){
+  if(hasBaseShape(projectData))return projectData;
+  if(projectData && Array.isArray(projectData.measurements) && hasBaseShape(geometryData)){
+    return {...geometryData, measurements:projectData.measurements};
+  }
+  return projectData || geometryData;
+}
+function loadProjectFromStorage(silent=false){
+  const projectData=readStoredJson('curvedJackingProject');
+  const geometryData=readStoredJson('curvedJackingGeometry');
+  const candidates=[
+    mergeStoredProjectAndGeometry(projectData,geometryData),
+    geometryData,
+    projectData
+  ].filter(Boolean);
+  if(!candidates.length){
+    if(!silent) alert('ブラウザ保存済み基線がありません。基線JSONを読み込んでください。');
+    return false;
+  }
+  const errors=[];
+  for(const candidate of candidates){
+    try{
+      applyProject(candidate);
+      return true;
+    }catch(e){
+      console.error('保存済み基線の読み込み候補に失敗:',e,candidate);
+      errors.push(e?.message||String(e));
+    }
+  }
+  if(!silent) alert('ブラウザ保存済み基線を読み込めませんでした。基線JSONを読み込み直してください。');
+  return false;
+}
+function acceptBaseProjectFromParent(data){
+  if(!data || typeof data!=='object') return false;
+  try{
+    applyProject(data);
+    try{
+      localStorage.setItem('curvedJackingProject',JSON.stringify(data));
+      localStorage.setItem('curvedJackingGeometry',JSON.stringify(data.alignment?data:(data.geometry||data.geom||data)));
+    }catch(e){}
+    return true;
+  }catch(e){
+    console.error('親ページから受け取った基線を読み込めません:',e,data);
+    return false;
+  }
+}
+window.addEventListener('message',event=>{
+  const payload=event.data;
+  if(!payload || payload.type!=='M_APP_001_BASE_PROJECT') return;
+  acceptBaseProjectFromParent(payload.project);
+});
 function toggleNav(force){
   document.body.classList.toggle('nav-open', force===undefined?!document.body.classList.contains('nav-open'):!!force);
 }
@@ -2148,6 +2207,7 @@ function upsertMeasurementData(data,ask=true){
   const normalized={...data,pipeCount:key,measureDate:String(data.measureDate||''),updatedAt:new Date().toISOString()};
   if(idx>=0)measurementHistory[idx]=normalized; else measurementHistory.push(normalized);
   project.measurements=measurementHistory;
+  window.measurementHistory=measurementHistory;
   localStorage.setItem('curvedJackingProject',JSON.stringify(project));
   localStorage.setItem('lastMeasurementData',JSON.stringify(normalized));
   renderHistoryList();
@@ -2155,8 +2215,11 @@ function upsertMeasurementData(data,ask=true){
   return true;
 }
 function loadHistoryMeasurement(index){
-  const data=measurementHistory[index];
-  if(!data)return;
+  const data=measurementHistory[Number(index)];
+  if(!data){
+    alert('履歴データを呼び出せませんでした。基線JSONまたは測量履歴を読み込み直してください。');
+    return;
+  }
   applyMeasurementData(data);
   calculateAll(false);
   showInputStage();
@@ -2539,7 +2602,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(dx<-60 && Math.abs(dx)>Math.abs(dy)*1.5)closeNav();
     swipeStart=null;
   },{passive:true});
-  loadProjectFromStorage();
+  loadProjectFromStorage(window.parent && window.parent !== window);
   if(!geom){geom=sampleGeometry();renderDebug();calculateAll(false)}
   installMovableGraphLabels();
   updateSideInfo();
@@ -2873,10 +2936,32 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
 
   function installEntryPoints(){
-    const oldLoad=window.loadHistoryMeasurement;
     window.loadHistoryMeasurement=function(index){
-      oldLoad?.(index);
-      setTimeout(setupHistoryMode,0);
+      const history=Array.isArray(window.measurementHistory)?window.measurementHistory:measurementHistory;
+      const data=history[Number(index)];
+      if(!data){
+        alert('???????????????????JSON?????????????');
+        return;
+      }
+      window.applyMeasurementData?.(data);
+      window.calculateAll?.(false);
+      window.openSection?.('measurementInputStage');
+      setTimeout(()=>{
+        if(!byId('measurementTable')?.querySelector('tbody tr')){
+          const tp=byId('tpCount');
+          const kp=byId('kpCount');
+          if(tp) tp.value=String((data.tpRows||[]).length);
+          if(kp) kp.value=String((data.kpRows||[]).length);
+          window.buildRows?.();
+          window.applyMeasurementData?.(data);
+        }
+        setupHistoryMode();
+        refreshResultButton();
+        const hasRows=!!byId('measurementTable')?.querySelector('tbody tr');
+        if(!hasRows){
+          alert('???????????????????????????TP/KP???????????');
+        }
+      },0);
     };
     window.newMeasurementData=function(){
       window.openSection?.('measurementInputStage');

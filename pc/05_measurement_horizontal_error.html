@@ -613,6 +613,14 @@ function specLimitByPipeDia(diaMm){const d=+diaMm||0;if(d<=500)return 50;if(d>=1
 function updateToleranceDisplay(){const dia=nval('pipeDiaMm',1350), pct=nval('internalPct',80);const spec=specLimitByPipeDia(dia), internal=spec*(pct/100);const ok=document.getElementById('tolOk'), warn=document.getElementById('tolWarn');if(ok)ok.value=fmt(internal,1);if(warn)warn.value=fmt(spec,1)}
 function rankText(mm){updateToleranceDisplay();const ok=nval('tolOk',80), warn=nval('tolWarn',100); return mm<=ok?'OK':(mm<=warn?'注意':'NG')}
 function rankClass(rank){return rank==='OK'?'ok':(rank==='注意'?'warn':'ng')}
+function displayErrorText(r){
+  if(!r)return '-';
+  if(r.short)return r.short;
+  const sideText=String(r.side||'').replace(/[?(].*?[?)]/g,'').trim();
+  const side=sideText.includes('?')?'?':(sideText.includes('?')?'?':'');
+  const mm=fmt(r.errorMm,0);
+  return side?`${side} ${mm}`:`${mm} mm`;
+}
 let project={}, geom=null, tpPoints=[], kpPoints=[], results=[], autoCalcTimer=null, isBuildingRows=false, undoStack=[], redoStack=[], focusedBeforeValue=null, activeSourceInput=null, syncingFocusEditor=false, measurementHistory=[], historyChecks={};
 
 function sampleGeometry(){
@@ -1192,8 +1200,8 @@ function renderSummary(){
   const box=document.getElementById('summaryCards');
   if(!results.length){box.innerHTML='<p class="note">KPがありません。</p>';return}
   const pj=window.latestPredictionJudge;
-  let cards=pj?`<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(pj.short||((pj.side||'')+' '+fmt(pj.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note coord-note"><div>予測 X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div><div>計画 X=${fmt(pj.foot?.x,3)} / Y=${fmt(pj.foot?.y,3)}</div></div></div>`:'';
-  cards+=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(r.short||((r.side||'')+' '+fmt(r.errorMm,0)))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div><div class="note coord-note"><div>測定 X=${fmt(r.x,3)} / Y=${fmt(r.y,3)}</div><div>計画 X=${fmt(r.foot?.x,3)} / Y=${fmt(r.foot?.y,3)}</div></div></div>`).join('');
+  let cards=pj?`<div class="kpcard ${rankClass(pj.rank)}" style="border-width:2px"><div class="line"><div class="name">次回予測</div><div class="big">${esc(displayErrorText(pj))}</div></div><div class="line sub"><span>位置：${esc(pj.sectionName)}</span><span>判定：<span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></span></div><div class="note coord-note"><div>予測 X=${fmt(pj.x,3)} / Y=${fmt(pj.y,3)}</div><div>計画 X=${fmt(pj.foot?.x,3)} / Y=${fmt(pj.foot?.y,3)}</div></div></div>`:'';
+  cards+=results.map(r=>`<div class="kpcard ${rankClass(r.rank)}"><div class="line"><div class="name">${esc(r.name)} ${esc(r.role||'')}</div><div class="big">${esc(displayErrorText(r))}</div></div><div class="line sub"><span>位置：${esc(r.sectionName)}</span><span>判定：<span class="pill ${rankClass(r.rank)}">${r.rank}</span></span></div><div class="note coord-note"><div>測定 X=${fmt(r.x,3)} / Y=${fmt(r.y,3)}</div><div>計画 X=${fmt(r.foot?.x,3)} / Y=${fmt(r.foot?.y,3)}</div></div></div>`).join('');
   box.innerHTML=cards;
 }
 function renderTable(){
@@ -1201,10 +1209,10 @@ function renderTable(){
   h+='<table><tr><th>KP</th><th>役割</th><th>X</th><th>Y</th><th>位置</th><th>RO-測点距離</th><th>Rとの差</th><th>計画X</th><th>計画Y</th><th>左右誤差</th><th>判定</th></tr>';
   const pj=window.latestPredictionJudge;
   if(pj){
-    h+=`<tr style="background:#fff7ed"><td><b>次回予測</b></td><td>予測</td><td class="mono">${fmt(pj.x,3)}</td><td class="mono">${fmt(pj.y,3)}</td><td>${esc(pj.sectionName)}</td><td class="mono">${pj.roDist?fmt(pj.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(pj.foot.x,3)}</td><td class="mono">${fmt(pj.foot.y,3)}</td><td><b>${esc(pj.short||fmt(pj.errorMm,1)+' mm')}</b></td><td><span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></td></tr>`;
+    h+=`<tr style="background:#fff7ed"><td><b>次回予測</b></td><td>予測</td><td class="mono">${fmt(pj.x,3)}</td><td class="mono">${fmt(pj.y,3)}</td><td>${esc(pj.sectionName)}</td><td class="mono">${pj.roDist?fmt(pj.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(pj.foot.x,3)}</td><td class="mono">${fmt(pj.foot.y,3)}</td><td><b>${esc(displayErrorText(pj))}</b></td><td><span class="pill ${rankClass(pj.rank)}">${pj.rank}</span></td></tr>`;
   }
   results.forEach(r=>{
-    h+=`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.role||'')}</td><td class="mono">${fmt(r.x,3)}</td><td class="mono">${fmt(r.y,3)}</td><td>${esc(r.sectionName)}</td><td class="mono">${r.roDist?fmt(r.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(r.radialMm)?fmt(r.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(r.foot.x,3)}</td><td class="mono">${fmt(r.foot.y,3)}</td><td><b>${esc(r.short||fmt(r.errorMm,1)+' mm')}</b></td><td><span class="pill ${rankClass(r.rank)}">${r.rank}</span></td></tr>`;
+    h+=`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.role||'')}</td><td class="mono">${fmt(r.x,3)}</td><td class="mono">${fmt(r.y,3)}</td><td>${esc(r.sectionName)}</td><td class="mono">${r.roDist?fmt(r.roDist,3)+' m':'-'}</td><td class="mono">${Number.isFinite(r.radialMm)?fmt(r.radialMm,1)+' mm':'-'}</td><td class="mono">${fmt(r.foot.x,3)}</td><td class="mono">${fmt(r.foot.y,3)}</td><td><b>${esc(displayErrorText(r))}</b></td><td><span class="pill ${rankClass(r.rank)}">${r.rank}</span></td></tr>`;
   });
   h+='</table>';
   document.getElementById('resultTable').innerHTML=h;
@@ -1450,7 +1458,7 @@ function drawZoomErrorLabel(ctx,toS,r,i,W,H){
   if(lx<8)lx=p.x+18;
   if(ly<8)ly=8;
   if(ly>H-28)ly=H-28;
-  const text=r.short||fmt(r.errorMm,0);
+  const text=displayErrorText(r);
   ctx.save();
   ctx.font='13px Meiryo';
   const tw=ctx.measureText(text).width+16, th=22;
@@ -1569,7 +1577,7 @@ function graphMeasurementTitle(){
 }
 function graphMeasureRowHtml(label,actual,judge,cls=''){
   const plan=judge?.foot||{};
-  const err=judge?(judge.short||((judge.side||'')+' '+fmt(judge.errorMm,0))):'-';
+  const err=judge?displayErrorText(judge):'-';
   return '<tr class="'+cls+'"><td><b>'+esc(label)+'</b></td><td class="mono">'+fmt(plan.x,3)+'</td><td class="mono">'+fmt(plan.y,3)+'</td><td class="mono">'+fmt(actual?.x,3)+'</td><td class="mono">'+fmt(actual?.y,3)+'</td><td><b>'+esc(err)+'</b></td></tr>';
 }
 function renderGraphMeasureTable(id){
@@ -1674,11 +1682,11 @@ function drawPredictionGuide(ctx,toS,W,H,canvasId,fontPx){
     if(typeof setGraphFont==='function'){
       const fs=setGraphFont(ctx,fontPx||12,true);
       const pj=window.latestPredictionJudge;
-      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+fs*.7,pp.y-fs*.7,W,H,'#dc2626');
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+displayErrorText(pj)):predictionPipeLabel(),pp.x+fs*.7,pp.y-fs*.7,W,H,'#dc2626');
     }else{
       ctx.font=(fontPx||12)+'px Meiryo';
       const pj=window.latestPredictionJudge;
-      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+displayErrorText(pj)):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
     }
     ctx.restore();
   }
@@ -1688,7 +1696,7 @@ function historyLabelLines(p){
   const lines=[];
   if(document.getElementById('histLabelDate')?.checked)lines.push(p.history.measureDate||'');
   if(document.getElementById('histLabelPipe')?.checked)lines.push(`${kpPipeLabel(p.name,Number(p.history.pipeCount))} ${p.name}`);
-  if(document.getElementById('histLabelError')?.checked)lines.push(p.short||`${fmt(p.errorMm,0)}mm`);
+  if(document.getElementById('histLabelError')?.checked)lines.push(displayErrorText(p));
   if(document.getElementById('histLabelCoord')?.checked)lines.push(`X=${fmt(p.x,3)} Y=${fmt(p.y,3)}`);
   return lines.filter(Boolean);
 }
@@ -2069,8 +2077,8 @@ function makeMeasurementCsv(data){
   add(['計算結果']);
   add(['KP','役割','X','Y','位置','RO-測点距離(m)','Rとの差(mm)','計画X','計画Y','左右誤差','判定']);
   const pj=window.latestPredictionJudge;
-  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
-  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
+  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',displayErrorText(pj),pj.rank||'']);
+  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',displayErrorText(r),r.rank||'']));
   return '\ufeff'+rows.join('\r\n');
 }
 function measurementCsvFileName(data){
@@ -2110,8 +2118,8 @@ function makeMeasurementExcelText(data){
   add(['SECTION','RESULT']);
   add(['name','role','x','y','position','roDist_m','diff_mm','side','planX','planY','display','judge']);
   const pj=window.latestPredictionJudge;
-  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',pj.short||fmt(pj.errorMm,1),pj.rank||'']);
-  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',r.short||fmt(r.errorMm,1),r.rank||'']));
+  if(pj)add(['次回予測','予測',fmt(pj.x,3),fmt(pj.y,3),pj.sectionName||'',pj.roDist?fmt(pj.roDist,3):'',Number.isFinite(pj.radialMm)?fmt(pj.radialMm,1):'',pj.side||'',pj.foot?fmt(pj.foot.x,3):'',pj.foot?fmt(pj.foot.y,3):'',displayErrorText(pj),pj.rank||'']);
+  (results||[]).forEach(r=>add([r.name,r.role||'',fmt(r.x,3),fmt(r.y,3),r.sectionName||'',r.roDist?fmt(r.roDist,3):'',Number.isFinite(r.radialMm)?fmt(r.radialMm,1):'',r.side||'',r.foot?fmt(r.foot.x,3):'',r.foot?fmt(r.foot.y,3):'',displayErrorText(r),r.rank||'']));
   return rows.join('\r\n');
 }
 function parseCsvText(text){
