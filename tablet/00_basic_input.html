@@ -61,7 +61,7 @@ body.show-frame #rightPane{display:block}
 </div>
 <div id="baseForm" class="base-locked"><div class="card"><h2>現場情報</h2><div class="grid"><div class="row"><label>現場名</label><input id="siteName" value="八王子市 1350刃口推進工"></div><div class="row"><label>スパン名</label><input id="spanName" value="1～2"></div><div class="row"><label>入力日</label><input type="date" id="inputDate"><button class="secondary" onclick="set('inputDate',today())">今日</button></div></div></div>
 <div class="card"><h2>土質条件</h2><div class="grid"><div class="row"><label>土質区分</label><select id="soilType"><option>粘性土</option><option>砂質土</option><option>礫質土</option></select></div><div class="row"><label>単位体積重量 γ</label><input class="num" id="soilWeight" value="13.000"> kN/m³</div><div class="row"><label>内部摩擦角 φ</label><input class="num" id="soilPhi" value="5.000"> °</div><div class="row"><label>粘着力 C</label><input class="num" id="soilC" value="3.000"> kN/m²</div><div class="row"><label>N値</label><input class="num" id="soilN" value="4.0"></div><div class="row"><label>平均土かぶり H</label><input class="num" id="soilH" value="5.310"> m</div></div></div>
-<div class="card"><h2>推進管仕様</h2><div class="grid"><div class="row"><label>管種</label><select id="pipeCategory" onchange="calcPipe()"><option>ヒューム管</option><option>レジン管</option><option>鋼管</option></select></div><div class="row"><label>強度/分類</label><select id="pipeStrength"><option>1種</option><option>2種</option><option>RS</option><option>RM</option><option>標準鋼管</option></select></div><div class="row"><label>継手</label><select id="jointType" onchange="jointChanged()"><option value="JC">JC 許容60mm</option><option value="JB">JB 許容40mm</option><option value="JA">JA 許容30mm</option></select></div><div class="row"><label>呼び径</label><select id="pipeSize" onchange="calcPipe()"></select> mm</div><div class="row"><label>内径</label><input class="num" id="pipeInner"> m</div><div class="row"><label>外径</label><input class="num" id="pipeOuter"> m</div><div class="row"><label>管厚 t</label><input class="num" id="pipeT"> m</div><div class="row"><label>有効断面積 Ae</label><input class="num" id="pipeArea"> m²</div><div class="row"><label>管重量 W</label><input class="num" id="pipeWeight"> kN/m</div><div class="row"><label>管有効長 L</label><input class="num" id="pipeLength" value="2.4300"> m</div><div class="row"><label>クッション材厚 S4</label><input class="num" id="cushionT" value="10.0"> mm</div><div class="row"><label>想定潰れ代</label><input class="num" id="cushionCrush" value="2.0"> mm</div><div class="row"><label>許容開口長</label><input class="num" id="allowOpen" value="60.0"> mm</div><div class="row"><label>許容耐荷力 Fa</label><input class="num" id="allowForce" value="0"> kN</div></div><p class="note">寸法は自動入力後、現場資料に合わせて手修正できます。JSON読込時は、保存済みの管有効長を優先して上書きしません。</p></div>
+<div class="card"><h2>推進管仕様</h2><div class="grid"><div class="row"><label>管種</label><select id="pipeCategory" onchange="calcPipe()"><option>ヒューム管</option><option>レジン管</option><option>鋼管</option></select></div><div class="row"><label>強度/分類</label><select id="pipeStrength" onchange="calcPipe()"><option>1種</option><option>2種</option><option>RS</option><option>RM</option><option>標準鋼管</option></select></div><div class="row"><label>継手</label><select id="jointType" onchange="jointChanged()"><option value="JC">JC 許容60mm</option><option value="JB">JB 許容40mm</option><option value="JA">JA 許容30mm</option></select></div><div class="row"><label>呼び径</label><select id="pipeSize" onchange="calcPipe()"></select> mm</div><div class="row"><label>内径</label><input class="num" id="pipeInner"> m</div><div class="row"><label>外径</label><input class="num" id="pipeOuter"> m</div><div class="row"><label>管厚 t</label><input class="num" id="pipeT"> m</div><div class="row"><label>有効断面積 Ae</label><input class="num" id="pipeArea"> m²</div><div class="row"><label>管重量 W</label><input class="num" id="pipeWeight"> kN/m</div><div class="row"><label>管有効長 L</label><input class="num" id="pipeLength" value="2.4300"> m</div><div class="row"><label>クッション材厚 S4</label><input class="num" id="cushionT" value="10.0"> mm</div><div class="row"><label>想定潰れ代</label><input class="num" id="cushionCrush" value="2.0"> mm</div><div class="row"><label>許容開口長</label><input class="num" id="allowOpen" value="60.0"> mm</div><div class="row"><label>許容耐荷力 Fa</label><input class="num" id="allowForce" value="0"> kN</div></div><p class="note">管種・強度・継手・呼び径から自動入力します。管有効長Lとクッション材厚S4のみ手入力できます。</p></div>
 <div class="card"><h2>測量基準・平面線形</h2><div class="grid"><div class="row"><label>機械据付 OX</label><input class="num" id="instX" value="0.000"></div><div class="row"><label>OY</label><input class="num" id="instY" value="0.000"></div><div class="row"><label>後視点 BX</label><input class="num" id="bsX" value="10.000"></div><div class="row"><label>BY</label><input class="num" id="bsY" value="0.000"></div><div class="row"><label>基準方向角</label><input class="num" id="baseAz" value="0.000"> °</div></div><hr><div id="curves"></div><button onclick="addCurve()">曲線追加</button><div class="row"><label>最終IP〜EP距離</label><input class="num" id="finalL" value="2.150"> m</div></div>
 <div class="card toolbar"><button class="ok" onclick="saveProject()">保存JSONを作成</button><button onclick="openModule('01_alignment_calculation.html')">線形計算へ</button><button onclick="openModule('02_alignment_visual.html')">ビジュアル表示へ</button><button onclick="openModule('03_joint_opening_check.html')">目地判定へ</button><button onclick="openModule('04_jacking_force.html')">推力管理へ</button><button onclick="openModule('05_measurement_horizontal_error.html')">測量・水平誤差へ</button></div>
 </div></main><script>
@@ -163,7 +163,7 @@ function calcGeometry(p){
 function calcJoint(p,c){const L=p.pipe.length, D=p.pipe.inner, t=p.pipe.thickness, R=c.R, S4=p.pipe.cushion||0; const den=Math.max(0.0001,R-D/2); const S1=(L*D/den)*1000+S4; const S2=(L*Math.max(0,D-t)/den)*1000+S4; const S3=(L*t/den)*1000+S4; const simple=(D*2*Math.sin((L/R)/2))*1000+S4; return {S1,S2,S3,S4,simple,margin:(p.pipe.allowOpen||60)-S1,ok:S1<=(p.pipe.allowOpen||60)};}
 
 function init(){PIPE_SIZES.forEach(s=>document.getElementById('pipeSize').add(new Option(s,s)));set('inputDate',today());set('pipeSize',1350);calcPipe();renderCurves([{L:39.471,dir:'L',R:40,deg:56,min:32,sec:14}]);}
-function calcPipe(){const p=pipeDefault(+v('pipeSize',1350),v('pipeCategory','ヒューム管'));set('pipeInner',fmt(p.inner,3));set('pipeOuter',fmt(p.outer,3));set('pipeT',fmt(p.t,3));set('pipeArea',fmt(p.area,4));set('pipeWeight',fmt(p.weight,3));set('pipeLength',fmt(p.len,4));const sigma=13;set('allowForce',fmt(1000*sigma*p.area,0));jointChanged(false)}
+function calcPipe(){const p=pipeDefault(+v('pipeSize',1350),v('pipeCategory','ヒューム管'));set('pipeInner',fmt(p.inner,3));set('pipeOuter',fmt(p.outer,3));set('pipeT',fmt(p.t,3));set('pipeArea',fmt(p.area,4));set('pipeWeight',fmt(p.weight,3));if(!String(v('pipeLength','')).trim())set('pipeLength',fmt(p.len,4));const sigma=13;set('allowForce',fmt(1000*sigma*p.area,0));jointChanged(false)}
 function jointChanged(force=true){const j=v('jointType','JC');set('allowOpen',j==='JC'?'60.0':j==='JB'?'40.0':'30.0')}
 function renderCurves(arr){document.getElementById('curves').innerHTML='';(arr||[]).forEach(c=>addCurve(c));}
 function addCurve(c={L:30,dir:'L',R:50,deg:15,min:0,sec:0}){const div=document.createElement('div');div.className='card curve';div.innerHTML=`<h2>曲線</h2><div class="grid"><div class="row"><label>IP間距離</label><input class="num cL" value="${fmt(c.L,3)}"> m</div><div class="row"><label>方向</label><select class="cDir"><option value="L">左</option><option value="R">右</option></select></div><div class="row"><label>半径 R</label><input class="num cR" value="${fmt(c.R,3)}"> m</div><div class="row"><label>IA 度</label><input class="num cDeg" value="${c.deg||0}"></div><div class="row"><label>分</label><input class="num cMin" value="${c.min||0}"></div><div class="row"><label>秒</label><input class="num cSec" value="${c.sec||0}"></div></div><button class="danger" onclick="this.closest('.curve').remove()">削除</button>`;document.getElementById('curves').appendChild(div);div.querySelector('.cDir').value=c.dir||'L';}
@@ -333,4 +333,95 @@ function openPage(file){
   };
 })();
 </script>
+
+<!-- Vr016 pipe spec readonly controls -->
+<style id="vr016PipeReadonlyStyle">
+.pipe-auto-field[readonly]{
+  background:#eef2f7!important;
+  color:#475569!important;
+  border-color:#cbd5e1!important;
+  cursor:not-allowed!important;
+}
+.pipe-auto-note{
+  display:inline-block;
+  margin-left:8px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:#e0f2fe;
+  color:#075985;
+  font-size:12px;
+  font-weight:700;
+}
+.pipe-manual-field{
+  background:#fff!important;
+  border-color:#94a3b8!important;
+}
+</style>
+<script id="vr016PipeReadonlyScript">
+(function(){
+  const autoIds=['pipeInner','pipeOuter','pipeT','pipeArea','pipeWeight','cushionCrush','allowOpen','allowForce'];
+  const manualIds=['pipeLength','cushionT'];
+  const text={
+    auto:'\u81ea\u52d5',
+    note:'\u7ba1\u7a2e\u30fb\u5f37\u5ea6\u30fb\u7d99\u624b\u30fb\u547c\u3073\u5f84\u304b\u3089\u81ea\u52d5\u5165\u529b\u3055\u308c\u307e\u3059\u3002\u7ba1\u6709\u52b9\u9577\u3068\u30af\u30c3\u30b7\u30e7\u30f3\u6750\u539a\u3060\u3051\u624b\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+  };
+  function rowOf(el){return el?.closest?.('.row');}
+  function installPipeReadonly(){
+    autoIds.forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.readOnly=true;
+      el.classList.add('pipe-auto-field');
+      el.setAttribute('aria-readonly','true');
+      const row=rowOf(el);
+      if(row && !row.querySelector('.pipe-auto-note')){
+        row.insertAdjacentHTML('beforeend','<span class="pipe-auto-note">'+text.auto+'</span>');
+      }
+    });
+    manualIds.forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.readOnly=false;
+      el.classList.add('pipe-manual-field');
+      el.removeAttribute('aria-readonly');
+    });
+    const strength=document.getElementById('pipeStrength');
+    if(strength && !strength.dataset.vr016CalcPipe){
+      strength.dataset.vr016CalcPipe='1';
+      strength.addEventListener('change',()=>{if(typeof calcPipe==='function')calcPipe();});
+    }
+    const card=[...document.querySelectorAll('.card')].find(c=>c.querySelector('#pipeCategory')&&c.querySelector('#pipeSize'));
+    if(card && !card.querySelector('.vr016-pipe-note')){
+      const p=document.createElement('p');
+      p.className='note vr016-pipe-note';
+      p.textContent=text.note;
+      card.appendChild(p);
+    }
+  }
+  const previousCalcPipe=window.calcPipe;
+  if(typeof previousCalcPipe==='function' && !previousCalcPipe.vr016ReadonlyWrapped){
+    window.calcPipe=function(){
+      const length=document.getElementById('pipeLength');
+      const keepLength=length ? length.value : '';
+      const result=previousCalcPipe.apply(this,arguments);
+      if(length && String(keepLength).trim()) length.value=keepLength;
+      installPipeReadonly();
+      return result;
+    };
+    window.calcPipe.vr016ReadonlyWrapped=true;
+  }
+  const previousJointChanged=window.jointChanged;
+  if(typeof previousJointChanged==='function' && !previousJointChanged.vr016ReadonlyWrapped){
+    window.jointChanged=function(){
+      const result=previousJointChanged.apply(this,arguments);
+      installPipeReadonly();
+      return result;
+    };
+    window.jointChanged.vr016ReadonlyWrapped=true;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installPipeReadonly);
+  else installPipeReadonly();
+})();
+</script>
+
 </body></html>
