@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -412,40 +412,42 @@ body.vr015-screen-flash::before{
 <div class="appShell">
   <div class="nav-backdrop no-print" onclick="closeNav()" aria-hidden="true"></div>
   <aside class="sidebar no-print" id="sideNav">
-    <div class="side-title"><span>操作・目次</span><button class="nav-close" type="button" onclick="closeNav()" aria-label="閉じる">×</button></div>
+    <div class="side-title"><span>&#25805;&#20316;&#12539;&#30446;&#27425;</span><button class="nav-close" type="button" onclick="closeNav()" aria-label="&#38281;&#12376;&#12427;">&times;</button></div>
     <input type="file" id="projectFile" accept=".json,application/json" style="display:none" onchange="loadProjectFile(this)">
     <input type="file" id="measurementFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" style="display:none" onchange="loadMeasurementFile(this)">
     <div class="side-info" id="sideInfo">
-      <div><b>現場名</b><span id="sideSite">未読込</span></div>
-      <div><b>スパン</b><span id="sideSpan">-</span></div>
-      <div><b>測定日</b><span id="sideDate">-</span></div>
-      <div><b>測定本数</b><span id="sidePipeCount">-</span></div>
+      <div><b>&#29694;&#22580;&#21517;</b><span id="sideSite">&#26410;&#35501;&#36796;</span></div>
+      <div><b>&#12473;&#12497;&#12531;</b><span id="sideSpan">-</span></div>
+      <div><b>&#28204;&#23450;&#26085;</b><span id="sideDate">-</span></div>
+      <div><b>&#28204;&#23450;&#26412;&#25968;</b><span id="sidePipeCount">-</span></div>
     </div>
     <div class="side-actions">
-      <div class="side-group"><div class="side-group-title">データを開く</div>
-        <button class="secondary" type="button" onclick="openSection('historyStage')">測量データを開く</button>
-        <button class="ok" type="button" onclick="saveMeasurement()">測量結果を保存</button>
+      <div class="side-group"><div class="side-group-title">&#12488;&#12483;&#12503;</div>
+        <button class="secondary" type="button" id="vr015BaseJsonLoadBtn" onclick="location.href='00_basic_input.html'">&#127968; &#12488;&#12483;&#12503;&#12506;&#12540;&#12472;&#12395;&#25147;&#12427;</button>
       </div>
-      <div class="side-group"><div class="side-group-title">Excel連携</div>
-        <button class="secondary" type="button" id="excelCopyBtn" onclick="openExcelBox('copy')">Excelへ貼る表を作る</button>
-        <button class="secondary" type="button" onclick="openExcelBox('paste')">Excelから貼り付けて読込</button>
+      <div class="side-group"><div class="side-group-title">&#28204;&#37327;</div>
+        <button class="secondary" type="button" onclick="openSection('historyStage');closeNav()">&#128338; &#23653;&#27508;&#12434;&#38283;&#12367;</button>
+        <button class="ok" type="button" onclick="openSection('measurementInputStage');try{newMeasurementData()}catch(e){};closeNav()">&#9998; &#26032;&#35215;&#28204;&#37327;</button>
       </div>
-      <div class="side-group"><div class="side-group-title">計算</div>
-        <button class="ok" type="button" onclick="calculateAll(true);showActionMessage('測量結果を計算しました。')">測量結果を計算</button>
-        <button class="secondary" type="button" onclick="saveMeasurement()">現場データを保存</button>
+      <div class="side-group"><div class="side-group-title">&#20445;&#23384; / &#32080;&#26524;</div>
+        <button class="ok" type="button" onclick="saveMeasurement();closeNav()">&#128190; &#20445;&#23384;</button>
+        <button class="ok" type="button" onclick="calculateAll(true);openSection('resultStage');closeNav()">&#128202; &#35336;&#31639;&#32080;&#26524;</button>
+        <button class="secondary" type="button" onclick="openSection('graphStage');closeNav()">&#128506; &#22259;&#38754;&#34920;&#31034;</button>
+      </div>
+      <div class="side-group"><div class="side-group-title">Excel&#36899;&#25658;</div>
+        <button class="secondary" type="button" id="excelCopyBtn" onclick="openExcelBox('copy');closeNav()">&#128203; Excel&#12408;&#36028;&#12427;&#34920;</button>
+        <button class="secondary" type="button" onclick="openExcelBox('paste');closeNav()">&#128229; Excel&#12363;&#12425;&#35501;&#36796;</button>
       </div>
       <div id="actionMessage" class="action-message" aria-live="polite"></div>
     </div>
     <div class="toc">
-      <button class="primary" onclick="openSection('flowStage')">作業の流れ</button>
-      <button onclick="openSection('surveyBaseStage')">初期測量基準</button>
-      <button onclick="openSection('historyStage')">測量履歴</button>
-      <button onclick="openSection('measurementInputStage')">測定数値入力</button>
-      <button onclick="openSection('summaryStage')">ひと目判定</button>
-      <button onclick="openSection('resultStage')">計算結果</button>
-      <button onclick="openSection('processStage')">計算過程</button>
-      <button onclick="openSection('graphStage')">図面表示</button>
-      <button onclick="openSection('debugStage')">基線座標</button>
+      <button class="primary" onclick="openSection('flowStage');closeNav()">&#128221; &#20316;&#26989;&#12398;&#27969;&#12428;</button>
+      <button onclick="openSection('surveyBaseStage');closeNav()">&#128207; &#21021;&#26399;&#28204;&#37327;&#22522;&#28310;</button>
+      <button onclick="openSection('historyStage');closeNav()">&#128338; &#28204;&#37327;&#23653;&#27508;</button>
+      <button onclick="openSection('measurementInputStage');closeNav()">&#9000; &#28204;&#23450;&#25968;&#20516;&#20837;&#21147;</button>
+      <button onclick="openSection('summaryStage');closeNav()">&#128269; &#12402;&#12392;&#30446;&#21028;&#23450;</button>
+      <button onclick="openSection('resultStage');closeNav()">&#128202; &#35336;&#31639;&#32080;&#26524;</button>
+      <button onclick="openSection('graphStage');closeNav()">&#128506; &#22259;&#38754;&#34920;&#31034;</button>
     </div>
   </aside>
 
@@ -753,7 +755,24 @@ function applyProject(obj){
 function loadProjectFile(input){
   const f=input.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=()=>{try{applyProject(JSON.parse(String(r.result||'').replace(/^\ufeff/,'')));}catch(e){console.error(e);alert('JSONを読み込めませんでした。ファイル形式を確認してください。')}};
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(String(r.result||'').replace(/^\ufeff/,'').trim());
+      applyProject(data);
+      try{
+        localStorage.setItem('curvedJackingProject',JSON.stringify(data));
+        localStorage.setItem('curvedJackingGeometry',JSON.stringify(data.alignment?data:(data.geometry||data.geom||data)));
+      }catch(e){}
+      renderHistoryList();
+      openSection('historyStage');
+      alert('\u57fa\u7ddaJSON\u3092\u8aad\u307f\u8fbc\u307f\u307e\u3057\u305f\u3002');
+    }catch(e){
+      console.error(e);
+      alert('JSON\u3092\u8aad\u307f\u8fbc\u3081\u307e\u305b\u3093\u3067\u3057\u305f\u3002PC\u7248\u3067\u4fdd\u5b58\u3057\u305f\u57fa\u7ddaJSON\u3092\u9078\u3073\u76f4\u3057\u3066\u304f\u3060\u3055\u3044\u3002');
+    }finally{
+      input.value='';
+    }
+  };
   r.readAsText(f,'utf-8');
 }
 function readStoredJson(key){
@@ -1630,16 +1649,31 @@ let movableLabelBoxes=[], activeMovableLabel=null, suppressGraphOpenClick=false;
 function graphLabelKey(canvasId,key){return `${canvasId}:${key}`}
 function clearMovableLabels(canvasId){movableLabelBoxes=movableLabelBoxes.filter(b=>b.canvasId!==canvasId)}
 function movableLabelOffset(key){return movableLabelOffsets[key]||(movableLabelOffsets[key]={x:0,y:0})}
-function drawMovableLabel(ctx,canvasId,key,text,x,y,W,H,color='#111827'){
+function drawMovableLabel(ctx,canvasId,key,text,x,y,W,H,color='#111827',anchor=null){
   if(!text)return null;
   const off=movableLabelOffset(graphLabelKey(canvasId,key));
   let lx=x+off.x, ly=y+off.y;
-  const fs=parseInt(ctx.font,10)||12, tw=ctx.measureText(text).width+fs*.9, th=fs*1.55;
+  const fs=parseInt(ctx.font,10)||12, padX=fs*.7, tw=ctx.measureText(text).width+padX*2, th=fs*1.85;
   lx=Math.min(Math.max(lx,4),Math.max(4,W-tw-4));
   ly=Math.min(Math.max(ly,4),Math.max(4,H-th-4));
-  ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(lx,ly,tw,th);
-  ctx.strokeStyle='rgba(15,23,42,.22)';ctx.lineWidth=1;ctx.strokeRect(lx,ly,tw,th);
-  ctx.fillStyle=color;ctx.fillText(text,lx+fs*.45,ly+th*.64);
+  if(anchor){
+    const cx=lx+tw/2, cy=ly+th/2;
+    const edgeX=Math.min(Math.max(anchor.x,lx),lx+tw);
+    const edgeY=Math.min(Math.max(anchor.y,ly),ly+th);
+    ctx.save();
+    ctx.strokeStyle=color;
+    ctx.globalAlpha=.72;
+    ctx.lineWidth=Math.max(1.4,fs*.09);
+    ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    ctx.moveTo(anchor.x,anchor.y);
+    ctx.lineTo(edgeX || cx,edgeY || cy);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle='rgba(255,255,255,.94)';ctx.fillRect(lx,ly,tw,th);
+  ctx.strokeStyle=color;ctx.lineWidth=Math.max(1,fs*.08);ctx.strokeRect(lx,ly,tw,th);
+  ctx.fillStyle=color;ctx.fillText(text,lx+padX,ly+th*.64);
   movableLabelBoxes.push({canvasId,key:graphLabelKey(canvasId,key),x:lx,y:ly,w:tw,h:th});
   return {x:lx,y:ly,w:tw,h:th};
 }
@@ -1658,7 +1692,7 @@ function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
     pts.push({name:`EC${c.id}`,x:c.ec.x,y:c.ec.y});
   });
   if(ep)pts.push(ep);
-  const fs=setGraphFont(ctx,12,true);ctx.textAlign='left';ctx.textBaseline='middle';
+  const fs=setGraphFont(ctx,15,true);ctx.textAlign='left';ctx.textBaseline='middle';
   const line=designScreenPolyline(toS), used=[];
   pts.forEach((p,i)=>{
     const s=toS(p.x,p.y);
@@ -1674,7 +1708,7 @@ function drawPointNameLabels(ctx,toS,visibleOnly=true,W=99999,H=99999){
       if(!best||score>best.score)best={...r,score};
     });
     used.push(best);
-    drawMovableLabel(ctx,ctx.canvas?.id||'canvas',`point:${text}`,text,best.x,best.y,W,H,'#111827');
+    drawMovableLabel(ctx,ctx.canvas?.id||'canvas',`point:${text}`,text,best.x,best.y,W,H,'#111827',s);
   });
 }
 
@@ -1870,28 +1904,31 @@ function isPredictionPoint(p){
 function drawKpActualLine(ctx,toS,pts,W,H){
   const arr=(pts||[]).filter(p=>!isPredictionPoint(p)&&Number.isFinite(p.x)&&Number.isFinite(p.y)).map(p=>({p,s:toS(p.x,p.y)}));
   if(!arr.length)return;
+  const isFs=(ctx.canvas?.id==='fsCanvas');
   ctx.save();
   if(arr.length>=2){
-    ctx.strokeStyle='#7c3aed';ctx.lineWidth=2.5;ctx.setLineDash([]);
+    ctx.strokeStyle='#7c3aed';ctx.lineWidth=isFs?3.5:2.5;ctx.setLineDash([]);
     ctx.beginPath();arr.forEach((o,i)=>{if(i===0)ctx.moveTo(o.s.x,o.s.y);else ctx.lineTo(o.s.x,o.s.y)});ctx.stroke();
   }
-  ctx.font='12px Meiryo';ctx.textAlign='left';ctx.textBaseline='middle';
+  const fs=setGraphFont(ctx,isFs?24:18,true);
+  ctx.textAlign='left';ctx.textBaseline='middle';
   arr.forEach((o,i)=>{
     if(o.s.x<0||o.s.x>W||o.s.y<0||o.s.y>H)return;
-    ctx.fillStyle='#fff';ctx.strokeStyle='#7c3aed';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(o.s.x,o.s.y,5.5,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.strokeStyle='#7c3aed';ctx.lineWidth=isFs?3:2;
+    ctx.beginPath();ctx.arc(o.s.x,o.s.y,isFs?7.5:5.8,0,Math.PI*2);ctx.fill();ctx.stroke();
     const label=o.p.name||('KP'+(i+1));
-    const lx=Math.min(Math.max(o.s.x+8,4),W-42), ly=Math.min(Math.max(o.s.y-10,10),H-10);
-    ctx.fillStyle='rgba(255,255,255,.82)';ctx.fillRect(lx-2,ly-9,ctx.measureText(label).width+6,16);
-    ctx.fillStyle='#4c1d95';ctx.fillText(label,lx,ly);
+    const side=(i%2===0)?1:-1;
+    const lx=o.s.x+side*fs*2.2;
+    const ly=o.s.y-fs*(1.6+(i%3)*.22);
+    drawMovableLabel(ctx,ctx.canvas?.id||'canvas',`actual:${label}`,label,lx,ly,W,H,'#4c1d95',o.s);
   });
   ctx.restore();
 }
 
 function drawPredictionGuide(ctx,toS,W,H,canvasId,fontPx){
-  const pred=window.latestPrediction;
-  const kp1=results.find(p=>!isPredictionPoint(p)&&p.name==='KP1')||results.find(p=>!isPredictionPoint(p));
-  if(!pred||!kp1)return;
+  const pred=window.latestPrediction || (results||[]).find(p=>isPredictionPoint(p));
+  const kp1=(results||[]).find(p=>!isPredictionPoint(p)&&p.name==='KP1')||(results||[]).find(p=>!isPredictionPoint(p));
+  if(!pred||!kp1||!Number.isFinite(pred.x)||!Number.isFinite(pred.y))return;
   const sp=toS(kp1.x,kp1.y), pp=toS(pred.x,pred.y);
   const in1=sp.x>=0&&sp.x<=W&&sp.y>=0&&sp.y<=H;
   const in2=pp.x>=0&&pp.x<=W&&pp.y>=0&&pp.y<=H;
@@ -1904,16 +1941,16 @@ function drawPredictionGuide(ctx,toS,W,H,canvasId,fontPx){
   if(in2){
     ctx.save();
     ctx.fillStyle='#fff';ctx.strokeStyle='#dc2626';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(pp.x,pp.y,canvasId==='fsCanvas'?6:5,0,7);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(pp.x,pp.y,canvasId==='fsCanvas'?8:7,0,Math.PI*2);ctx.fill();ctx.stroke();
     ctx.fillStyle='#dc2626';
     if(typeof setGraphFont==='function'){
-      const fs=setGraphFont(ctx,fontPx||12,true);
+      const fs=setGraphFont(ctx,canvasId==='fsCanvas'?28:20,true);
       const pj=window.latestPredictionJudge;
-      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+fs*.7,pp.y-fs*.7,W,H,'#dc2626');
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+fs*1.7,pp.y-fs*1.7,W,H,'#dc2626',pp);
     }else{
-      ctx.font=(fontPx||12)+'px Meiryo';
+      ctx.font=(canvasId==='fsCanvas'?28:20)+'px Meiryo';
       const pj=window.latestPredictionJudge;
-      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+8,pp.y-8,W,H,'#dc2626');
+      drawMovableLabel(ctx,canvasId,'prediction',pj?(predictionPipeLabel()+' '+(pj.short||fmt(pj.errorMm,0)+'mm')):predictionPipeLabel(),pp.x+36,pp.y-36,W,H,'#dc2626',pp);
     }
     ctx.restore();
   }
@@ -1970,9 +2007,9 @@ function drawCanvas(id,zoom){
     if(s.x<0||s.x>W||s.y<0||s.y>H)return s;
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,4.5,0,7);ctx.fill();
     if(label){
-      const fs=setGraphFont(ctx,11,true);
+      const fs=setGraphFont(ctx,id==='fsCanvas'?24:18,true);
       ctx.fillStyle='#111';ctx.textAlign='left';
-      drawMovableLabel(ctx,id,`kp:${p.name}`,label,s.x+Math.max(dx,fs*.45),s.y+dy,W,H,'#111827');
+      drawMovableLabel(ctx,id,`kp:${p.name}`,label,s.x+Math.max(dx,fs*1.45),s.y-fs*1.35,W,H,'#111827',s);
     }
     return s;
   }
@@ -2010,6 +2047,7 @@ function drawCanvas(id,zoom){
     mark(ep,'#dc2626',5); // EP 赤
 
     results.forEach(r=>dot(r,'#7c3aed',''));
+    drawPredictionGuide(ctx,vp.toS,W,H,id,16);
   }else{
     // 拡大図はKP1〜KP最終と予測箇所が見える範囲だけ。
     drawPointNameLabels(ctx,vp.toS,true,W,H);
@@ -2020,7 +2058,7 @@ function drawCanvas(id,zoom){
         ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
       }
     });
-    drawPredictionGuide(ctx,vp.toS,W,H,id,12);
+    drawPredictionGuide(ctx,vp.toS,W,H,id,16);
     drawNextPointInfo(ctx,vp.toS,W,H);
   }
 }
@@ -2068,12 +2106,13 @@ function drawFullScreenGraph(){
   function dot(p,color,label,dx=8,dy=-8){
     const s=toS(p.x,p.y);
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.fill();
-    if(label){const fs=setGraphFont(ctx,14,true);ctx.fillStyle='#111';drawMovableLabel(ctx,'fsCanvas',`kp:${p.name}`,label,s.x+Math.max(dx,fs*.55),s.y+dy,W,H,'#111827');}
+    if(label){const fs=setGraphFont(ctx,24,true);ctx.fillStyle='#111';drawMovableLabel(ctx,'fsCanvas',`kp:${p.name}`,label,s.x+Math.max(dx,fs*1.55),s.y-fs*1.35,W,H,'#111827',s);}
     return s;
   }
   if(fsMode==='overview'){
     tpPoints.forEach(p=>dot(p,'#7c3aed',''));
     results.forEach(r=>dot(r,'#7c3aed',''));
+    drawPredictionGuide(ctx,toS,W,H,'fsCanvas',18);
   }else{
     drawPointNameLabels(ctx,toS,true,W,H);
     results.filter(r=>!isPredictionPoint(r)).forEach((r,i)=>{
@@ -2081,7 +2120,7 @@ function drawFullScreenGraph(){
       const sf=toS(r.foot.x,r.foot.y);
       ctx.strokeStyle='#111827';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(sp.x,sp.y);ctx.lineTo(sf.x,sf.y);ctx.stroke();ctx.setLineDash([]);
     });
-    drawPredictionGuide(ctx,toS,W,H,'fsCanvas',14);
+    drawPredictionGuide(ctx,toS,W,H,'fsCanvas',18);
     drawNextPointInfo(ctx,toS,W,H);
   }
 }
@@ -2113,7 +2152,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     zoomAt(factor,canvasPoint(e.clientX,e.clientY));
     drawFullScreenGraph();
   },{passive:false});
-  cvs.addEventListener('mousedown',e=>{fsDragging=true;fsLast={x:e.clientX,y:e.clientY};});
+  cvs.addEventListener('mousedown',e=>{
+    if(activeMovableLabel)return;
+    fsDragging=true;fsLast={x:e.clientX,y:e.clientY};
+  });
   window.addEventListener('mousemove',e=>{
     if(!fsDragging)return;
     fsOffX+=(e.clientX-fsLast.x)*window.devicePixelRatio;
@@ -2224,12 +2266,31 @@ function loadHistoryMeasurement(index){
   calculateAll(false);
   showInputStage();
 }
+function deleteHistoryMeasurement(index){
+  const i=Number(index);
+  const data=measurementHistory[i];
+  if(!data){alert('??????????????????');return}
+  const label=`${data.measureDate||'-'} / ${data.pipeCount||'-'}??`;
+  if(!confirm(`${label} ?????????????
+????????????????????????`))return;
+  measurementHistory.splice(i,1);
+  project.measurements=measurementHistory;
+  window.measurementHistory=measurementHistory;
+  try{localStorage.setItem('curvedJackingProject',JSON.stringify(project));}catch(e){}
+  try{
+    const last=JSON.parse(localStorage.getItem('lastMeasurementData')||'null');
+    if(last && String(last.pipeCount||'').trim()===String(data.pipeCount||'').trim())localStorage.removeItem('lastMeasurementData');
+  }catch(e){}
+  Object.keys(historyChecks||{}).forEach(key=>delete historyChecks[key]);
+  renderHistoryList();
+  drawAll();
+}
 function renderHistoryList(){
   const box=document.getElementById('historyList');
   if(!box)return;
-  if(!measurementHistory.length){box.innerHTML='<p class="note">保存済み測量データはありません。</p>';return}
+  if(!measurementHistory.length){box.innerHTML='<p class="note">????????????????</p>';return}
   box.innerHTML=measurementHistory.map((m,i)=>{
-    return `<div class="history-item"><label>${esc(m.measureDate||'-')} / ${esc(m.pipeCount||'-')}本目</label> <button class="secondary" type="button" onclick="loadHistoryMeasurement(${i})">呼出</button></div>`;
+    return `<div class="history-item"><label>${esc(m.measureDate||'-')} / ${esc(m.pipeCount||'-')}??</label> <button class="secondary" type="button" onclick="loadHistoryMeasurement(${i})">??</button> <button class="warn" type="button" onclick="deleteHistoryMeasurement(${i})">??</button></div>`;
   }).join('');
 }
 function historyDateChanged(cb){
@@ -2264,6 +2325,7 @@ function installMovableGraphLabels(){
       const hit=[...movableLabelBoxes].reverse().find(b=>b.canvasId===id&&p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h);
       if(!hit)return;
       event.preventDefault();event.stopPropagation();
+      if(id==='fsCanvas')fsDragging=false;
       suppressGraphOpenClick=true;
       const off=movableLabelOffset(hit.key);
       activeMovableLabel={canvasId:id,key:hit.key,start:p,orig:{x:off.x,y:off.y}};
@@ -2454,7 +2516,7 @@ function saveMeasurement(){
   const data=collectMeasurementData();
   if(!upsertMeasurementData(data,true))return;
   downloadIntegratedProjectFile();
-  showActionMessage('保存ファイルを作成しました。次回は「測量データを開く」から読み込めます。','measurementSaveMessage');
+  showActionMessage('\u4fdd\u5b58\u30d5\u30a1\u30a4\u30eb\u3092\u4f5c\u6210\u3057\u307e\u3057\u305f\u3002\u6b21\u56de\u306f\u300c\u5c65\u6b74\u3092\u958b\u304f\u300d\u304b\u3089\u8aad\u307f\u8fbc\u3081\u307e\u3059\u3002','measurementSaveMessage');
 }
 function downloadIntegratedProjectFile(){
   const blob=new Blob([JSON.stringify(integratedProjectData(),null,2)],{type:'application/json;charset=utf-8'});
@@ -2602,7 +2664,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(dx<-60 && Math.abs(dx)>Math.abs(dy)*1.5)closeNav();
     swipeStart=null;
   },{passive:true});
-  loadProjectFromStorage(window.parent && window.parent !== window);
+  loadProjectFromStorage(true);
   if(!geom){geom=sampleGeometry();renderDebug();calculateAll(false)}
   installMovableGraphLabels();
   updateSideInfo();
@@ -2610,14 +2672,9 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
-<!-- Vr015 mobile measurement final cleanup: single source of truth -->
+<!-- Vr017 mobile measurement controller (consolidated) -->
 <style>
-#measurementInputStage #newFlowNextBtn,
-#measurementInputStage #newFlowConfirmBtn,
-#measurementInputStage #newFlowConfirmArea,
-#measurementInputStage #vr015FlowHost,
-#measurementInputStage #vr015NextBtn,
-#measurementInputStage #vr015GoTpKpBtn{display:none!important}
+/* ── vr015MeasureControls ── */
 #vr015MeasureControls{margin:10px 0;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#fff}
 #vr015MeasureControls .vr015-row{display:grid;grid-template-columns:76px 1fr;align-items:center;border-bottom:1px solid #dbe3ee;min-height:42px}
 #vr015MeasureControls .vr015-row:last-child{border-bottom:0}
@@ -2629,240 +2686,344 @@ window.addEventListener('DOMContentLoaded',()=>{
 #vr015MeasureControls .vr015-two > div:last-child{border-right:0}
 #vr015MeasureControls .step-btn{width:34px;min-width:34px;border:0;border-left:1px solid #dbe3ee;border-radius:0;background:#e2e8f0;color:#0f172a;font-size:20px;font-weight:700;padding:0}
 #vr015MeasureControls .step-btn:disabled{background:#eef2f7;color:#94a3b8}
-#vr015FinalResultWrap{margin-top:12px}
-#vr015FinalResultWrap.vr015-saved{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-#vr015EditMeasurementBtn{width:100%;background:#d97706}
-#vr015FinalResultBtn{width:100%}
-#vr015FinalResultBtn:disabled{background:#94c8a8!important;color:#fff!important;opacity:1!important}
+/* ── 確認ダイアログ ── */
 .vr015-center-modal{position:fixed;inset:0;z-index:10100;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.35);padding:16px}
 .vr015-center-modal .box{background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:16px;max-width:320px;width:100%;text-align:center;box-shadow:0 18px 40px rgba(15,23,42,.2)}
 .vr015-center-modal .text{font-weight:700;line-height:1.7;white-space:pre-line}
+/* ── 履歴ドロップダウン ── */
+#historyList{padding:8px!important;max-height:none!important;overflow:visible!important}
+#historyList .vr015-history-select-row{display:grid;grid-template-columns:1fr;gap:8px}
+#historyList #measurementHistorySelect{width:100%;min-height:46px;font-size:16px;border:1px solid #60a5fa;border-radius:7px;background:#fff;color:#111827;padding:8px 10px}
+#historyList .vr015-history-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#historyList .vr015-history-buttons button{width:100%;min-height:42px;border-radius:7px}
+#historyList .vr015-history-buttons button.danger{background:#b91c1c;color:#fff}
+#historyList .note{margin-top:8px}
+/* ── 保存/結果ボタン ── */
+#vr015FinalResultWrap{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;margin-top:12px!important}
+#vr015SaveOnlyBtn,#vr015ShowResultOnlyBtn{width:100%;min-height:46px;border-radius:8px;font-weight:700}
+#vr015SaveOnlyBtn{background:#15803d;color:#fff}
+#vr015ShowResultOnlyBtn{background:#2563eb;color:#fff}
+#vr015SaveOnlyBtn:disabled,#vr015ShowResultOnlyBtn:disabled{background:#94a3b8!important;color:#fff!important;opacity:1!important}
+/* ── サイドメニュー ── */
+@media(max-width:1024px){
+  .sidebar{width:min(94vw,390px)!important;max-width:calc(100vw - 10px)!important;height:100svh!important;max-height:100svh!important;padding:14px!important;padding-bottom:calc(26px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+  .side-title{position:sticky;top:0;z-index:2;background:#fff;padding:4px 0 10px!important;margin:-4px 0 8px!important}
+  .side-actions,.toc{gap:8px!important}
+  .side-actions button,.toc button{min-height:48px!important}
+}
+.side-title span{font-size:18px;font-weight:800;color:#0f172a}
+.nav-close{display:grid!important;place-items:center!important;width:42px!important;height:42px!important;border-radius:999px!important;background:#0f172a!important;color:#fff!important;font-size:0!important;padding:0!important}
+.nav-close::before{content:"\00d7";font-size:26px;line-height:1}
+.side-info b{min-width:74px;display:inline-block;color:#334155}
+.side-actions{margin-top:12px!important}
+.side-group{border-top:1px solid #d8e0eb;padding-top:10px;margin-top:8px}
+.side-group:first-child{border-top:0;margin-top:0}
+.side-group-title{font-size:13px!important;font-weight:800;color:#334155;margin:0 0 7px!important}
+.side-actions button,.toc button{display:flex!important;align-items:center!important;gap:10px!important;text-align:left!important;border-radius:10px!important;line-height:1.25!important;white-space:normal!important}
+.vr015-menu-icon{width:28px;height:28px;min-width:28px;border-radius:8px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:16px}
+.toc .vr015-menu-icon{background:#e0ecff;color:#1e3a8a}
+.vr015-menu-label{flex:1}
+.toc{border-top:1px solid #d8e0eb;padding-top:10px!important}
+.toc button{background:#f8fafc!important;border:1px solid #cbd5e1!important;color:#0f172a!important}
+.toc button.primary{background:#dbeafe!important;color:#1d4ed8!important;border-color:#93c5fd!important}
 </style>
 <script>
 (function(){
   'use strict';
-  const byId=id=>document.getElementById(id);
-  const digits=v=>String(v ?? '').replace(/[^\d]/g,'');
-  const today=()=>new Date().toISOString().slice(0,10);
-  const section=()=>byId('measurementInputStage');
-  const table=()=>byId('measurementTable');
 
+  // ── ヘルパー ──
+  const byId = id => document.getElementById(id);
+  const digits = v => String(v ?? '').replace(/[^\d]/g, '');
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  // ── showOnly: 指定セクションのみ表示 ──
+  function showOnly(ids, scrollId){
+    document.querySelectorAll('.section-card').forEach(card => {
+      const show = ids.includes(card.id);
+      card.classList.toggle('stage-hidden', !show);
+      card.classList.toggle('collapsed', !show);
+      if(show) card.style.display = '';
+    });
+    if(ids.includes('graphStage')){ try{ drawAll(); }catch(e){} }
+    try{ closeNav(); }catch(e){}
+    const target = byId(scrollId || ids[0]);
+    setTimeout(() => target?.scrollIntoView({block:'start', behavior:'auto'}), 0);
+    setTimeout(() => target?.scrollIntoView({block:'start', behavior:'auto'}), 120);
+  }
+
+  // ── ナビゲーション関数の上書き ──
+  window.openSection = function(id){
+    if(!byId(id)) return;
+    showOnly([id], id);
+  };
+  window.showResultStage = function(){
+    try{ renderSummary(); renderTable(); renderProcess(); }catch(e){ console.error(e); }
+    showOnly(['summaryStage','resultStage','processStage'], 'summaryStage');
+  };
+  window.showInputStage = function(){
+    showOnly(['surveyBaseStage','measurementInputStage'], 'measurementInputStage');
+  };
+
+  // ── 履歴リスト管理 ──
+  const T = {
+    select: '測量データ選択', decide: '決定', delete: '消去', newInput: '新規入力',
+    none: '保存済み測量データはありません。',
+    loaded: '件の測量データを読み込みました。',
+    called: 'を測定数値入力欄へ呼び出しました。',
+    notFound: '履歴データを呼び出せませんでした。基線JSONを読み込み直してください。',
+    deleteAsk: 'の測量履歴を削除しますか？',
+    deleted: '測量履歴を削除しました。'
+  };
+  function histList(){ return Array.isArray(window.measurementHistory)?window.measurementHistory:(typeof measurementHistory!=='undefined'&&Array.isArray(measurementHistory)?measurementHistory:[]); }
+  function syncHistList(next){
+    window.measurementHistory=next;
+    try{ measurementHistory=next; }catch(e){}
+    if(window.project) window.project.measurements=next;
+    try{ if(typeof project!=='undefined'&&project) project.measurements=next; }catch(e){}
+    try{ localStorage.setItem('curvedJackingProject',JSON.stringify(window.project||(typeof project!=='undefined'?project:null))); }catch(e){}
+  }
+  function histLabel(m){ return (m?.measureDate||'-')+' / 測定No.'+(m?.pipeCount||'-'); }
+  function escH(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function sortedIdx(items){ return items.map((m,i)=>({m,i})).sort((a,b)=>(+a.m.pipeCount||0)-(+b.m.pipeCount||0)||String(a.m.measureDate||'').localeCompare(String(b.m.measureDate||''))); }
+
+  window.renderHistoryList = function(){
+    const box = byId('historyList');
+    if(!box) return;
+    const items = histList();
+    if(!items.length){
+      box.innerHTML='<div class="vr015-history-select-row"><label><b>'+T.select+'</b><br><select id="measurementHistorySelect"><option value="__new__">'+T.newInput+'</option></select></label><div class="vr015-history-buttons"><button type="button" class="ok" onclick="loadSelectedMeasurementHistory()">'+T.decide+'</button><button type="button" class="danger" disabled>'+T.delete+'</button></div><div id="historySelectNote" class="note">'+T.none+'</div></div>';
+      return;
+    }
+    const opts = sortedIdx(items).map(x=>'<option value="'+x.i+'">'+escH(histLabel(x.m))+'</option>').join('')+'<option value="__new__">'+T.newInput+'</option>';
+    box.innerHTML='<div class="vr015-history-select-row"><label><b>'+T.select+'</b><br><select id="measurementHistorySelect">'+opts+'</select></label><div class="vr015-history-buttons"><button type="button" class="ok" id="vr015HistoryDecide" onclick="loadSelectedMeasurementHistory()">'+T.decide+'</button><button type="button" class="danger" id="vr015HistoryDelete" onclick="deleteSelectedMeasurementHistory()">'+T.delete+'</button></div><div id="historySelectNote" class="note">'+items.length+T.loaded+'</div></div>';
+  };
+
+  // ── カウント同期 ──
+  function syncCountsFromData(data){
+    if(!data) return;
+    const tpN = String((data.tpRows||[]).length);
+    const kpN = String((data.kpRows||[]).length);
+    ['tpCount','vr015TpCount'].forEach(id=>{ const el=byId(id); if(el) el.value=tpN; });
+    ['kpCount','vr015KpCount'].forEach(id=>{ const el=byId(id); if(el) el.value=kpN; });
+    const pipe=byId('vr015PipeMirror'); if(pipe) pipe.value=String(data.pipeCount||'');
+    const date=byId('vr015DateMirror'); if(date) date.value=String(data.measureDate||'');
+  }
+
+  // ── テーブル編集可否 ──
+  function setTableEditable(editable){
+    document.querySelectorAll('#measurementTable input').forEach(input=>{
+      input.readOnly=!editable; input.disabled=false;
+    });
+  }
+  window.setTableEditable = setTableEditable;
+
+  // ── ボタン状態管理 ──
+  function rowComplete(){
+    const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
+    return rows.length>0 && rows.every(row=>['dist','deg','min','sec'].every(cls=>String(row.querySelector('.'+cls)?.value||'').trim()!==''));
+  }
+  function enableButtons(){
+    const complete=rowComplete(), isHistory=window.__vr015MeasureMode==='history';
+    const save=byId('vr015SaveOnlyBtn'), show=byId('vr015ShowResultOnlyBtn');
+    if(save) save.disabled=!complete;
+    if(show) show.disabled=!(complete||isHistory);
+  }
+  window.enableButtons = enableButtons;
+  function refreshResultButton(){ enableButtons(); }
+  window.refreshResultButton = refreshResultButton;
+
+  function splitButtons(){
+    const stage=byId('measurementInputStage'); if(!stage) return;
+    let wrap=byId('vr015FinalResultWrap');
+    if(!wrap){ wrap=document.createElement('div'); wrap.id='vr015FinalResultWrap'; wrap.className='stage-actions'; stage.appendChild(wrap); }
+    if(!byId('vr015SaveOnlyBtn')||!byId('vr015ShowResultOnlyBtn')){
+      wrap.innerHTML='<button type="button" id="vr015SaveOnlyBtn">保存</button><button type="button" id="vr015ShowResultOnlyBtn">計算結果を表示</button>';
+      byId('vr015SaveOnlyBtn').addEventListener('click',function(){
+        if(!rowComplete()) return;
+        try{ calculateAll(false); }catch(e){ console.error(e); }
+        const data=(typeof collectMeasurementData==='function')?collectMeasurementData():null;
+        if(data&&typeof upsertMeasurementData==='function'&&upsertMeasurementData(data,true)!==false){
+          try{ downloadIntegratedProjectFile?.(); }catch(e){}
+          try{ showActionMessage?.('保存しました。','measurementSaveMessage'); }catch(e){}
+          setupHistoryMode(); enableButtons();
+        }
+      });
+      byId('vr015ShowResultOnlyBtn').addEventListener('click',function(){
+        try{ calculateAll(true); }catch(e){ console.error(e); }
+        if(typeof showResultStage==='function') showResultStage();
+      });
+    }
+    enableButtons();
+  }
+  window.splitButtons = splitButtons;
+
+  // ── 履歴呼び出し（統合版） ──
+  function callHistoryByIndex(index){
+    const items=histList();
+    const data=items[Number(index)];
+    if(!data){ alert(T.notFound); return; }
+    showOnly(['historyStage','measurementInputStage'],'measurementInputStage');
+    try{ applyMeasurementData(data); }catch(e){
+      console.error(e);
+      const tp=byId('tpCount'), kp=byId('kpCount');
+      if(tp) tp.value=String((data.tpRows||[]).length);
+      if(kp) kp.value=String((data.kpRows||[]).length);
+      try{ buildRows(); applyMeasurementData(data); }catch(e2){ console.error(e2); }
+    }
+    try{ calculateAll(false); }catch(e){ console.error(e); }
+    syncCountsFromData(data);
+    setupHistoryMode();
+    splitButtons();
+    enableButtons();
+    const note=byId('historySelectNote');
+    if(note) note.textContent=histLabel(data)+' '+T.called;
+    setTimeout(()=>{
+      showOnly(['historyStage','measurementInputStage'],'measurementInputStage');
+      if(!byId('measurementTable')?.querySelector('tbody tr'))
+        alert('行データが正しく読み込まれませんでした。TP/KP設定を確認してください。');
+    },50);
+  }
+  window.loadHistoryMeasurement = function(index){ callHistoryByIndex(index); };
+  window.loadSelectedMeasurementHistory = function(){
+    const sel=byId('measurementHistorySelect'); if(!sel) return;
+    if(sel.value==='__new__'){
+      try{ newMeasurementData(); }catch(e){ try{ setupNewMode(); }catch(e2){} }
+      showOnly(['historyStage','measurementInputStage'],'measurementInputStage');
+      return;
+    }
+    callHistoryByIndex(sel.value);
+  };
+  window.deleteSelectedMeasurementHistory = function(){
+    const sel=byId('measurementHistorySelect');
+    if(!sel||sel.value==='__new__') return;
+    const idx=Number(sel.value), items=histList(), data=items[idx];
+    if(!data) return;
+    if(!confirm(histLabel(data)+' '+T.deleteAsk)) return;
+    items.splice(idx,1); syncHistList(items);
+    try{ localStorage.removeItem('lastMeasurementData'); }catch(e){}
+    try{ historyChecks={}; }catch(e){}
+    try{ drawAll(); }catch(e){}
+    renderHistoryList();
+    const note=byId('historySelectNote'); if(note) note.textContent=T.deleted;
+  };
+
+  // ── ミラー入力→マスター同期 ──
+  function setNativeControlsFromMirrors(){
+    const pipe=byId('pipeCount'),date=byId('measureDate'),tpM=byId('tpCount'),kpM=byId('kpCount');
+    const pipeV=byId('vr015PipeMirror'),dateV=byId('vr015DateMirror'),tp=byId('vr015TpCount'),kp=byId('vr015KpCount');
+    if(pipe&&pipeV) pipe.value=pipeV.value;
+    if(date&&dateV) date.value=dateV.value;
+    if(tpM&&tp) tpM.value=tp.value||'0';
+    if(kpM&&kp) kpM.value=kp.value||'1';
+  }
+
+  // ── 履歴モード設定（グローバル公開） ──
+  function setupHistoryMode(){
+    window.__vr015MeasureMode='history';
+    ensureControls();
+    const pipe=byId('vr015PipeMirror'),date=byId('vr015DateMirror'),tp=byId('vr015TpCount'),kp=byId('vr015KpCount');
+    if(pipe) pipe.value=byId('pipeCount')?.value||'';
+    if(date) date.value=byId('measureDate')?.value||today();
+    if(tp) tp.value=byId('tpCount')?.value||'0';
+    if(kp) kp.value=byId('kpCount')?.value||'1';
+    [pipe,date,tp,kp].forEach(input=>{ if(input){ input.disabled=true; input.readOnly=true; }});
+    setTableEditable(false);
+    enableButtons();
+  }
+  window.setupHistoryMode = setupHistoryMode;
+
+  // ── センターメッセージ ──
   function centerMessage(message){
     let modal=byId('vr015CenterMessage');
     if(!modal){
-      modal=document.createElement('div');
-      modal.id='vr015CenterMessage';
-      modal.className='vr015-center-modal';
+      modal=document.createElement('div'); modal.id='vr015CenterMessage'; modal.className='vr015-center-modal';
       modal.innerHTML='<div class="box"><div class="text" id="vr015CenterText"></div><button type="button" class="ok" id="vr015CenterOk" style="margin-top:12px">OK</button></div>';
       document.body.appendChild(modal);
       byId('vr015CenterOk').addEventListener('click',()=>{ modal.style.display='none'; });
     }
-    byId('vr015CenterText').textContent=message;
-    modal.style.display='flex';
+    byId('vr015CenterText').textContent=message; modal.style.display='flex';
   }
 
-  function findMeasurementDateRow(){
-    return [...document.querySelectorAll('#measurementInputStage .row')].find(row=>(row.querySelector('label')?.textContent||'').includes('測定日'));
-  }
-
-  function duplicatePipe(pipe){
-    const key=String(pipe||'').trim();
-    return !!key && (window.measurementHistory||[]).some(item=>String(item?.pipeCount||'').trim()===key);
-  }
-
+  // ── コントロールパネル生成 ──
   function removeOldFlowParts(){
     ['newFlowNextBtn','newFlowConfirmBtn','newFlowConfirmArea','vr015FlowHost','vr015NextBtn','vr015GoTpKpBtn','vr015TpKpStandalone','vr015FinalTpKp'].forEach(id=>byId(id)?.remove());
-    document.querySelectorAll('#measurementInputStage > .stage-actions').forEach(el=>{
-      if(el.id!=='vr015FinalResultWrap') el.remove();
-    });
-    const dateRow=findMeasurementDateRow();
+    document.querySelectorAll('#measurementInputStage > .stage-actions').forEach(el=>{ if(el.id!=='vr015FinalResultWrap') el.remove(); });
+    const dateRow=[...document.querySelectorAll('#measurementInputStage .row')].find(row=>(row.querySelector('label')?.textContent||'').includes('測定日'));
     if(dateRow) dateRow.style.display='none';
   }
-
   function ensureControls(){
-    const stage=section();
-    const measureTable=table();
-    if(!stage || !measureTable) return null;
+    const stage=byId('measurementInputStage'), measureTable=byId('measurementTable');
+    if(!stage||!measureTable) return null;
     removeOldFlowParts();
     let controls=byId('vr015MeasureControls');
     if(!controls){
-      controls=document.createElement('div');
-      controls.id='vr015MeasureControls';
+      controls=document.createElement('div'); controls.id='vr015MeasureControls';
       controls.innerHTML=
-        '<div class="vr015-row"><label for="pipeCount">本数</label><input id="vr015PipeMirror" type="number" inputmode="numeric" min="1" step="1"></div>'+ 
-        '<div class="vr015-row"><label for="measureDate">測定日</label><input id="vr015DateMirror" type="date"></div>'+ 
+        '<div class="vr015-row"><label for="pipeCount">本数</label><input id="vr015PipeMirror" type="number" inputmode="numeric" min="1" step="1"></div>'+
+        '<div class="vr015-row"><label for="measureDate">測定日</label><input id="vr015DateMirror" type="date"></div>'+
         '<div class="vr015-two">'+
-          '<div><label for="vr015TpCount">TP数</label><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="-1">−</button><input id="vr015TpCount" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="1">＋</button></div>'+ 
-          '<div><label for="vr015KpCount">KP数</label><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="-1">−</button><input id="vr015KpCount" type="number" inputmode="numeric" min="1" step="1" value="1"><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="1">＋</button></div>'+ 
+          '<div><label for="vr015TpCount">TP数</label><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="-1">−</button><input id="vr015TpCount" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" class="step-btn" data-step-target="vr015TpCount" data-step="1">＋</button></div>'+
+          '<div><label for="vr015KpCount">KP数</label><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="-1">−</button><input id="vr015KpCount" type="number" inputmode="numeric" min="1" step="1" value="1"><button type="button" class="step-btn" data-step-target="vr015KpCount" data-step="1">＋</button></div>'+
         '</div>';
       measureTable.insertAdjacentElement('beforebegin',controls);
     }
-    let wrap=byId('vr015FinalResultWrap');
-    if(!wrap){
-      wrap=document.createElement('div');
-      wrap.id='vr015FinalResultWrap';
-      wrap.className='stage-actions';
-      wrap.innerHTML='<button type="button" class="warn" id="vr015EditMeasurementBtn" style="display:none">測定数値修正</button><button type="button" class="ok" id="vr015FinalResultBtn">保存して計算結果を表示</button>';
-      stage.appendChild(wrap);
-      byId('vr015EditMeasurementBtn').addEventListener('click',()=>{
-        window.__vr015MeasureMode='edit';
-        [byId('vr015PipeMirror'),byId('vr015DateMirror'),byId('vr015TpCount'),byId('vr015KpCount')].forEach(input=>{
-          if(input){ input.disabled=false; input.readOnly=false; input.dataset.vr015Entered='1'; }
-        });
-        document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{ btn.disabled=false; });
-        setTableEditable(true);
-        refreshResultButton();
-        byId('measurementTable')?.scrollIntoView({block:'start'});
-      });
-      byId('vr015FinalResultBtn').addEventListener('click',()=>{
-        if(window.__vr015MeasureMode==='history'){
-          window.calculateAll?.(true);
-          window.showResultStage?.();
-          return;
-        }
-        if(!isMeasurementComplete()) return;
-        const data=window.collectMeasurementData?.();
-        if(data && window.upsertMeasurementData?.(data,true)!==false){
-          window.calculateAll?.(true);
-          window.downloadIntegratedProjectFile?.();
-          window.showActionMessage?.('保存ファイルを作成しました。','measurementSaveMessage');
-          setupHistoryMode();
-          window.showResultStage?.();
-        }
-      });
-    }
     return controls;
-  }
-
-  function setNativeControlsFromMirrors(){
-    const pipe=byId('pipeCount');
-    const date=byId('measureDate');
-    const tpMaster=byId('tpCount');
-    const kpMaster=byId('kpCount');
-    const pipeMirror=byId('vr015PipeMirror');
-    const dateMirror=byId('vr015DateMirror');
-    const tp=byId('vr015TpCount');
-    const kp=byId('vr015KpCount');
-    if(pipe && pipeMirror) pipe.value=pipeMirror.value;
-    if(date && dateMirror) date.value=dateMirror.value;
-    if(tpMaster && tp) tpMaster.value=tp.value || '0';
-    if(kpMaster && kp) kpMaster.value=kp.value || '1';
-  }
-
-  function buildMeasurementRows(){
-    const tp=byId('vr015TpCount');
-    const kp=byId('vr015KpCount');
-    if(!tp || !kp) return;
-    tp.value=digits(tp.value);
-    kp.value=digits(kp.value);
-    if(tp.value==='') tp.value='0';
-    if(kp.value==='' || Number(kp.value)<1) kp.value='1';
-    setNativeControlsFromMirrors();
-    window.buildRows?.();
-    setTableEditable(window.__vr015MeasureMode!=='history');
-    refreshResultButton();
-  }
-  function stepCount(targetId, delta){
-    const input=byId(targetId);
-    if(!input || input.disabled) return;
-    const min=Number(input.min || 0);
-    const current=Number(digits(input.value) || min);
-    input.value=String(Math.max(min,current + delta));
-    input.dataset.vr015Entered='1';
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-    input.focus();
-    setTimeout(()=>input.select?.(),0);
-  }
-
-  function setTableEditable(editable){
-    document.querySelectorAll('#measurementTable input').forEach(input=>{
-      input.readOnly=!editable;
-      input.disabled=false;
-    });
   }
 
   function isMeasurementComplete(){
     const rows=[...document.querySelectorAll('#measurementTable tbody tr')];
     return rows.length>0 && rows.every(row=>['dist','deg','min','sec'].every(cls=>String(row.querySelector('.'+cls)?.value||'').trim()!==''));
   }
-
-  function refreshResultButton(){
-    const btn=byId('vr015FinalResultBtn');
-    if(!btn) return;
-    const editBtn=byId('vr015EditMeasurementBtn');
-    const wrap=byId('vr015FinalResultWrap');
-    if(window.__vr015MeasureMode==='history'){
-      if(editBtn) editBtn.style.display='';
-      wrap?.classList.add('vr015-saved');
-      btn.textContent='計算結果を表示(保存済み)';
-      btn.disabled=false;
-      return;
-    }
-    if(editBtn) editBtn.style.display='none';
-    wrap?.classList.remove('vr015-saved');
-    btn.textContent=window.__vr015MeasureMode==='edit'?'計算結果を表示(未保存)':'保存して計算結果を表示';
-    btn.disabled=!isMeasurementComplete();
+  function duplicatePipe(pipe){ const key=String(pipe||'').trim(); return !!key&&(window.measurementHistory||[]).some(item=>String(item?.pipeCount||'').trim()===key); }
+  function stepCount(targetId,delta){
+    const input=byId(targetId); if(!input||input.disabled) return;
+    const min=Number(input.min||0), current=Number(digits(input.value)||min);
+    input.value=String(Math.max(min,current+delta)); input.dataset.vr015Entered='1';
+    input.dispatchEvent(new Event('input',{bubbles:true})); input.focus(); setTimeout(()=>input.select?.(),0);
   }
-
-  function updateNewGate(showDuplicateMessage){
-    const pipe=byId('vr015PipeMirror');
-    const date=byId('vr015DateMirror');
-    const tp=byId('vr015TpCount');
-    const kp=byId('vr015KpCount');
-    if(!pipe || !date || !tp || !kp) return;
+  function buildMeasurementRows(){
+    const tp=byId('vr015TpCount'), kp=byId('vr015KpCount'); if(!tp||!kp) return;
+    tp.value=digits(tp.value); kp.value=digits(kp.value);
+    if(tp.value==='') tp.value='0';
+    if(kp.value===''||Number(kp.value)<1) kp.value='1';
+    setNativeControlsFromMirrors(); window.buildRows?.();
+    setTableEditable(window.__vr015MeasureMode!=='history'); enableButtons();
+  }
+  function updateNewGate(showDup){
+    const pipe=byId('vr015PipeMirror'),date=byId('vr015DateMirror'),tp=byId('vr015TpCount'),kp=byId('vr015KpCount');
+    if(!pipe||!date||!tp||!kp) return;
     pipe.value=digits(pipe.value);
     if(window.__vr015MeasureMode==='edit'){
       [pipe,date,tp,kp].forEach(input=>{ input.disabled=false; input.readOnly=false; input.dataset.vr015Entered='1'; });
       document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{ btn.disabled=false; });
       setNativeControlsFromMirrors();
-      if(digits(kp.value)!=='') buildMeasurementRows();
-      else refreshResultButton();
+      if(digits(kp.value)!=='') buildMeasurementRows(); else enableButtons();
       return;
     }
-    const hasPipe=pipe.value!=='' && Number(pipe.value)>0;
-    let duplicated=false;
-    if(hasPipe && duplicatePipe(pipe.value)){
-      duplicated=true;
-      if(showDuplicateMessage) centerMessage(`すでに${pipe.value}本目は入力済みです。\n修正する場合は測量履歴から開いてください。`);
-    }
-    const pipeOk=hasPipe && !duplicated;
+    const hasPipe=pipe.value!==''&&Number(pipe.value)>0;
+    let dup=false;
+    if(hasPipe&&duplicatePipe(pipe.value)){ dup=true; if(showDup) centerMessage(`すでに${pipe.value}本目は入力済みです。\n修正する場合は測量履歴から開いてください。`); }
+    const pipeOk=hasPipe&&!dup;
     date.disabled=!pipeOk;
-    const hasDate=pipeOk && String(date.value||'').trim()!=='' && date.dataset.vr015Entered==='1';
-    const hasTp=hasDate && tp.dataset.vr015Entered==='1' && digits(tp.value)!=='';
-    tp.disabled=!hasDate;
-    kp.disabled=!hasTp;
-    document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{
-      const target=byId(btn.dataset.stepTarget);
-      btn.disabled=!target || target.disabled;
-    });
+    const hasDate=pipeOk&&String(date.value||'').trim()!==''&&date.dataset.vr015Entered==='1';
+    const hasTp=hasDate&&tp.dataset.vr015Entered==='1'&&digits(tp.value)!=='';
+    tp.disabled=!hasDate; kp.disabled=!hasTp;
+    document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{ const t=byId(btn.dataset.stepTarget); btn.disabled=!t||t.disabled; });
     setNativeControlsFromMirrors();
-    if(hasTp && !kp.disabled && digits(kp.value)!=='') buildMeasurementRows();
-    else { if(table()) table().innerHTML=''; refreshResultButton(); }
+    if(hasTp&&!kp.disabled&&digits(kp.value)!=='') buildMeasurementRows();
+    else{ const t=byId('measurementTable'); if(t) t.innerHTML=''; enableButtons(); }
   }
+  function bindOnce(el,key,event,handler){ if(!el||el.dataset[key]) return; el.dataset[key]='1'; el.addEventListener(event,handler); }
 
-  function bindOnce(el, key, event, handler){
-    if(!el || el.dataset[key]) return;
-    el.dataset[key]='1';
-    el.addEventListener(event,handler);
-  }
-
+  // ── 新規モード設定（グローバル公開） ──
   function setupNewMode(){
     window.__vr015MeasureMode='new';
     ensureControls();
-    const pipeMaster=byId('pipeCount');
-    const dateMaster=byId('measureDate');
-    const pipe=byId('vr015PipeMirror');
-    const date=byId('vr015DateMirror');
-    const tp=byId('vr015TpCount');
-    const kp=byId('vr015KpCount');
-    if(!pipe || !date || !tp || !kp) return;
-    pipe.value='';
-    date.value=today();
-    tp.value='0';
-    kp.value='1';
-    date.dataset.vr015Entered='0';
-    tp.dataset.vr015Entered='0';
-    kp.dataset.vr015Entered='0';
+    const pipeMaster=byId('pipeCount'),dateMaster=byId('measureDate');
+    const pipe=byId('vr015PipeMirror'),date=byId('vr015DateMirror'),tp=byId('vr015TpCount'),kp=byId('vr015KpCount');
+    if(!pipe||!date||!tp||!kp) return;
+    pipe.value=''; date.value=today(); tp.value='0'; kp.value='1';
+    date.dataset.vr015Entered='0'; tp.dataset.vr015Entered='0'; kp.dataset.vr015Entered='0';
     if(pipeMaster){ pipeMaster.value=''; pipeMaster.disabled=false; pipeMaster.readOnly=false; }
     if(dateMaster){ dateMaster.value=date.value; dateMaster.disabled=true; }
     [date,tp,kp].forEach(input=>{ input.disabled=true; input.readOnly=false; });
@@ -2872,7 +3033,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     bindOnce(date,'vr015FinalChange','change',()=>{ date.dataset.vr015Entered='1'; updateNewGate(false); });
     bindOnce(date,'vr015FinalBlur','blur',()=>{ if(!date.disabled){ date.dataset.vr015Entered='1'; updateNewGate(false); } });
     [tp,kp].forEach(input=>{
-      bindOnce(input,'vr015FinalKey','keydown',event=>{ if(['-','+','.','e','E',','].includes(event.key)) event.preventDefault(); });
+      bindOnce(input,'vr015FinalKey','keydown',ev=>{ if(['-','+','.','e','E',','].includes(ev.key)) ev.preventDefault(); });
       bindOnce(input,'vr015FinalInput','input',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
       bindOnce(input,'vr015FinalChange','change',()=>{ input.dataset.vr015Entered='1'; updateNewGate(false); });
       bindOnce(input,'vr015FinalBlur','blur',()=>{ if(!input.disabled){ input.dataset.vr015Entered='1'; updateNewGate(false); } });
@@ -2880,105 +3041,78 @@ window.addEventListener('DOMContentLoaded',()=>{
       bindOnce(input,'vr015FinalClick','click',()=>setTimeout(()=>input.select?.(),0));
     });
     document.querySelectorAll('#vr015MeasureControls .step-btn').forEach(btn=>{
-      if(btn.dataset.vr015FinalStep) return;
-      btn.dataset.vr015FinalStep='1';
-      btn.addEventListener('click',()=>{
-        stepCount(btn.dataset.stepTarget,Number(btn.dataset.step||0));
-      });
+      if(btn.dataset.vr015FinalStep) return; btn.dataset.vr015FinalStep='1';
+      btn.addEventListener('click',()=>{ stepCount(btn.dataset.stepTarget,Number(btn.dataset.step||0)); });
     });
-    if(table()) table().innerHTML='';
-    refreshResultButton();
+    const mt=byId('measurementTable'); if(mt) mt.innerHTML='';
+    enableButtons();
+  }
+  window.setupNewMode = setupNewMode;
+  window.newMeasurementData = function(){
+    window.openSection?.('measurementInputStage'); setupNewMode();
+    setTimeout(()=>byId('vr015PipeMirror')?.focus(),0);
+  };
+
+  // ── 入力ガード（履歴モード時テンキー無効） ──
+  window.isNumericFocusField = function(target){
+    return !!(target&&target.matches&&target.closest('#measurementTable')&&target.matches('input.dist,input.dms')&&window.__vr015MeasureMode!=='history');
+  };
+  (function(){ const oldShow=window.showNumericKeypad; window.showNumericKeypad=function(source){ if(!window.isNumericFocusField(source)) return; oldShow?.(source); }; })();
+  document.addEventListener('pointerdown',ev=>{
+    if(ev.target?.closest?.('#vr015MeasureControls')){ window.closeNumericKeypad?.(false); const b=byId('numericKeypad'); if(b){ b.classList.remove('visible'); b.setAttribute('aria-hidden','true'); } }
+  },true);
+  document.addEventListener('focusin',ev=>{
+    if(typeof vr015TrackableInput==='function') try{ if(vr015TrackableInput(ev.target)) vr015RememberInput?.(ev.target); }catch(e){}
+    if(ev.target?.closest?.('#vr015MeasureControls')){ window.closeNumericKeypad?.(false); const b=byId('numericKeypad'); if(b){ b.classList.remove('visible'); b.setAttribute('aria-hidden','true'); } }
+  },true);
+  document.addEventListener('input',()=>setTimeout(enableButtons,0),true);
+  document.addEventListener('change',()=>setTimeout(enableButtons,0),true);
+
+  // ── サイドメニュー再構築 ──
+  const J={
+    title:'操作・目次',close:'閉じる',
+    site:'現場名',span:'スパン',date:'測定日',count:'測定本数',
+    base:'トップ',baseLoad:'トップページに戻る',
+    survey:'測量',history:'履歴を開く',newSurvey:'新規測量',
+    save:'保存',result:'計算結果',graph:'図面表示',
+    excel:'Excel連携',excelCopy:'Excelへ貼る表',excelPaste:'Excelから読込',
+    flow:'作業の流れ',baseStage:'初期測量基準',
+    input:'測定数値入力',summary:'ひと目判定',process:'計算過程'
+  };
+  function mIcon(code){ return '<span class="vr015-menu-icon" aria-hidden="true">'+code+'</span>'; }
+  function mLabel(s){ return '<span class="vr015-menu-label">'+s+'</span>'; }
+  function mBtn(code,text,onclick,cls){ return '<button class="'+(cls||'secondary')+'" type="button" onclick="'+onclick+'">'+mIcon(code)+mLabel(text)+'</button>'; }
+  function initSideMenu(){
+    const title=document.querySelector('#sideNav .side-title span'); if(title) title.textContent=J.title;
+    const close=document.querySelector('#sideNav .nav-close'); if(close) close.setAttribute('aria-label',J.close);
+    const keys=[J.site,J.span,J.date,J.count];
+    document.querySelectorAll('#sideInfo b').forEach((b,i)=>{ if(keys[i]) b.textContent=keys[i]; });
+    const actions=document.querySelector('#sideNav .side-actions');
+    if(actions){
+      actions.innerHTML=
+        '<div class="side-group"><div class="side-group-title">'+J.base+'</div>'+mBtn('&#127968;',J.baseLoad,"location.href='00_basic_input.html'")+'</div>'+
+        '<div class="side-group"><div class="side-group-title">'+J.survey+'</div>'+mBtn('&#128338;',J.history,"openSection('historyStage');closeNav()")+mBtn('&#9998;',J.newSurvey,"openSection('measurementInputStage');try{newMeasurementData()}catch(e){};closeNav()",'ok')+'</div>'+
+        '<div class="side-group"><div class="side-group-title">'+J.save+' / '+J.result+'</div>'+mBtn('&#128190;',J.save,"saveMeasurement();closeNav()",'ok')+mBtn('&#128202;',J.result,"calculateAll(true);openSection('resultStage');closeNav()",'ok')+mBtn('&#128506;',J.graph,"openSection('graphStage');closeNav()")+'</div>'+
+        '<div class="side-group"><div class="side-group-title">'+J.excel+'</div>'+mBtn('&#128203;',J.excelCopy,"openExcelBox('copy');closeNav()")+mBtn('&#128229;',J.excelPaste,"openExcelBox('paste');closeNav()")+'</div>'+
+        '<div id="actionMessage" class="action-message" aria-live="polite"></div>';
+    }
+    const toc=document.querySelector('#sideNav .toc');
+    if(toc){
+      const items=[['&#128221;',J.flow,'flowStage','primary'],['&#128207;',J.baseStage,'surveyBaseStage',''],['&#128338;',J.history,'historyStage',''],['&#9000;',J.input,'measurementInputStage',''],['&#128269;',J.summary,'summaryStage',''],['&#128202;',J.result,'resultStage',''],['&#128506;',J.graph,'graphStage','']];
+      toc.innerHTML=items.map(it=>mBtn(it[0],it[1],"openSection('"+it[2]+"');closeNav()",it[3])).join('');
+    }
   }
 
-  function setupHistoryMode(){
-    window.__vr015MeasureMode='history';
-    ensureControls();
-    const pipe=byId('vr015PipeMirror');
-    const date=byId('vr015DateMirror');
-    const tp=byId('vr015TpCount');
-    const kp=byId('vr015KpCount');
-    if(pipe) pipe.value=byId('pipeCount')?.value || '';
-    if(date) date.value=byId('measureDate')?.value || today();
-    if(tp) tp.value=byId('tpCount')?.value || '0';
-    if(kp) kp.value=byId('kpCount')?.value || '1';
-    [pipe,date,tp,kp].forEach(input=>{ if(input){ input.disabled=true; input.readOnly=true; }});
-    setTableEditable(false);
-    refreshResultButton();
-  }
-
-  function installInputGuards(){
-    window.isNumericFocusField=function(target){
-      return !!(target && target.matches && target.closest('#measurementTable') && target.matches('input.dist,input.dms') && window.__vr015MeasureMode!=='history');
-    };
-    const oldShow=window.showNumericKeypad;
-    window.showNumericKeypad=function(source){
-      if(!window.isNumericFocusField(source)) return;
-      oldShow?.(source);
-    };
-    document.addEventListener('pointerdown',event=>{
-      if(event.target?.closest?.('#vr015MeasureControls')){
-        window.closeNumericKeypad?.(false);
-        const box=byId('numericKeypad');
-        if(box){ box.classList.remove('visible'); box.setAttribute('aria-hidden','true'); }
-      }
-    },true);
-    document.addEventListener('focusin',event=>{
-      if(vr015TrackableInput(event.target)) vr015RememberInput(event.target);
-      if(event.target?.closest?.('#vr015MeasureControls')){
-        window.closeNumericKeypad?.(false);
-        const box=byId('numericKeypad');
-        if(box){ box.classList.remove('visible'); box.setAttribute('aria-hidden','true'); }
-      }
-    },true);
-    document.addEventListener('input',event=>{
-      if(event.target?.closest?.('#measurementTable')) refreshResultButton();
-    },true);
-  }
-
-  function installEntryPoints(){
-    window.loadHistoryMeasurement=function(index){
-      const history=Array.isArray(window.measurementHistory)?window.measurementHistory:measurementHistory;
-      const data=history[Number(index)];
-      if(!data){
-        alert('???????????????????JSON?????????????');
-        return;
-      }
-      window.applyMeasurementData?.(data);
-      window.calculateAll?.(false);
-      window.openSection?.('measurementInputStage');
-      setTimeout(()=>{
-        if(!byId('measurementTable')?.querySelector('tbody tr')){
-          const tp=byId('tpCount');
-          const kp=byId('kpCount');
-          if(tp) tp.value=String((data.tpRows||[]).length);
-          if(kp) kp.value=String((data.kpRows||[]).length);
-          window.buildRows?.();
-          window.applyMeasurementData?.(data);
-        }
-        setupHistoryMode();
-        refreshResultButton();
-        const hasRows=!!byId('measurementTable')?.querySelector('tbody tr');
-        if(!hasRows){
-          alert('???????????????????????????TP/KP???????????');
-        }
-      },0);
-    };
-    window.newMeasurementData=function(){
-      window.openSection?.('measurementInputStage');
-      setupNewMode();
-      setTimeout(()=>byId('vr015PipeMirror')?.focus(),0);
-    };
-  }
-
+  // ── 起動 ──
   function boot(){
-    installInputGuards();
-    installEntryPoints();
+    splitButtons();
+    initSideMenu();
+    renderHistoryList();
     setupNewMode();
   }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
-  else boot();
 })();
 </script>
-</body>
-</html>
+
+</body></html>

@@ -1,0 +1,19 @@
+{
+  "name": "M_APP_001 オフライン現場アプリ",
+  "short_name": "M_APP_001",
+  "description": "曲線推進管理システム Vr015 のスマホ・オフライン運用版",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#003366",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
